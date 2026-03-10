@@ -15,9 +15,44 @@ for flight in results.best:
 
 ```bash
 pip install swoop-flights
+
+# With CLI (adds `swoop` command)
+pip install swoop-flights[cli]
 ```
 
-## Usage
+## CLI
+
+Search Google Flights directly from the terminal:
+
+```bash
+# Search flights
+swoop search JFK LAX 2026-06-15
+
+# Nonstop, sorted by price
+swoop search JFK LAX 2026-06-15 --nonstop --sort cheapest
+
+# Roundtrip, business class
+swoop search JFK LAX 2026-06-15 -r 2026-06-22 --cabin business
+
+# JSON output for piping
+swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0].price_usd'
+
+# CSV for spreadsheets
+swoop search JFK LAX 2026-06-15 -o csv -q > flights.csv
+
+# Look up a specific flight
+swoop flight DL2300 -f JFK -t LAX -d 2026-06-15
+
+# See fare tiers for search result #1
+swoop book 1 JFK LAX 2026-06-15
+
+# Filter by airline, time window
+swoop search JFK LAX 2026-06-15 -a DL -a UA --depart-after 8 --depart-before 14
+```
+
+Output formats: `table` (default, colored), `json`, `csv`, `brief`. Use `--help` on any subcommand for all options.
+
+## Python API
 
 ### One-way search
 
@@ -216,6 +251,8 @@ Responses are decoded from nested list structures into typed Python dataclasses.
 
 - **[primp](https://github.com/deedy5/primp)** — HTTP client with browser TLS impersonation
 - **[protobuf](https://pypi.org/project/protobuf/)** — Protocol buffer serialization
+- **[click](https://click.palletsprojects.com/)** — CLI framework (optional, `[cli]` extra)
+- **[rich](https://rich.readthedocs.io/)** — Terminal formatting (optional, `[cli]` extra)
 
 ## License
 

@@ -6,7 +6,7 @@ Python library for searching Google Flights programmatically via the same RPC en
 
 ```bash
 # Install (editable, with dev deps)
-pip install -e ".[validation]"
+pip install -e ".[validation,cli]"
 pip install pytest hypothesis pytest-benchmark
 
 # Test
@@ -55,6 +55,7 @@ One commit per task/phase — not one giant commit at the end. Format: `<type>: 
 ```
 swoop/
 ├── __init__.py       # Public API: search(), search_raw(), dataclasses, version
+├── __main__.py       # `python -m swoop` entry point
 ├── rpc.py            # HTTP client — builds requests, calls Google Flights RPC
 ├── builders.py       # Protobuf request builders (filters, segments)
 ├── decoder.py        # Response decoder — nested lists → dataclasses
@@ -62,10 +63,17 @@ swoop/
 ├── _validate.py      # IATA code validation (optional airportsdata)
 ├── exceptions.py     # Custom exceptions
 ├── flights.proto     # Protobuf schema (ItinerarySummary)
-└── flights_pb2.py    # Generated protobuf code
+├── flights_pb2.py    # Generated protobuf code
+└── cli/
+    ├── __init__.py   # Click group, main() entry point
+    ├── commands.py   # search, flight, book command definitions
+    ├── formatters.py # Table/JSON/CSV/brief output renderers
+    └── utils.py      # Custom Click types, time/date helpers
 ```
 
 **Data flow:** `search()` → `rpc.search_raw()` → Google RPC → `decoder.decode()` → `SearchResult`
+
+**CLI flow:** `swoop search` → `commands.search_cmd()` → `swoop.search()` → `formatters.format_search_table()`
 
 ## File Map
 
@@ -78,8 +86,14 @@ swoop/
 | `_validate.py` | `validate_iata()` with optional airportsdata |
 | `exceptions.py` | `SwoopError`, `SwoopRPCError`, `SwoopValidationError` |
 | `__init__.py` | Public re-exports: `search`, `search_raw`, `SearchLeg`, `SearchResult`, etc. |
+| `cli/__init__.py` | Click group + `main()` entry point |
+| `cli/commands.py` | `search_cmd`, `flight_cmd`, `book_cmd` |
+| `cli/formatters.py` | Rich table, JSON, CSV, brief formatters |
+| `cli/utils.py` | `IATACodeType`, `DateType`, `format_time()`, `format_duration()` |
+| `__main__.py` | `python -m swoop` with graceful ImportError |
 | `tests/test_api_surface.py` | Frozen public API assertions |
 | `tests/factories.py` | Test factories for dataclasses |
+| `tests/test_cli.py` | CLI tests using `CliRunner` |
 
 ## Documentation
 
