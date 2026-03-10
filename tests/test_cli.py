@@ -1,0 +1,577 @@
+"""Tests for swoop CLI commands."""
+
+from unittest.mock import MagicMock, patch
+
+import pytest
+from click.testing import CliRunner
+
+from swoop.cli import main
+from swoop.cli.commands import search_cmd, flight_cmd, book_cmd
+from swoop.cli.utils import format_time, format_duration, format_date_display, format_route, check_past_date, IATACodeType, DateType
+from swoop.decoder import (
+    BookingOption,
+    CarbonEmissions,
+    Flight,
+    Itinerary,
+    Layover,
+    PriceRange,
+    SearchResult,
+)
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+def _make_flight(**overrides) -> Flight:
+    defaults = dict(
+        airline="DL",
+        airline_name="Delta Air Lines",
+        flight_number="2300",
+        departure_airport="JFK",
+        arrival_airport="LAX",
+        departure_time=(8, 30),
+        arrival_time=(11, 45),
+        departure_date=(2026, 6, 15),
+        arrival_date=(2026, 6, 15),
+        travel_time=315,
+        aircraft="Boeing 737-900",
+        legroom="32 inches",
+    )
+    defaults.update(overrides)
+    return Flight(**defaults)
+
+
+def _make_itinerary(**overrides) -> Itinerary:
+    flight = _make_flight()
+    defaults = dict(
+        airline_code="DL",
+        airline_names=["Delta Air Lines"],
+        flights=[flight],
+        layovers=[],
+        travel_time=315,
+        departure_airport="JFK",
+        arrival_airport="LAX",
+        departure_date=(2026, 6, 15),
+        arrival_date=(2026, 6, 15),
+        departure_time=(8, 30),
+        arrival_time=(11, 45),
+        direct_price=247,
+        booking_token="token123",
+        stop_count=0,
+    )
+    defaults.update(overrides)
+    return Itinerary(**defaults)
+
+
+def _make_connecting_itinerary() -> Itinerary:
+    f1 = _make_flight(
+        airline="UA", airline_name="United Airlines", flight_number="1234",
+        departure_airport="JFK", arrival_airport="ORD",
+        departure_time=(10, 15), arrival_time=(12, 20),
+        travel_time=125,
+    )
+    f2 = _make_flight(
+        airline="UA", airline_name="United Airlines", flight_number="5678",
+        departure_airport="ORD", arrival_airport="LAX",
+        departure_time=(14, 20), arrival_time=(15, 20),
+        travel_time=180,
+    )
+    lay = Layover(
+        minutes=120, departure_airport="ORD",
+        departure_airport_name="O'Hare International Airport",
+    )
+    return Itinerary(
+        airline_code="UA",
+        airline_names=["United Airlines"],
+        flights=[f1, f2],
+        layovers=[lay],
+        travel_time=485,
+        departure_airport="JFK",
+        arrival_airport="LAX",
+        departure_date=(2026, 6, 15),
+        arrival_date=(2026, 6, 15),
+        departure_time=(10, 15),
+        arrival_time=(15, 20),
+        direct_price=183,
+        booking_token="token456",
+        stop_count=1,
+    )
+
+
+def _make_search_result(n: int = 3) -> SearchResult:
+    best = [_make_itinerary()]
+    other = []
+    if n >= 2:
+        other.append(_make_itinerary(
+            airline_code="B6",
+            airline_names=["JetBlue"],
+            direct_price=219,
+            departure_time=(9, 0),
+            arrival_time=(12, 30),
+            travel_time=330,
+            flights=[_make_flight(
+                airline="B6", airline_name="JetBlue", flight_number="524",
+                departure_time=(9, 0), arrival_time=(12, 30), travel_time=330,
+            )],
+        ))
+    if n >= 3:
+        other.append(_make_connecting_itinerary())
+    return SearchResult(
+        _raw=[],
+        best=best,
+        other=other,
+        price_range=PriceRange(low=127, high=450),
+    )
+
+
+def _make_booking_options() -> list[BookingOption]:
+    return [
+        BookingOption(price=219, brand_label="Blue Basic", brand_code="BASIC", is_basic=True, fare_family="basic"),
+        BookingOption(price=249, brand_label="Blue", brand_code="STANDARD", is_basic=False, fare_family="standard"),
+        BookingOption(price=289, brand_label="Blue Plus", brand_code="ENHANCED", is_basic=False, fare_family="enhanced"),
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Utils tests
+# ---------------------------------------------------------------------------
+
+
+class TestFormatTime:
+    def test_morning(self):
+        assert format_time(8, 30) == "8:30a"
+
+    def test_afternoon(self):
+        assert format_time(14, 0) == "2:00p"
+
+    def test_midnight(self):
+        assert format_time(0, 0) == "12:00a"
+
+    def test_noon(self):
+        assert format_time(12, 0) == "12:00p"
+
+    def test_single_digit_minutes(self):
+        assert format_time(9, 5) == "9:05a"
+
+
+class TestFormatDuration:
+    def test_hours_and_minutes(self):
+        assert format_duration(315) == "5h 15m"
+
+    def test_hours_only(self):
+        assert format_duration(120) == "2h"
+
+    def test_minutes_only(self):
+        assert format_duration(45) == "45m"
+
+    def test_zero(self):
+        assert format_duration(0) == "0m"
+
+
+class TestFormatDateDisplay:
+    def test_valid_date(self):
+        result = format_date_display("2026-06-15")
+        assert "Jun" in result
+        assert "2026" in result
+
+    def test_invalid_date(self):
+        assert format_date_display("bad") == "bad"
+
+
+class TestFormatRoute:
+    def test_direct(self):
+        itin = _make_itinerary()
+        assert format_route(itin) == "JFK -> LAX"
+
+    def test_connecting(self):
+        itin = _make_connecting_itinerary()
+        assert format_route(itin) == "JFK -> ORD -> LAX"
+
+
+class TestCheckPastDate:
+    def test_future_date(self):
+        assert check_past_date("2099-01-01") is None
+
+    def test_past_date(self):
+        result = check_past_date("2020-01-01")
+        assert result is not None
+        assert "past" in result.lower()
+
+
+class TestIATACodeType:
+    def test_uppercases(self):
+        t = IATACodeType()
+        assert t.convert("jfk", None, None) == "JFK"
+
+    def test_rejects_invalid(self):
+        t = IATACodeType()
+        with pytest.raises(Exception):
+            t.convert("XY", None, None)
+
+
+class TestDateType:
+    def test_valid(self):
+        t = DateType()
+        assert t.convert("2026-06-15", None, None) == "2026-06-15"
+
+    def test_invalid(self):
+        t = DateType()
+        with pytest.raises(Exception):
+            t.convert("2026-13-45", None, None)
+
+
+# ---------------------------------------------------------------------------
+# CLI group tests
+# ---------------------------------------------------------------------------
+
+
+class TestMainGroup:
+    def test_help(self):
+        runner = CliRunner()
+        result = runner.invoke(main, ["--help"])
+        assert result.exit_code == 0
+        assert "search" in result.output
+        assert "flight" in result.output
+        assert "book" in result.output
+
+    def test_no_subcommand_shows_help(self):
+        runner = CliRunner()
+        result = runner.invoke(main, [])
+        assert result.exit_code == 0
+        assert "search" in result.output
+
+    def test_version(self):
+        runner = CliRunner()
+        result = runner.invoke(main, ["--version"])
+        assert result.exit_code == 0
+
+
+# ---------------------------------------------------------------------------
+# Search command tests
+# ---------------------------------------------------------------------------
+
+
+class TestSearchCommand:
+    @patch("swoop.cli.commands._run_search")
+    def test_json_output(self, mock_search):
+        mock_search.return_value = _make_search_result()
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        import json
+        data = json.loads(result.output)
+        assert data["query"]["origin"] == "JFK"
+        assert len(data["results"]) == 3
+        assert data["results"][0]["price_usd"] == 247
+
+    @patch("swoop.cli.commands._run_search")
+    def test_table_output(self, mock_search):
+        mock_search.return_value = _make_search_result()
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "Delta" in result.output
+        assert "$247" in result.output
+        assert "Nonstop" in result.output
+        assert "Tip:" in result.output
+
+    @patch("swoop.cli.commands._run_search")
+    def test_csv_output(self, mock_search):
+        mock_search.return_value = _make_search_result()
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-o", "csv", "-q",
+        ])
+        assert result.exit_code == 0
+        lines = result.output.strip().split("\n")
+        assert "index" in lines[0]  # header
+        assert len(lines) == 4  # header + 3 results
+
+    @patch("swoop.cli.commands._run_search")
+    def test_brief_output(self, mock_search):
+        mock_search.return_value = _make_search_result()
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-o", "brief", "-q",
+        ])
+        assert result.exit_code == 0
+        lines = result.output.strip().split("\n")
+        assert len(lines) == 3
+        assert "$247" in lines[0]
+
+    @patch("swoop.cli.commands._run_search")
+    def test_limit(self, mock_search):
+        mock_search.return_value = _make_search_result()
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-o", "json", "-q", "-l", "1",
+        ])
+        assert result.exit_code == 0
+        import json
+        data = json.loads(result.output)
+        assert len(data["results"]) == 1
+
+    @patch("swoop.cli.commands._run_search")
+    def test_no_results(self, mock_search):
+        mock_search.return_value = None
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 1
+        assert "No flights found" in result.stderr
+
+    def test_bad_iata(self):
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "search", "XY", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 2
+        assert "not a valid IATA" in result.stderr
+
+    def test_bad_date(self):
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-13-45", "-q",
+        ])
+        assert result.exit_code == 2
+        assert "not a valid date" in result.stderr
+
+    @patch("swoop.cli.commands._run_search")
+    def test_nonstop_flag(self, mock_search):
+        mock_search.return_value = _make_search_result(1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "--nonstop", "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        # Verify nonstop was passed
+        _, kwargs = mock_search.call_args
+        assert kwargs["nonstop"] is True
+
+    @patch("swoop.cli.commands._run_search")
+    def test_roundtrip(self, mock_search):
+        mock_search.return_value = _make_search_result(1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-r", "2026-06-22", "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        _, kwargs = mock_search.call_args
+        assert kwargs["return_date"] == "2026-06-22"
+
+    @patch("swoop.cli.commands._run_search")
+    def test_rate_limit_error(self, mock_search):
+        from swoop.exceptions import SwoopRateLimitError
+        mock_search.side_effect = SwoopRateLimitError()
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 3
+        assert "Rate limited" in result.stderr
+
+    @patch("swoop.cli.commands._run_search")
+    def test_http_error(self, mock_search):
+        from swoop.exceptions import SwoopHTTPError
+        mock_search.side_effect = SwoopHTTPError(500)
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 3
+        assert "HTTP 500" in result.stderr
+
+    @patch("swoop.cli.commands._run_search")
+    def test_parse_error(self, mock_search):
+        from swoop.exceptions import SwoopParseError
+        mock_search.side_effect = SwoopParseError("bad")
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 4
+        assert "Could not parse" in result.stderr
+
+    @patch("swoop.cli.commands._run_search")
+    def test_validation_error(self, mock_search):
+        mock_search.side_effect = ValueError("origin must be valid")
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 2
+        assert "origin must be valid" in result.stderr
+
+    @patch("swoop.cli.commands._run_search")
+    def test_airline_filter(self, mock_search):
+        mock_search.return_value = _make_search_result(1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-a", "DL", "-a", "UA", "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        _, kwargs = mock_search.call_args
+        assert kwargs["airline"] == ("DL", "UA")
+
+    @patch("swoop.cli.commands._run_search")
+    def test_case_insensitive_iata(self, mock_search):
+        mock_search.return_value = _make_search_result(1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "jfk", "lax", "2026-06-15", "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        # IATA should be uppercased
+        args = mock_search.call_args[0]
+        assert args[0] == "JFK"
+        assert args[1] == "LAX"
+
+    @patch("swoop.cli.commands._run_search")
+    def test_connecting_flight_table(self, mock_search):
+        """Table output shows layover info for connecting flights."""
+        mock_search.return_value = SearchResult(
+            _raw=[], best=[_make_connecting_itinerary()], other=[],
+        )
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "1 stop" in result.output
+        assert "ORD" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Flight command tests
+# ---------------------------------------------------------------------------
+
+
+class TestFlightCommand:
+    @patch("swoop.search_flight")
+    def test_table_output(self, mock_search):
+        mock_search.return_value = _make_itinerary()
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "flight", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "DL 2300" in result.output
+        assert "$247" in result.output
+
+    @patch("swoop.search_flight")
+    def test_json_output(self, mock_search):
+        mock_search.return_value = _make_itinerary()
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "flight", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15",
+            "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        import json
+        data = json.loads(result.output)
+        assert data["price_usd"] == 247
+
+    @patch("swoop.search_flight")
+    def test_not_found(self, mock_search):
+        mock_search.return_value = None
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "flight", "DL9999", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 1
+        assert "not found" in result.stderr
+
+    def test_missing_required_options(self):
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, ["flight", "DL2300"])
+        assert result.exit_code == 2
+
+
+# ---------------------------------------------------------------------------
+# Book command tests
+# ---------------------------------------------------------------------------
+
+
+class TestBookCommand:
+    @patch("swoop.get_booking_results")
+    @patch("swoop.cli.commands._run_search")
+    def test_table_output(self, mock_search, mock_book):
+        mock_search.return_value = _make_search_result()
+        mock_book.return_value = _make_booking_options()
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "book", "1", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "Blue Basic" in result.output
+        assert "$219" in result.output
+
+    @patch("swoop.get_booking_results")
+    @patch("swoop.cli.commands._run_search")
+    def test_json_output(self, mock_search, mock_book):
+        mock_search.return_value = _make_search_result()
+        mock_book.return_value = _make_booking_options()
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "book", "1", "JFK", "LAX", "2026-06-15", "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        import json
+        data = json.loads(result.output)
+        assert len(data["options"]) == 3
+        assert data["options"][0]["price_usd"] == 219
+
+    @patch("swoop.cli.commands._run_search")
+    def test_index_out_of_range(self, mock_search):
+        mock_search.return_value = _make_search_result(1)
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "book", "99", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 2
+        assert "out of range" in result.stderr
+
+    @patch("swoop.cli.commands._run_search")
+    def test_no_results(self, mock_search):
+        mock_search.return_value = None
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "book", "1", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 1
+        assert "No flights found" in result.stderr
+
+    @patch("swoop.cli.commands._run_search")
+    def test_no_booking_token(self, mock_search):
+        itin = _make_itinerary(booking_token="")
+        mock_search.return_value = SearchResult(_raw=[], best=[itin], other=[])
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "book", "1", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 1
+        assert "No booking token" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# __main__ entry point
+# ---------------------------------------------------------------------------
+
+
+class TestMainModule:
+    def test_python_m_swoop_help(self):
+        """python -m swoop --help should work."""
+        import subprocess
+        result = subprocess.run(
+            ["python", "-m", "swoop", "--help"],
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0
+        assert "search" in result.stdout
