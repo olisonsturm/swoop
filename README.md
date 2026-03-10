@@ -16,9 +16,14 @@ for flight in results.best:
     print(f"${flight.price} — {airline}")
 ```
 
+> [!NOTE]
+> Swoop is not affiliated with Google. It calls undocumented RPC endpoints that can change without notice.
+
 Swoop calls Google Flights' internal `GetShoppingResults` and `GetBookingResults` RPC endpoints — the same ones the web app uses when you search for flights. Requests use TLS fingerprint impersonation via [primp](https://github.com/deedy5/primp) to match a real browser session. Responses are deeply nested lists (matching an internal protobuf schema) decoded into typed Python dataclasses.
 
 [Perch](https://perchtravel.com) uses Swoop in production to monitor booked flights for price drops, saving users an average of $247 per trip.
+
+---
 
 ## Install
 
@@ -131,7 +136,8 @@ for opt in options:
 
 </details>
 
-Both `search()` and `get_booking_results()` accept `retries` and `timeout` parameters for resilience against rate limiting (HTTP 429).
+> [!TIP]
+> Google rate-limits aggressively. Use `retries=3` in production — both `search()` and `get_booking_results()` support `retries` and `timeout` parameters with exponential backoff.
 
 ## How it works
 
@@ -139,8 +145,9 @@ Swoop reverse-engineers the `FlightsFrontendService` RPC interface that powers G
 
 Responses arrive as deeply nested list structures — no field names, just positional indices. Swoop's decoder walks these structures and maps them to typed Python dataclasses (`Itinerary`, `Flight`, `Layover`, `CarbonEmissions`, etc.) with named attributes.
 
-```
-search() → RPC request → Google Flights → nested lists → typed dataclasses
+```mermaid
+graph LR
+    A["search()"] --> B["RPC request"] --> C["Google Flights"] --> D["nested lists"] --> E["typed dataclasses"]
 ```
 
 <details>
