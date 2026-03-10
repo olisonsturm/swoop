@@ -1,7 +1,7 @@
-"""Swoop — Google Flights price scraper.
+"""Swoop — Search Google Flights programmatically.
 
-Search Google Flights programmatically and get structured price data.
-Uses the same internal RPC endpoints as the Google Flights web app.
+Calls Google Flights' internal RPC endpoints with TLS impersonation
+and decodes the nested-list responses into typed Python dataclasses.
 
 Basic usage::
 

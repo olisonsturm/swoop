@@ -1,15 +1,24 @@
 # swoop
 
-Google Flights price scraper. Search flights programmatically using the same RPC endpoints the Google Flights web app uses.
+[![PyPI](https://img.shields.io/pypi/v/swoop-flights)](https://pypi.org/project/swoop-flights/)
+[![Python](https://img.shields.io/pypi/pyversions/swoop-flights)](https://pypi.org/project/swoop-flights/)
+[![License](https://img.shields.io/github/license/saraswatayu/swoop)](https://github.com/saraswatayu/swoop/blob/main/LICENSE)
+[![CI](https://github.com/saraswatayu/swoop/actions/workflows/ci.yml/badge.svg)](https://github.com/saraswatayu/swoop/actions/workflows/ci.yml)
+
+Search Google Flights programmatically. Real prices, typed results, no API key.
 
 ```python
 from swoop import search
 
-results = search("JFK", "LAX", "2026-06-01")
+results = search("JFK", "LAX", "2026-06-15")
 for flight in results.best:
     airline = ", ".join(flight.airline_names)
     print(f"${flight.price} — {airline}")
 ```
+
+Swoop calls Google Flights' internal `GetShoppingResults` and `GetBookingResults` RPC endpoints — the same ones the web app uses when you search for flights. Requests use TLS fingerprint impersonation via [primp](https://github.com/deedy5/primp) to match a real browser session. Responses are deeply nested lists (matching an internal protobuf schema) decoded into typed Python dataclasses.
+
+[Perch](https://perchtravel.com) uses Swoop in production to monitor booked flights for price drops, saving users an average of $247 per trip.
 
 ## Install
 
@@ -22,7 +31,9 @@ pip install swoop-flights[cli]
 
 ## CLI
 
-Search Google Flights directly from the terminal:
+<p align="center">
+  <img src="docs/screenshot.svg" alt="swoop search JFK LAX 2026-06-15" width="750">
+</p>
 
 ```bash
 # Search flights
@@ -37,20 +48,27 @@ swoop search JFK LAX 2026-06-15 -r 2026-06-22 --cabin business
 # JSON output for piping
 swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0].price_usd'
 
-# CSV for spreadsheets
-swoop search JFK LAX 2026-06-15 -o csv -q > flights.csv
+# See fare tiers for search result #1
+swoop book 1 JFK LAX 2026-06-15
+```
 
+<details>
+<summary>More CLI examples</summary>
+
+```bash
 # Look up a specific flight
 swoop flight DL2300 -f JFK -t LAX -d 2026-06-15
 
-# See fare tiers for search result #1
-swoop book 1 JFK LAX 2026-06-15
+# CSV for spreadsheets
+swoop search JFK LAX 2026-06-15 -o csv -q > flights.csv
 
-# Filter by airline, time window
+# Filter by airline and time window
 swoop search JFK LAX 2026-06-15 -a DL -a UA --depart-after 8 --depart-before 14
 ```
 
-Output formats: `table` (default, colored), `json`, `csv`, `brief`. Use `--help` on any subcommand for all options.
+</details>
+
+Run `swoop search --help` for all options.
 
 ## Python API
 
@@ -70,6 +88,9 @@ for flight in results.best:
     print(f"  {flight.travel_time} min total")
 ```
 
+<details>
+<summary>More examples</summary>
+
 ### Roundtrip search
 
 ```python
@@ -88,14 +109,6 @@ results = search(
     max_stops=0,            # nonstop only
     sort=SORT_CHEAPEST,     # cheapest first
     airlines=["NH", "JL"],  # filter to specific carriers
-)
-```
-
-### Time window filtering
-
-```python
-results = search(
-    "JFK", "LHR", "2026-06-15",
     earliest_departure=8,   # depart after 8am
     latest_departure=14,    # depart before 2pm
 )
@@ -116,77 +129,22 @@ for opt in options:
     print(f"${opt.price} — {opt.brand_label} ({opt.fare_family})")
 ```
 
-You can also pass a booking token string with explicit parameters:
+</details>
 
-```python
-options = get_booking_results(
-    itinerary.booking_token,
-    origin="JFK",
-    destination="LAX",
-    date="2026-06-15",
-    selected_legs=[
-        [
-            flight.departure_airport,
-            f"{flight.departure_date[0]}-{flight.departure_date[1]:02d}-{flight.departure_date[2]:02d}",
-            flight.arrival_airport,
-            None,
-            flight.airline,
-            flight.flight_number,
-        ]
-        for flight in itinerary.flights
-    ],
-)
+Both `search()` and `get_booking_results()` accept `retries` and `timeout` parameters for resilience against rate limiting (HTTP 429).
+
+## How it works
+
+Swoop reverse-engineers the `FlightsFrontendService` RPC interface that powers Google Flights. Search parameters are encoded as nested JSON arrays matching Google's internal protobuf schema, then sent as HTTP POST requests. The HTTP client uses TLS fingerprint impersonation (via [primp](https://github.com/deedy5/primp)) so requests are indistinguishable from a real Chrome session.
+
+Responses arrive as deeply nested list structures — no field names, just positional indices. Swoop's decoder walks these structures and maps them to typed Python dataclasses (`Itinerary`, `Flight`, `Layover`, `CarbonEmissions`, etc.) with named attributes.
+
+```
+search() → RPC request → Google Flights → nested lists → typed dataclasses
 ```
 
-### Retry and timeout
-
-```python
-# Retry up to 3 times on HTTP 429 (rate limit) with exponential backoff
-results = search("JFK", "LAX", "2026-06-15", retries=3, timeout=90)
-
-# Same for booking results
-options = get_booking_results(itinerary, retries=2, timeout=60)
-```
-
-### Flight details
-
-Each `Itinerary` contains detailed segment data:
-
-```python
-results = search("JFK", "LAX", "2026-06-15")
-for itinerary in results.best:
-    for flight in itinerary.flights:
-        print(f"{flight.airline} {flight.flight_number}")
-        print(f"  {flight.departure_airport} → {flight.arrival_airport}")
-        print(f"  Aircraft: {flight.aircraft}")
-        print(f"  Legroom: {flight.legroom}")
-        if flight.co2_grams:
-            print(f"  CO₂: {flight.co2_grams}g")
-
-    if itinerary.carbon_emissions:
-        ce = itinerary.carbon_emissions
-        print(f"  Route emissions: {ce.difference_percent}% vs typical")
-
-    if results.price_range:
-        print(f"  Price range: ${results.price_range.low}–${results.price_range.high}")
-```
-
-## Error handling
-
-```python
-from swoop import search, SwoopHTTPError, SwoopRateLimitError, SwoopParseError
-
-try:
-    results = search("JFK", "LAX", "2026-06-15")
-except SwoopRateLimitError:
-    print("Rate limited — wait a few minutes")
-except SwoopHTTPError as e:
-    print(f"HTTP {e.status_code}")
-except SwoopParseError as e:
-    print(f"Parse error: {e}")
-```
-
-## API reference
+<details>
+<summary>API reference</summary>
 
 ### `search(origin, destination, date, **kwargs)`
 
@@ -203,7 +161,7 @@ Search Google Flights and return a `SearchResult`.
 | `max_stops` | `int \| None` | `None` | `None`=any, `0`=nonstop, `1`=1 stop, `2`=2 stops |
 | `sort` | `int` | `SORT_DEPARTURE_TIME` | Sort order constant |
 | `airlines` | `list[str] \| None` | `None` | Filter by airline codes |
-| `include_basic_economy` | `bool` | `False` | Include basic economy fares |
+| `include_basic_economy` | `bool` | `False` | Include basic economy fares (excluded by default so prices reflect Main Cabin) |
 | `timeout` | `int` | `90` | HTTP timeout in seconds |
 | `retries` | `int` | `0` | Retries on HTTP 429 with exponential backoff |
 
@@ -231,28 +189,15 @@ Get fare options for a specific itinerary. Pass an `Itinerary` object directly, 
 | `SORT_ARRIVAL_TIME` | `4` | By arrival time |
 | `SORT_DURATION` | `5` | Shortest first |
 
-## Pricing notes
+### Error handling
 
-Use `itinerary.price` to get the USD price as an integer.
+All exceptions inherit from `SwoopError`. Catch `SwoopRateLimitError` for HTTP 429, `SwoopHTTPError` for other HTTP failures, and `SwoopParseError` for response decoding issues.
 
-By default, `search()` excludes basic economy fares so prices reflect Main Cabin. Pass `include_basic_economy=True` to include them:
+</details>
 
-```python
-results = search("JFK", "LAX", "2026-06-15", include_basic_economy=True)
-```
+## Contributing
 
-## How it works
-
-Swoop uses Google Flights' internal `GetShoppingResults` and `GetBookingResults` RPC endpoints — the same ones the web app calls when you search for flights. Requests are serialized as nested JSON payloads and sent via HTTP POST with browser impersonation (via [primp](https://github.com/deedy5/primp)).
-
-Responses are decoded from nested list structures into typed Python dataclasses.
-
-## Dependencies
-
-- **[primp](https://github.com/deedy5/primp)** — HTTP client with browser TLS impersonation
-- **[protobuf](https://pypi.org/project/protobuf/)** — Protocol buffer serialization
-- **[click](https://click.palletsprojects.com/)** — CLI framework (optional, `[cli]` extra)
-- **[rich](https://rich.readthedocs.io/)** — Terminal formatting (optional, `[cli]` extra)
+Issues and pull requests welcome at [github.com/saraswatayu/swoop](https://github.com/saraswatayu/swoop/issues).
 
 ## License
 
