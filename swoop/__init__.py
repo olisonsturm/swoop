@@ -12,7 +12,7 @@ Basic usage::
         print(f"${flight.price} — {flight.airline_names}")
 """
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 from .decoder import (
     AmenityFlags,
