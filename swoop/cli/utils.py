@@ -92,15 +92,28 @@ def format_date_display(date_str: str) -> str:
         return date_str
 
 
+def _iata_or_short(code: str) -> str:
+    """Return the code if it looks like an IATA code, else truncate."""
+    if re.match(r"^[A-Z]{3}$", code):
+        return code
+    # Fallback: not an IATA code (might be full airport name)
+    return code[:3].upper() if code else "???"
+
+
 def format_route(itin) -> str:
     """Format itinerary route as 'JFK -> ORD -> LAX'."""
-    airports = []
-    if itin.flights:
-        airports.append(itin.flights[0].departure_airport)
-        for f in itin.flights:
-            airports.append(f.arrival_airport)
-    elif itin.departure_airport and itin.arrival_airport:
-        airports = [itin.departure_airport, itin.arrival_airport]
+    # Prefer itinerary-level departure/arrival (always IATA codes)
+    if len(itin.flights) <= 1:
+        dep = itin.departure_airport or (itin.flights[0].departure_airport if itin.flights else "")
+        arr = itin.arrival_airport or (itin.flights[0].arrival_airport if itin.flights else "")
+        return f"{_iata_or_short(dep)} -> {_iata_or_short(arr)}"
+    # Multi-segment: use itinerary endpoints + layover airports
+    airports = [_iata_or_short(itin.departure_airport)]
+    for lay in itin.layovers:
+        airport = lay.departure_airport or lay.arrival_airport
+        if airport:
+            airports.append(_iata_or_short(airport))
+    airports.append(_iata_or_short(itin.arrival_airport))
     return " -> ".join(airports)
 
 
