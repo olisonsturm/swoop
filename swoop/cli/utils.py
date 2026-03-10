@@ -60,8 +60,10 @@ SORT_MAP = {
 CABIN_CHOICES = ["economy", "premium-economy", "business", "first"]
 
 
-def format_time(h: int, m: int) -> str:
+def format_time(h: int | None, m: int | None) -> str:
     """Format hour/minute as '8:30a' or '12:00p'."""
+    h = h or 0
+    m = m or 0
     if h == 0 and m == 0:
         return "12:00a"
     period = "a" if h < 12 else "p"
