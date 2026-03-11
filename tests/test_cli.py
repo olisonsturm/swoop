@@ -7,7 +7,7 @@ from click.testing import CliRunner
 
 from swoop.cli import main
 from swoop import PriceResult
-from swoop.cli.commands import search_cmd, flight_cmd, book_cmd, price_cmd
+from swoop.cli.commands import search_cmd, book_cmd, price_cmd
 from swoop.cli.utils import format_time, format_duration, format_date_display, format_route, check_past_date, IATACodeType, DateType
 from swoop.decoder import (
     BookingOption,
@@ -234,7 +234,7 @@ class TestMainGroup:
         result = runner.invoke(main, ["--help"])
         assert result.exit_code == 0
         assert "search" in result.output
-        assert "flight" in result.output
+        assert "price" in result.output
         assert "book" in result.output
 
     def test_no_subcommand_shows_help(self):
@@ -447,52 +447,6 @@ class TestSearchCommand:
         assert result.exit_code == 0
         assert "1 stop" in result.output
         assert "ORD" in result.output
-
-
-# ---------------------------------------------------------------------------
-# Flight command tests
-# ---------------------------------------------------------------------------
-
-
-class TestFlightCommand:
-    @patch("swoop.search_flight")
-    def test_table_output(self, mock_search):
-        mock_search.return_value = _make_itinerary()
-        runner = CliRunner()
-        result = runner.invoke(main, [
-            "flight", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15", "-q",
-        ])
-        assert result.exit_code == 0
-        assert "DL 2300" in result.output
-        assert "$247" in result.output
-
-    @patch("swoop.search_flight")
-    def test_json_output(self, mock_search):
-        mock_search.return_value = _make_itinerary()
-        runner = CliRunner()
-        result = runner.invoke(main, [
-            "flight", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15",
-            "-o", "json", "-q",
-        ])
-        assert result.exit_code == 0
-        import json
-        data = json.loads(result.output)
-        assert data["price_usd"] == 247
-
-    @patch("swoop.search_flight")
-    def test_not_found(self, mock_search):
-        mock_search.return_value = None
-        runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(main, [
-            "flight", "DL9999", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15", "-q",
-        ])
-        assert result.exit_code == 1
-        assert "not found" in result.stderr
-
-    def test_missing_required_options(self):
-        runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(main, ["flight", "DL2300"])
-        assert result.exit_code == 2
 
 
 # ---------------------------------------------------------------------------

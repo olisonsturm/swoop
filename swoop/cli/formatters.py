@@ -306,65 +306,6 @@ def format_search_brief(
 
 
 # ---------------------------------------------------------------------------
-# Flight detail formatter
-# ---------------------------------------------------------------------------
-
-
-def format_flight_detail(
-    itin,
-    *,
-    no_color: bool = False,
-) -> None:
-    """Render a single flight detail card to stdout."""
-    console = _stdout_console(no_color=no_color)
-    console.print()
-
-    airline = _airline_names(itin)
-    route = format_route(itin)
-    console.print(f" [bold]{airline} · {route}[/bold]")
-    console.print()
-
-    for f in itin.flights:
-        dep = format_time(f.departure_time[0], f.departure_time[1])
-        arr = format_time(f.arrival_time[0], f.arrival_time[1])
-        dur = format_duration(f.travel_time)
-        flight_id = f"{f.airline} {f.flight_number}" if f.airline and f.flight_number else ""
-
-        console.print(f"   [bold]{flight_id}[/bold]  {f.departure_airport_code} -> {f.arrival_airport_code}")
-        console.print(f"   Depart: {dep}   Arrive: {arr}   Duration: {dur}")
-        if f.aircraft:
-            console.print(f"   Aircraft: {f.aircraft}")
-        if f.legroom:
-            console.print(f"   Legroom: {f.legroom}")
-        if f.co2_grams:
-            console.print(f"   CO2: {f.co2_grams:,}g")
-        console.print()
-
-    for lay in itin.layovers:
-        h, m = divmod(lay.minutes, 60)
-        dur = f"{h}h {m:02d}m" if m else f"{h}h"
-        airport = lay.departure_airport_code or lay.arrival_airport_code
-        console.print(f"   [dim]Layover: {dur} at {airport}[/dim]")
-        console.print()
-
-    if itin.price is not None:
-        console.print(f" [bold green]Price: ${itin.price:,}[/bold green]")
-
-    if itin.carbon_emissions and itin.carbon_emissions.this_flight_grams:
-        ce = itin.carbon_emissions
-        kg = ce.this_flight_grams / 1000
-        console.print(f" [dim]Carbon: {kg:.0f} kg CO2[/dim]")
-
-    console.print()
-
-
-def format_flight_json(itin) -> None:
-    """Render a single flight as JSON to stdout."""
-    output = _itin_to_dict(itin, 1)
-    print(json.dumps(output, indent=2))
-
-
-# ---------------------------------------------------------------------------
 # Booking formatters
 # ---------------------------------------------------------------------------
 

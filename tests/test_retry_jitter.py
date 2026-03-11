@@ -24,7 +24,3 @@ class TestRetryDefaults:
     def test_search_default_retries(self):
         sig = inspect.signature(swoop.search)
         assert sig.parameters["retries"].default == 2
-
-    def test_search_flight_default_retries(self):
-        sig = inspect.signature(swoop.search_flight)
-        assert sig.parameters["retries"].default == 2

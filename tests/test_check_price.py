@@ -318,63 +318,6 @@ class TestCheckPriceRoundtrip:
         assert result.price == 650  # Fell back to direct_price
 
 
-class TestSearchFlightReturnFilter:
-    """Test search_flight() filters by return_flight_number."""
-
-    def test_filters_to_matching_return_flight(self):
-        """Only itineraries matching return_flight_number are kept."""
-        matching = Itinerary(
-            flights=[Flight(
-                airline="UA", flight_number="456",
-                departure_airport_code="LAX", arrival_airport_code="JFK",
-                departure_date=(2026, 6, 22), departure_time=(14, 0),
-                arrival_date=(2026, 6, 22), arrival_time=(22, 15),
-            )],
-            direct_price=500,
-        )
-        non_matching = Itinerary(
-            flights=[Flight(
-                airline="DL", flight_number="999",
-                departure_airport_code="LAX", arrival_airport_code="JFK",
-                departure_date=(2026, 6, 22), departure_time=(16, 0),
-                arrival_date=(2026, 6, 23), arrival_time=(0, 15),
-            )],
-            direct_price=450,
-        )
-        result = SearchResult(_raw=[], best=[matching, non_matching], other=[])
-
-        with patch("swoop.search", return_value=result):
-            itin = swoop.search_flight(
-                "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
-                return_date="2026-06-22", return_flight_number="UA456",
-            )
-
-        assert itin is not None
-        assert itin.flights[0].flight_number == "456"
-        assert itin.flights[0].airline == "UA"
-
-    def test_returns_none_when_return_flight_not_found(self):
-        """Returns None when return_flight_number matches nothing."""
-        non_matching = Itinerary(
-            flights=[Flight(
-                airline="DL", flight_number="999",
-                departure_airport_code="LAX", arrival_airport_code="JFK",
-                departure_date=(2026, 6, 22), departure_time=(16, 0),
-                arrival_date=(2026, 6, 23), arrival_time=(0, 15),
-            )],
-            direct_price=450,
-        )
-        result = SearchResult(_raw=[], best=[non_matching], other=[])
-
-        with patch("swoop.search", return_value=result):
-            itin = swoop.search_flight(
-                "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
-                return_date="2026-06-22", return_flight_number="UA456",
-            )
-
-        assert itin is None
-
-
 class TestCheckPriceRetryDefault:
     """check_price inherits the retries=2 default."""
 

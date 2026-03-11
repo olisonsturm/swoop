@@ -37,7 +37,6 @@ class TestFrozenExports:
     EXPECTED_ALL = {
         # Functions
         "search",
-        "search_flight",
         "check_price",
         "get_booking_results",
         "search_raw",
@@ -208,16 +207,6 @@ class TestSearchSignature:
             "selected_outbound_legs",
             "timeout", "retries",
             "exclude_basic_economy",
-        ]
-        assert param_names == expected
-
-    def test_search_flight_params(self):
-        sig = inspect.signature(swoop.search_flight)
-        param_names = list(sig.parameters.keys())
-        expected = [
-            "flight_number", "origin", "destination", "date",
-            "return_date", "return_flight_number",
-            "cabin", "adults", "max_stops", "timeout", "retries",
         ]
         assert param_names == expected
 

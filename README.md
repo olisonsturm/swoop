@@ -64,9 +64,6 @@ swoop book 1 JFK LAX 2026-06-15
 <summary>More CLI examples</summary>
 
 ```bash
-# Look up a specific flight
-swoop flight DL2300 -f JFK -t LAX -d 2026-06-15
-
 # Roundtrip price check
 swoop price DL2300 -f JFK -t LAX -d 2026-06-15 -r 2026-06-22 --return-flight DL2301
 

@@ -1,4 +1,4 @@
-"""Tests for flight number parsing, matching, and search_flight()."""
+"""Tests for flight number parsing, matching, and search() flight_number param."""
 
 from __future__ import annotations
 
@@ -159,74 +159,6 @@ class TestItineraryMatchesFlight:
     def test_empty_flights(self):
         itin = make_itinerary()
         assert itinerary_matches_flight(itin, "DL", "171") is False
-
-
-# ---------------------------------------------------------------------------
-# search_flight() integration tests (monkeypatched search_raw)
-# ---------------------------------------------------------------------------
-
-
-class TestSearchFlight:
-    def test_returns_matching_itinerary(self, monkeypatch):
-        match = make_itinerary(Flight(airline="DL", flight_number="171"))
-        no_match = make_itinerary(Flight(airline="UA", flight_number="500"))
-        result = make_search_result(best=[no_match, match])
-
-        monkeypatch.setattr(swoop, "search_raw", lambda **kw: result)
-        itin = swoop.search_flight("DL 171", origin="JFK", destination="LAX", date="2026-06-01")
-        assert itin is match
-
-    def test_returns_none_on_no_match(self, monkeypatch):
-        no_match = make_itinerary(Flight(airline="UA", flight_number="500"))
-        result = make_search_result(best=[no_match])
-
-        monkeypatch.setattr(swoop, "search_raw", lambda **kw: result)
-        itin = swoop.search_flight("DL 171", origin="JFK", destination="LAX", date="2026-06-01")
-        assert itin is None
-
-    def test_returns_none_when_rpc_returns_none(self, monkeypatch):
-        monkeypatch.setattr(swoop, "search_raw", lambda **kw: None)
-        itin = swoop.search_flight("DL 171", origin="JFK", destination="LAX", date="2026-06-01")
-        assert itin is None
-
-    def test_prefers_best_over_other(self, monkeypatch):
-        best_match = make_itinerary(Flight(airline="DL", flight_number="171"))
-        other_match = make_itinerary(Flight(airline="DL", flight_number="171"))
-        result = make_search_result(best=[best_match], other=[other_match])
-
-        monkeypatch.setattr(swoop, "search_raw", lambda **kw: result)
-        itin = swoop.search_flight("DL 171", origin="JFK", destination="LAX", date="2026-06-01")
-        assert itin is best_match
-
-    def test_falls_back_to_other(self, monkeypatch):
-        other_match = make_itinerary(Flight(airline="DL", flight_number="171"))
-        result = make_search_result(other=[other_match])
-
-        monkeypatch.setattr(swoop, "search_raw", lambda **kw: result)
-        itin = swoop.search_flight("DL 171", origin="JFK", destination="LAX", date="2026-06-01")
-        assert itin is other_match
-
-    def test_auto_carrier_filter(self, monkeypatch):
-        captured = {}
-
-        def fake_rpc(**kwargs):
-            captured.update(kwargs)
-            return None
-
-        monkeypatch.setattr(swoop, "search_raw", fake_rpc)
-        swoop.search_flight("DL 171", origin="JFK", destination="LAX", date="2026-06-01")
-        assert captured["airlines"] == ["DL"]
-
-    def test_number_only_no_carrier_filter(self, monkeypatch):
-        captured = {}
-
-        def fake_rpc(**kwargs):
-            captured.update(kwargs)
-            return None
-
-        monkeypatch.setattr(swoop, "search_raw", fake_rpc)
-        swoop.search_flight("171", origin="JFK", destination="LAX", date="2026-06-01")
-        assert captured["airlines"] is None
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-"""CLI commands for swoop: search, flight, book."""
+"""CLI commands for swoop: search, price, book."""
 
 import click
 from rich.console import Console
@@ -217,93 +217,6 @@ def search_cmd(
         format_search_csv(result, limit=limit)
     elif output_format == "brief":
         format_search_brief(result, limit=limit)
-
-
-@click.command("flight")
-@click.argument("flight_number", type=str)
-@click.option("-f", "--from", "origin", type=IATA_CODE, required=True, help="Departure airport.")
-@click.option("-t", "--to", "destination", type=IATA_CODE, required=True, help="Arrival airport.")
-@click.option("-d", "--date", type=DATE, required=True, help="Departure date.")
-@click.option("-c", "--cabin", type=click.Choice(CABIN_CHOICES, case_sensitive=False), default="economy", show_default=True)
-@click.option("-p", "--passengers", type=int, default=1, show_default=True)
-@click.option("--max-stops", type=click.IntRange(0, 2), default=None)
-@click.option("--timeout", type=int, default=90, show_default=True)
-@click.option("--retries", type=int, default=0, show_default=True)
-@_output_options(["table", "json"])
-@click.pass_context
-def flight_cmd(
-    ctx, flight_number, origin, destination, date,
-    cabin, passengers, max_stops, timeout, retries,
-    output_format, no_color, quiet,
-):
-    """Look up a specific flight.
-
-    \b
-    Examples:
-      swoop flight DL2300 -f JFK -t LAX -d 2026-06-15
-      swoop flight UA1234 -f SFO -t JFK -d 2026-06-15 -o json
-    """
-    import swoop
-    from swoop.exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
-
-    from .formatters import format_flight_detail, format_flight_json
-
-    err = _err_console(no_color)
-
-    warning = check_past_date(date)
-    if warning:
-        err.print(f"[yellow]{warning}[/yellow]")
-
-    try:
-        if not quiet and output_format == "table":
-            with err.status("[bold]Searching flight...[/bold]"):
-                itin = swoop.search_flight(
-                    flight_number,
-                    origin=origin,
-                    destination=destination,
-                    date=date,
-                    cabin=cabin,
-                    adults=passengers,
-                    max_stops=max_stops,
-                    timeout=timeout,
-                    retries=retries,
-                )
-        else:
-            itin = swoop.search_flight(
-                flight_number,
-                origin=origin,
-                destination=destination,
-                date=date,
-                cabin=cabin,
-                adults=passengers,
-                max_stops=max_stops,
-                timeout=timeout,
-                retries=retries,
-            )
-    except ValueError as e:
-        err.print(f"[red]Error: {e}[/red]")
-        ctx.exit(2)
-    except SwoopRateLimitError:
-        err.print("[red]Rate limited. Wait a few minutes. Tip: use --retries 3[/red]")
-        ctx.exit(3)
-    except SwoopHTTPError as e:
-        err.print(f"[red]Google Flights returned HTTP {e.status_code}[/red]")
-        ctx.exit(3)
-    except SwoopParseError:
-        err.print("[red]Could not parse Google Flights response[/red]")
-        ctx.exit(4)
-
-    if itin is None:
-        err.print(
-            f"[yellow]Flight {flight_number} not found on {origin} -> "
-            f"{destination} on {date}.[/yellow]"
-        )
-        ctx.exit(1)
-
-    if output_format == "json":
-        format_flight_json(itin)
-    else:
-        format_flight_detail(itin, no_color=no_color)
 
 
 @click.command("price")

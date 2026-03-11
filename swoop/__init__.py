@@ -266,80 +266,6 @@ def search(
     return result
 
 
-def search_flight(
-    flight_number: str,
-    *,
-    origin: str,
-    destination: str,
-    date: str,
-    return_date: Optional[str] = None,
-    return_flight_number: Optional[str] = None,
-    cabin: str = "economy",
-    adults: int = 1,
-    max_stops: Optional[int] = None,
-    timeout: int = 90,
-    retries: int = 2,
-) -> Optional[Itinerary]:
-    """Search for a specific flight by number.
-
-    Searches Google Flights for the given route and filters to the matching
-    flight number. This is a convenience wrapper around :func:`search`.
-
-    For roundtrip searches, provide ``return_date``. If ``return_flight_number``
-    is given, the return leg is also filtered by flight number.
-
-    Args:
-        flight_number: Flight number (e.g. ``"DL 171"``, ``"DL171"``,
-            or ``"171"``).
-        origin: Origin airport IATA code.
-        destination: Destination airport IATA code.
-        date: Departure date as ``YYYY-MM-DD``.
-        return_date: Return date for roundtrip (default ``None``).
-        return_flight_number: Return flight number to filter (default ``None``).
-        cabin: Cabin class (default ``"economy"``).
-        adults: Number of adult passengers (default 1).
-        max_stops: Maximum stops (default any).
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 2).
-
-    Returns:
-        The matching :class:`Itinerary`, or ``None`` if not found.
-
-    Example::
-
-        from swoop import search_flight
-
-        itin = search_flight("DL 171", origin="JFK", destination="LAX", date="2026-06-15")
-        if itin:
-            print(f"${itin.price}")
-    """
-    result = search(
-        origin,
-        destination,
-        date,
-        return_date=return_date,
-        flight_number=flight_number,
-        cabin=cabin,
-        adults=adults,
-        max_stops=max_stops,
-        timeout=timeout,
-        retries=retries,
-    )
-
-    if return_flight_number is not None and result is not None:
-        ret_carrier, ret_number = parse_flight_number(return_flight_number)
-        result = _filter_by_flight_number(result, ret_carrier, ret_number)
-
-    if result is None:
-        return None
-    # Prefer best over other
-    if result.best:
-        return result.best[0]
-    if result.other:
-        return result.other[0]
-    return None
-
-
 # ---------------------------------------------------------------------------
 # check_price() — targeted price lookup for a known flight.
 # ---------------------------------------------------------------------------
@@ -576,7 +502,6 @@ def check_price(
 __all__ = [
     # Functions
     "search",
-    "search_flight",
     "check_price",
     "get_booking_results",
     "search_raw",
