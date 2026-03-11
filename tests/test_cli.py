@@ -506,11 +506,12 @@ class TestSearchCommand:
 
 class TestPriceCommand:
     @patch("swoop.check_price")
-    def test_price_table_output(self, mock_check):
+    def test_price_positional_args(self, mock_check):
+        """Price command with positional FLIGHT ORIGIN DEST DATE."""
         mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, [
-            "price", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15", "-q",
+            "price", "DL2300", "JFK", "LAX", "2026-06-15", "-q",
         ])
         assert result.exit_code == 0
         assert "$342" in result.output
@@ -520,7 +521,7 @@ class TestPriceCommand:
         mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, [
-            "price", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15",
+            "price", "DL2300", "JFK", "LAX", "2026-06-15",
             "-o", "json", "-q",
         ])
         assert result.exit_code == 0
@@ -533,7 +534,7 @@ class TestPriceCommand:
         mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, [
-            "price", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15",
+            "price", "DL2300", "JFK", "LAX", "2026-06-15",
             "-o", "brief", "-q",
         ])
         assert result.exit_code == 0
@@ -545,14 +546,42 @@ class TestPriceCommand:
         mock_check.return_value = None
         runner = CliRunner(mix_stderr=False)
         result = runner.invoke(main, [
-            "price", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15", "-q",
+            "price", "DL2300", "JFK", "LAX", "2026-06-15", "-q",
         ])
         assert result.exit_code == 1
 
-    def test_price_missing_options(self):
+    def test_price_missing_args(self):
+        """Positional args missing should error."""
         runner = CliRunner(mix_stderr=False)
         result = runner.invoke(main, ["price", "DL2300"])
         assert result.exit_code == 2
+
+    @patch("swoop.check_price")
+    def test_price_leg_syntax(self, mock_check):
+        """--leg repeated syntax works."""
+        mock_check.return_value = PriceResult(price=684, fare_brand="Main Cabin", rpc_calls=3)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "price",
+            "--leg", "JFK", "LAX", "2026-06-15", "DL2300",
+            "--leg", "LAX", "JFK", "2026-06-22", "DL2301",
+            "-q",
+        ])
+        assert result.exit_code == 0
+        assert "$684" in result.output
+        call_kwargs = mock_check.call_args
+        assert call_kwargs[1]["return_flight_number"] == "DL2301"
+        assert call_kwargs[1]["return_date"] == "2026-06-22"
+
+    def test_price_positional_and_leg_error(self):
+        """Positional + --leg is an error."""
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "price", "DL2300", "JFK", "LAX", "2026-06-15",
+            "--leg", "JFK", "LAX", "2026-06-15", "DL2300",
+        ])
+        assert result.exit_code == 2
+        assert "cannot be used together" in result.stderr
 
 
 # ---------------------------------------------------------------------------

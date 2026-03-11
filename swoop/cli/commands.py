@@ -306,12 +306,14 @@ def search_cmd(
 
 
 @click.command("price")
-@click.argument("flight_number", type=str)
-@click.option("-f", "--from", "origin", type=IATA_CODE, required=True, help="Departure airport.")
-@click.option("-t", "--to", "destination", type=IATA_CODE, required=True, help="Arrival airport.")
-@click.option("-d", "--date", type=DATE, required=True, help="Departure date.")
-@click.option("-r", "--return", "return_date", type=DATE, default=None, help="Return date (roundtrip).")
+@click.argument("flight_number", type=str, required=False, default=None)
+@click.argument("origin", type=IATA_CODE, required=False, default=None)
+@click.argument("destination", type=IATA_CODE, required=False, default=None)
+@click.argument("date", type=DATE, required=False, default=None)
+@click.option("-r", "--return-date", type=DATE, default=None, help="Return date (roundtrip).")
 @click.option("--return-flight", type=str, default=None, help="Return flight number.")
+@click.option("--leg", multiple=True, type=(IATA_CODE, IATA_CODE, DATE, str),
+              help="Explicit leg: ORIGIN DEST DATE FLIGHT (repeatable).")
 @click.option("-c", "--cabin", type=click.Choice(CABIN_CHOICES, case_sensitive=False), default="economy", show_default=True)
 @click.option("-p", "--passengers", type=int, default=1, show_default=True)
 @click.option("--max-stops", type=click.IntRange(0, 2), default=None)
@@ -322,7 +324,7 @@ def search_cmd(
 @click.pass_context
 def price_cmd(
     ctx, flight_number, origin, destination, date,
-    return_date, return_flight, cabin, passengers, max_stops,
+    return_date, return_flight, leg, cabin, passengers, max_stops,
     include_basic, timeout, retries,
     output_format, no_color, quiet,
 ):
@@ -331,10 +333,14 @@ def price_cmd(
     Uses minimal RPC calls (1 for one-way, 3 for roundtrip).
 
     \b
-    Examples:
-      swoop price DL2300 -f JFK -t LAX -d 2026-06-15
-      swoop price DL2300 -f JFK -t LAX -d 2026-06-15 -r 2026-06-22 --return-flight DL2301
-      swoop price DL2300 -f JFK -t LAX -d 2026-06-15 -o json
+    Simple syntax (positional args):
+      swoop price DL2300 JFK LAX 2026-06-15
+      swoop price DL2300 JFK LAX 2026-06-15 -r 2026-06-22
+      swoop price DL2300 JFK LAX 2026-06-15 -r 2026-06-22 --return-flight DL2301
+
+    \b
+    Multi-leg syntax (--leg):
+      swoop price --leg JFK LAX 2026-06-15 DL2300 --leg LAX JFK 2026-06-22 DL2301
     """
     import swoop
     from swoop.exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
@@ -342,6 +348,45 @@ def price_cmd(
     from .formatters import format_price_brief, format_price_json, format_price_table
 
     err = _err_console(no_color)
+
+    # Validate: positional args and --leg are mutually exclusive
+    has_positional = flight_number is not None
+    has_leg = len(leg) > 0
+
+    if has_positional and has_leg:
+        err.print("[red]Error: positional args and --leg cannot be used together.[/red]")
+        ctx.exit(2)
+        return
+
+    if has_leg:
+        # --leg syntax: each tuple is (origin, dest, date, flight_number)
+        if len(leg) == 1:
+            leg_origin, leg_dest, leg_date, leg_flight = leg[0]
+            flight_number = leg_flight
+            origin = leg_origin
+            destination = leg_dest
+            date = leg_date
+        elif len(leg) == 2:
+            leg_origin, leg_dest, leg_date, leg_flight = leg[0]
+            ret_origin, ret_dest, ret_date, ret_flight = leg[1]
+            flight_number = leg_flight
+            origin = leg_origin
+            destination = leg_dest
+            date = leg_date
+            return_date = ret_date
+            return_flight = ret_flight
+        else:
+            err.print("[red]Error: at most 2 --leg options are supported.[/red]")
+            ctx.exit(2)
+            return
+    elif not has_positional:
+        err.print("[red]Error: provide FLIGHT ORIGIN DEST DATE or use --leg.[/red]")
+        ctx.exit(2)
+        return
+    elif origin is None or destination is None or date is None:
+        err.print("[red]Error: FLIGHT_NUMBER ORIGIN DESTINATION DATE are all required.[/red]")
+        ctx.exit(2)
+        return
 
     warning = check_past_date(date)
     if warning:
@@ -395,7 +440,7 @@ def price_cmd(
     if result is None:
         trip = f"{origin} -> {destination}"
         if return_date:
-            trip += f" (roundtrip)"
+            trip += " (roundtrip)"
         err.print(
             f"[yellow]Flight {flight_number} not found on {trip} "
             f"on {date}.[/yellow]"
