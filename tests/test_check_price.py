@@ -217,6 +217,53 @@ class TestCheckPriceRoundtrip:
         assert len(search_raw_calls) == 2
         assert search_raw_calls[1]["airlines"] is None
 
+    def test_roundtrip_include_basic_economy(self):
+        """With include_basic_economy=True, basic fares are eligible."""
+        outbound_itin = Itinerary(
+            flights=[Flight(
+                airline="DL", flight_number="2300",
+                departure_airport_code="JFK", arrival_airport_code="LAX",
+                departure_date=(2026, 6, 15), departure_time=(8, 30),
+                arrival_date=(2026, 6, 15), arrival_time=(11, 45),
+            )],
+            direct_price=342,
+            booking_token="outbound-token",
+        )
+        return_itin = Itinerary(
+            flights=[Flight(
+                airline="DL", flight_number="2301",
+                departure_airport_code="LAX", arrival_airport_code="JFK",
+                departure_date=(2026, 6, 22), departure_time=(14, 0),
+                arrival_date=(2026, 6, 22), arrival_time=(22, 15),
+            )],
+            direct_price=684,
+            booking_token="return-token",
+        )
+
+        outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
+        return_result = SearchResult(_raw=[], best=[return_itin], other=[])
+        booking_options = [
+            BookingOption(price=684, brand_label="Main Cabin", is_basic=False),
+            BookingOption(price=580, brand_label="Basic Economy", is_basic=True),
+        ]
+
+        def mock_search_raw(*args, **kwargs):
+            if kwargs.get("selected_outbound_legs") is not None:
+                return return_result
+            return outbound_result
+
+        with patch("swoop.search_raw", side_effect=mock_search_raw), \
+             patch("swoop.get_booking_results", return_value=booking_options):
+            result = check_price(
+                "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
+                return_flight_number="DL2301", return_date="2026-06-22",
+                include_basic_economy=True,
+            )
+
+        assert result is not None
+        assert result.price == 580
+        assert result.is_basic_economy is True
+
     def test_roundtrip_returns_none_when_outbound_not_found(self):
         """Returns None if outbound flight not found."""
         empty_result = SearchResult(_raw=[], best=[], other=[])

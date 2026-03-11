@@ -10,6 +10,7 @@ from dataclasses import fields
 import pytest
 
 import swoop
+from swoop import PriceResult
 from swoop.decoder import (
     BookingOption,
     CarbonEmissions,
@@ -173,6 +174,10 @@ class TestFrozenDataclassFields:
         expected = {"low", "high"}
         assert self._field_names(PriceRange) == expected
 
+    def test_price_result_fields(self):
+        expected = {"price", "fare_brand", "is_basic_economy", "booking_options", "itinerary", "rpc_calls"}
+        assert self._field_names(PriceResult) == expected
+
 
 class TestSearchSignature:
     """Verify search() accepts the expected parameters."""
@@ -213,6 +218,17 @@ class TestSearchSignature:
             "flight_number", "origin", "destination", "date",
             "return_date", "return_flight_number",
             "cabin", "adults", "max_stops", "timeout", "retries",
+        ]
+        assert param_names == expected
+
+    def test_check_price_params(self):
+        sig = inspect.signature(swoop.check_price)
+        param_names = list(sig.parameters.keys())
+        expected = [
+            "flight_number", "origin", "destination", "date",
+            "return_flight_number", "return_date",
+            "cabin", "adults", "max_stops", "include_basic_economy",
+            "timeout", "retries",
         ]
         assert param_names == expected
 
