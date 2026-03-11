@@ -270,7 +270,7 @@ def search_trip_options(
     adults: int = 1,
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
-    correct_prices: bool = True,
+    correct_prices: bool = False,
     timeout: int = 90,
     retries: int = 2,
 ) -> SearchResult:

@@ -1,6 +1,7 @@
 """CLI commands for swoop: search and price."""
 
 import click
+import shlex
 from rich.console import Console
 
 from .utils import (
@@ -105,6 +106,77 @@ def _price_trip_selector(selector, *, timeout, retries):
     from swoop._selection import price_trip_selector
 
     return price_trip_selector(selector, timeout=timeout, retries=retries)
+
+
+def _shell_join(parts):
+    """Shell-quote a command for copy/paste output."""
+    return " ".join(shlex.quote(str(part)) for part in parts)
+
+
+def _build_search_price_hint_command(
+    *,
+    origin,
+    destination,
+    date,
+    leg,
+    return_date,
+    cabin,
+    passengers,
+    sort,
+    nonstop,
+    max_stops,
+    airline,
+    flight_number,
+    include_basic,
+    depart_after,
+    depart_before,
+    arrive_after,
+    arrive_before,
+    return_depart_after,
+    return_depart_before,
+) -> str:
+    """Build a copy/paste rerun command for exact pricing of a search row."""
+    command = ["swoop", "search"]
+
+    if leg:
+        for leg_origin, leg_destination, leg_date in leg:
+            command.extend(["--leg", leg_origin, leg_destination, leg_date])
+    else:
+        command.extend([origin, destination, date])
+        if return_date is not None:
+            command.extend(["-r", return_date])
+
+    if cabin != "economy":
+        command.extend(["--cabin", cabin])
+    if passengers != 1:
+        command.extend(["--passengers", passengers])
+    if sort != "departure":
+        command.extend(["--sort", sort])
+    if nonstop:
+        command.append("--nonstop")
+    elif max_stops is not None:
+        command.extend(["--max-stops", max_stops])
+    for carrier in airline:
+        command.extend(["--airline", carrier])
+    if flight_number is not None:
+        command.extend(["--flight", flight_number])
+    if include_basic:
+        command.append("--include-basic")
+    if depart_after is not None:
+        command.extend(["--depart-after", depart_after])
+    if depart_before is not None:
+        command.extend(["--depart-before", depart_before])
+    if arrive_after is not None:
+        command.extend(["--arrive-after", arrive_after])
+    if arrive_before is not None:
+        command.extend(["--arrive-before", arrive_before])
+    if return_depart_after is not None:
+        command.extend(["--return-depart-after", return_depart_after])
+    if return_depart_before is not None:
+        command.extend(["--return-depart-before", return_depart_before])
+
+    command.extend(["--price", "1"])
+    return _shell_join(command)
 
 
 def _query_legs_from_price_result(result):
@@ -398,6 +470,27 @@ def search_cmd(
         cabin=cabin, adults=passengers, return_date=display_return_date,
         legs=leg if has_leg else None,
         limit=limit,
+        price_hint_command=_build_search_price_hint_command(
+            origin=origin,
+            destination=destination,
+            date=date,
+            leg=leg,
+            return_date=return_date,
+            cabin=cabin,
+            passengers=passengers,
+            sort=sort,
+            nonstop=nonstop,
+            max_stops=max_stops,
+            airline=airline,
+            flight_number=flight_number,
+            include_basic=include_basic,
+            depart_after=depart_after,
+            depart_before=depart_before,
+            arrive_after=arrive_after,
+            arrive_before=arrive_before,
+            return_depart_after=return_depart_after,
+            return_depart_before=return_depart_before,
+        ),
     )
 
     # If --price is set, drill down into that result
@@ -453,7 +546,11 @@ def search_cmd(
     elif output_format == "csv":
         format_search_csv(result, limit=limit)
     elif output_format == "brief":
-        format_search_brief(result, limit=limit)
+        format_search_brief(
+            result,
+            limit=limit,
+            price_hint_command=fmt_kwargs["price_hint_command"],
+        )
 
 
 @click.command("price")

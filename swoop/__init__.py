@@ -56,7 +56,6 @@ from typing import Optional
 
 from ._selection import (
     build_request_legs_from_selected,
-    correct_trip_option_prices,
     price_selected_trip,
     price_trip_selector,
     resolve_selected_trip,
@@ -147,7 +146,7 @@ def _search_with_normalized_legs(
     include_basic_economy: bool = False,
     timeout: int = 90,
     retries: int = 2,
-    correct_roundtrip_prices: bool = True,
+    correct_roundtrip_prices: bool = False,
 ) -> Optional[SearchResult]:
     """Execute a staged trip search from normalized leg definitions."""
     return search_trip_options(
@@ -187,7 +186,7 @@ def search_legs(
         retries: Number of retries on HTTP 429 (default 2).
 
     Returns:
-        A trip-level :class:`SearchResult`.
+        A trip-level :class:`SearchResult` with shopping totals.
     """
     _validate_leg_search_inputs(legs, cabin=cabin, adults=adults)
 
@@ -267,7 +266,7 @@ def search(
             and jitter (default 2).
 
     Returns:
-        A trip-level :class:`SearchResult`.
+        A trip-level :class:`SearchResult` with shopping totals.
 
     Raises:
         SwoopHTTPError: If Google Flights returns a non-200 response.
@@ -347,24 +346,13 @@ def search(
         adults=adults,
         sort=sort,
         include_basic_economy=include_basic_economy,
-        correct_roundtrip_prices=parsed_number is None,
+        correct_roundtrip_prices=False,
         timeout=timeout,
         retries=retries,
     )
 
     if parsed_number is not None:
-        result = _filter_trip_options_by_flight_number(result, parsed_carrier, parsed_number)
-        if cabin == "economy" and not include_basic_economy and result.results:
-            correct_trip_option_prices(
-                result,
-                request_legs=request_legs,
-                include_basic_economy=include_basic_economy,
-                cabin=cabin,
-                adults=adults,
-                timeout=timeout,
-                retries=retries,
-            )
-        return result
+        return _filter_trip_options_by_flight_number(result, parsed_carrier, parsed_number)
     return result
 
 

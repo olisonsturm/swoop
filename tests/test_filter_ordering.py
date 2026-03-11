@@ -1,4 +1,4 @@
-"""Test that search() filters by flight_number before correcting roundtrip prices."""
+"""Test that search() stays shopping-only while filtering by flight_number."""
 
 from unittest.mock import patch
 
@@ -7,11 +7,11 @@ from swoop import SearchResult, TripLeg, TripOption
 from swoop.decoder import Flight, Itinerary
 
 
-class TestFilterBeforeCorrectOrdering:
-    """Verify filter-before-correct reduces RPC calls for roundtrip + flight_number."""
+class TestSearchUsesShoppingPrices:
+    """Verify search() does not run exact-price correction."""
 
-    def test_filter_before_correct_reduces_rpc_calls(self):
-        """When flight_number is given, filtering happens before price correction."""
+    def test_roundtrip_search_skips_price_correction(self):
+        """Roundtrip search should return shopping rows without correction."""
         matching_itin = Itinerary(
             flights=[Flight(airline="DL", flight_number="2300")],
             direct_price=342,
@@ -37,14 +37,8 @@ class TestFilterBeforeCorrectOrdering:
             ],
         )
 
-        corrected_selectors = []
-
-        def mock_correct_trip_option_prices(filtered_result, **kwargs):
-            corrected_selectors.extend(option.selector for option in filtered_result.results)
-
         with (
             patch("swoop.search_trip_options", return_value=result) as mock_search_trip_options,
-            patch("swoop.correct_trip_option_prices", side_effect=mock_correct_trip_option_prices),
         ):
             output = swoop.search(
                 "JFK", "LAX", "2026-06-15",
@@ -54,4 +48,3 @@ class TestFilterBeforeCorrectOrdering:
 
         assert mock_search_trip_options.call_args.kwargs["correct_prices"] is False
         assert [option.selector for option in output.results] == ["selector-2"]
-        assert corrected_selectors == ["selector-2"]

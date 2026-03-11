@@ -95,7 +95,7 @@ swoop search JFK LAX 2026-06-15 -a DL -a UA --depart-after 8 --depart-before 14
 Run `swoop search --help` for all options.
 
 > [!TIP]
-> Use `--price N` when you're reading tables yourself. Use `selector` plus `swoop price --selector ...` when you're scripting, because row numbers are not stable.
+> Search shows shopping totals for browsing. Use `--price N` when you're reading tables yourself, and use `selector` plus `swoop price --selector ...` when you're scripting.
 
 ## Python API
 
@@ -118,6 +118,8 @@ for option in results.results[:3]:
 
 print(results.is_complete)
 ```
+
+`search()` and `search_legs()` return shopping totals. Use `check_price()`, `price_legs()`, or selector-based pricing when you need the exact bookable fare for one chosen itinerary.
 
 <details>
 <summary>More examples</summary>
@@ -247,7 +249,7 @@ Search Google Flights and return a `SearchResult`.
 | `timeout` | `int` | `90` | HTTP timeout in seconds |
 | `retries` | `int` | `2` | Retries on HTTP 429 with exponential backoff + jitter |
 
-Returns `SearchResult`. Empty results mean no matches were found.
+Returns `SearchResult`. Empty results mean no matches were found. Prices in search results are shopping totals.
 
 ### `search_legs(legs, **kwargs)`
 

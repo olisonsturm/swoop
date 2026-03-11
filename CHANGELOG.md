@@ -38,17 +38,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Filter by flight number before correcting roundtrip prices (avoids unnecessary RPC calls)
 - Don't filter return flights by outbound airline in `check_price()` roundtrip path
 - Swap arrival airport decoder indices to match current Google Flights response format
 - Remove unnecessary `verify=False` from TLS client
 - Pin `protobuf>=6.31.1` to match generated code — fixes install failures on older protobuf versions ([#1](https://github.com/saraswatayu/swoop/issues/1))
+- Quiet booking-parser dropped-option logs when usable fare options still exist
 
 ### Changed
 
 - `price` CLI command uses positional args (`FLIGHT ORIGIN DEST DATE`) instead of flags
 - **Breaking:** public `SearchResult` is now trip-level with `results`, `price_range`, and `is_complete`
 - `search()` and `search_legs()` now return complete trip rows instead of single-pass raw itinerary buckets
+- `search()` and `search_legs()` now show shopping totals by default; exact pricing happens via `price`, `--price`, `--price-selector`, or selectors
 - `search_raw()` remains the low-level escape hatch and now returns `RawSearchResult`
 - `search_legs()` and `price_legs()` now accept 3+ legs
 - `search()` signature unchanged; `check_price()` now populates `resolved_legs`

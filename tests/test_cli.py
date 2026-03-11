@@ -278,6 +278,7 @@ class TestSearchCommand:
         import json
         data = json.loads(result.output)
         assert data["query"]["origin"] == "JFK"
+        assert data["price_source"] == "shopping"
         assert len(data["results"]) == 3
         assert data["results"][0]["price_usd"] == 247
         assert data["results"][0]["selector"] == "selector-1"
@@ -293,9 +294,9 @@ class TestSearchCommand:
         assert result.exit_code == 0
         assert "DL 2300" in result.output  # flight_summary
         assert "Nonstop" in result.output
-        assert "Tip:" in result.output
+        assert "Prices shown are shopping totals" in result.output
         assert "--price 1" in result.output
-        assert "--price-selector" in result.output
+        assert "swoop search JFK LAX 2026-06-15 --price 1" in result.output
 
     @patch("swoop.cli.commands._run_search")
     def test_csv_output(self, mock_search):
@@ -319,9 +320,11 @@ class TestSearchCommand:
         ])
         assert result.exit_code == 0
         lines = result.output.strip().split("\n")
-        assert len(lines) == 3
+        assert len(lines) >= 5
         assert "$247" in lines[0]
         assert "DL 2300" in lines[0]
+        assert "Prices shown are shopping totals." in result.output
+        assert "swoop search JFK LAX 2026-06-15 --price 1" in result.output
 
     @patch("swoop.cli.commands._run_search")
     def test_limit(self, mock_search):
