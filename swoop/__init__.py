@@ -5,30 +5,39 @@ and decodes the nested-list responses into typed Python dataclasses.
 
 Basic usage::
 
-    from swoop import search
+    from swoop import price_selector, search
 
     results = search("JFK", "LAX", "2026-06-01")
-    for flight in results.best:
-        print(f"${flight.price} — {flight.airline_names}")
+    for option in results.results:
+        print(f"${option.price}")
+        for leg in option.legs:
+            if leg.itinerary is not None:
+                print(f"  {leg.origin}->{leg.destination} — {leg.itinerary.airline_names}")
+
+    chosen = results.results[0]
+    bookable = price_selector(chosen.selector)
+    if bookable is not None:
+        print(bookable.price)
 """
 
-__version__ = "0.2.2"
+__version__ = "0.3.0"
 
 from .decoder import (
     AmenityFlags,
     BookingOption,
     CarbonEmissions,
     Codeshare,
-    SearchResult,
     Flight,
     Itinerary,
     Layover,
     PriceRange,
     QualitySignals,
+    RawSearchResult,
     itinerary_matches_flight,
 )
 from .exceptions import SwoopError, SwoopHTTPError, SwoopParseError, SwoopRateLimitError
-from .builders import ItinerarySummary
+from .builders import SearchLeg
+from .models import PriceResult, ResolvedLeg, SearchResult, SelectedLeg, TripLeg, TripOption
 from .rpc import (
     SORT_ARRIVAL_TIME,
     SORT_CHEAPEST,
@@ -50,68 +59,162 @@ from .rpc import (
 import logging
 from typing import Optional
 
-from ._validate import parse_flight_number, validate_search_params
+from ._selection import (
+    build_request_legs_from_selected,
+    price_selected_trip,
+    price_trip_selector,
+    resolve_selected_trip,
+    search_trip_options,
+)
+from ._validate import (
+    parse_flight_number,
+    validate_adults,
+    validate_cabin,
+    validate_date,
+    validate_iata_code,
+    validate_search_params,
+    validate_time_range,
+)
+from .rpc import _normalize_rpc_leg
 
 logger = logging.getLogger(__name__)
 
 
-def _correct_roundtrip_economy_prices(
-    result: SearchResult,
-    *,
-    include_basic_economy: bool = False,
-    timeout: int = 90,
-    retries: int = 0,
-) -> None:
-    """Patch itinerary prices with accurate GetBookingResults fares.
-
-    Roundtrip expansion prices from GetShoppingResults are inflated vs actual
-    bookable fares.  This calls GetBookingResults on each itinerary and
-    replaces ``direct_price`` with the cheapest option.
-
-    When *include_basic_economy* is ``False`` (default), only non-basic
-    economy options are considered.  When ``True``, all options including
-    basic economy are eligible.
-    """
-    for itinerary in [*result.best, *result.other]:
-        if not itinerary.booking_token:
-            continue
-        try:
-            options = get_booking_results(
-                itinerary, timeout=timeout, retries=retries,
-            )
-        except Exception as exc:
-            logger.debug("GetBookingResults failed, keeping original price: %s", exc)
-            continue
-
-        # Filter to eligible options
-        if include_basic_economy:
-            eligible = [o for o in options if o.price > 0]
-        else:
-            eligible = [o for o in options if not o.is_basic and o.price > 0]
-        if not eligible:
-            continue
-
-        best_option = min(eligible, key=lambda o: o.price)
-        itinerary.direct_price = best_option.price
-        if itinerary.price_info is not None:
-            itinerary.price_info = ItinerarySummary(
-                flights=itinerary.price_info.flights,
-                price=float(best_option.price),
-                currency=itinerary.price_info.currency,
-            )
-
-
 def _filter_by_flight_number(
-    result: Optional[SearchResult], carrier: Optional[str], number: str
-) -> Optional[SearchResult]:
-    """Filter a SearchResult to only itineraries matching a flight number."""
+    result: Optional[RawSearchResult], carrier: Optional[str], number: str
+) -> Optional[RawSearchResult]:
+    """Filter a raw search result to only itineraries matching a flight number."""
     if result is None:
         return None
     best = [it for it in result.best if itinerary_matches_flight(it, carrier, number)]
     other = [it for it in result.other if itinerary_matches_flight(it, carrier, number)]
     if not best and not other:
         return None
-    return SearchResult(_raw=result._raw, best=best, other=other, price_range=result.price_range)
+    return RawSearchResult(_raw=result._raw, best=best, other=other, price_range=result.price_range)
+
+
+def _filter_trip_options_by_flight_number(
+    result: SearchResult,
+    carrier: Optional[str],
+    number: str,
+) -> SearchResult:
+    """Filter trip-level search results by the first leg's itinerary."""
+    filtered = []
+    for option in result.results:
+        if not option.legs:
+            continue
+        itinerary = option.legs[0].itinerary
+        if itinerary is None:
+            continue
+        if itinerary_matches_flight(itinerary, carrier, number):
+            filtered.append(option)
+    return SearchResult(
+        results=filtered,
+        price_range=result.price_range,
+        is_complete=result.is_complete,
+    )
+
+
+def _validate_leg_search_inputs(
+    legs: list[SearchLeg],
+    *,
+    cabin: str,
+    adults: int,
+    leg_time_windows: Optional[list[dict[str, Optional[int]]]] = None,
+) -> None:
+    """Validate a list of explicit search legs."""
+    if not legs:
+        raise ValueError("at least one leg is required")
+
+    validate_cabin(cabin)
+    validate_adults(adults)
+
+    for idx, leg in enumerate(legs):
+        validate_iata_code(leg.from_airport, f"legs[{idx}].from_airport")
+        validate_iata_code(leg.to_airport, f"legs[{idx}].to_airport")
+        validate_date(leg.date, f"legs[{idx}].date")
+
+    if leg_time_windows:
+        for idx, window in enumerate(leg_time_windows):
+            validate_time_range(window.get("earliest_departure"), f"legs[{idx}].earliest_departure", 0, 23)
+            validate_time_range(window.get("latest_departure"), f"legs[{idx}].latest_departure", 1, 24)
+            validate_time_range(window.get("earliest_arrival"), f"legs[{idx}].earliest_arrival", 0, 23)
+            validate_time_range(window.get("latest_arrival"), f"legs[{idx}].latest_arrival", 1, 24)
+
+
+def _search_with_normalized_legs(
+    request_legs: list[dict[str, object]],
+    *,
+    cabin: str = "economy",
+    adults: int = 1,
+    sort: int = SORT_DEPARTURE_TIME,
+    include_basic_economy: bool = False,
+    timeout: int = 90,
+    retries: int = 2,
+    correct_roundtrip_prices: bool = False,
+) -> SearchResult:
+    """Execute a staged trip search from normalized leg definitions."""
+    return search_trip_options(
+        request_legs,
+        cabin=cabin,
+        adults=adults,
+        sort=sort,
+        include_basic_economy=include_basic_economy,
+        correct_prices=correct_roundtrip_prices,
+        timeout=timeout,
+        retries=retries,
+    )
+
+
+def search_legs(
+    legs: list[SearchLeg],
+    *,
+    cabin: str = "economy",
+    adults: int = 1,
+    sort: int = SORT_DEPARTURE_TIME,
+    include_basic_economy: bool = False,
+    timeout: int = 90,
+    retries: int = 2,
+) -> SearchResult:
+    """Search Google Flights using explicit leg definitions.
+
+    Trip type is determined from ``len(legs)``.
+    Per-leg ``max_stops`` and ``airlines`` come from each :class:`SearchLeg`.
+
+    Args:
+        legs: List of :class:`SearchLeg` objects (1 or more).
+        cabin: Cabin class (default ``"economy"``).
+        adults: Number of adult passengers (default 1).
+        sort: Sort order constant (default ``SORT_DEPARTURE_TIME``).
+        include_basic_economy: Include basic economy fares (default ``False``).
+        timeout: HTTP request timeout in seconds (default 90).
+        retries: Number of retries on HTTP 429 (default 2).
+
+    Returns:
+        A trip-level :class:`SearchResult` with shopping totals.
+    """
+    _validate_leg_search_inputs(legs, cabin=cabin, adults=adults)
+
+    request_legs = [
+        _normalize_rpc_leg(
+            leg.from_airport,
+            leg.to_airport,
+            leg.date,
+            max_stops=leg.max_stops,
+            airlines=list(leg.airlines) if leg.airlines else None,
+        )
+        for leg in legs
+    ]
+
+    return _search_with_normalized_legs(
+        request_legs,
+        cabin=cabin,
+        adults=adults,
+        sort=sort,
+        include_basic_economy=include_basic_economy,
+        timeout=timeout,
+        retries=retries,
+    )
 
 
 def search(
@@ -134,8 +237,8 @@ def search(
     return_earliest_departure: Optional[int] = None,
     return_latest_departure: Optional[int] = None,
     timeout: int = 90,
-    retries: int = 0,
-) -> Optional[SearchResult]:
+    retries: int = 2,
+) -> SearchResult:
     """Search Google Flights and return decoded results.
 
     Args:
@@ -165,11 +268,10 @@ def search(
         return_latest_departure: Latest return departure hour (1–24).
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 with exponential backoff
-            (default 0 — no retries).
+            and jitter (default 2).
 
     Returns:
-        A :class:`SearchResult` with ``best`` and ``other`` itinerary
-        lists, or ``None`` if no results found.
+        A trip-level :class:`SearchResult` with shopping totals.
 
     Raises:
         SwoopHTTPError: If Google Flights returns a non-200 response.
@@ -194,12 +296,6 @@ def search(
     parsed_number = None
     if flight_number is not None:
         parsed_carrier, parsed_number = parse_flight_number(flight_number)
-        # Auto-add carrier to airline filter for RPC-level narrowing
-        if parsed_carrier is not None:
-            if airlines is None:
-                airlines = [parsed_carrier]
-            elif parsed_carrier not in airlines:
-                airlines = list(airlines) + [parsed_carrier]
 
     validate_search_params(
         origin,
@@ -215,122 +311,287 @@ def search(
         return_earliest_departure=return_earliest_departure,
         return_latest_departure=return_latest_departure,
     )
-    # For one-way economy, exclude basic economy at the RPC level unless the
-    # caller opted into basic fares.  This flag inflates roundtrip expansion
-    # prices, so we only set it for one-way.
-    exclude_basic = (
-        cabin == "economy"
-        and return_date is None
-        and not include_basic_economy
-    )
 
-    result = search_raw(
-        origin=origin,
-        destination=destination,
-        date=date,
+    first_leg_airlines = list(airlines) if airlines else None
+    if parsed_carrier is not None:
+        if first_leg_airlines is None:
+            first_leg_airlines = [parsed_carrier]
+        elif parsed_carrier not in first_leg_airlines:
+            first_leg_airlines = list(first_leg_airlines) + [parsed_carrier]
+
+    request_legs = [
+        _normalize_rpc_leg(
+            origin,
+            destination,
+            date,
+            max_stops=max_stops,
+            airlines=first_leg_airlines,
+            earliest_departure=earliest_departure,
+            latest_departure=latest_departure,
+            earliest_arrival=earliest_arrival,
+            latest_arrival=latest_arrival,
+        )
+    ]
+    if return_date is not None:
+        request_legs.append(
+            _normalize_rpc_leg(
+                destination,
+                origin,
+                return_date,
+                max_stops=max_stops,
+                airlines=list(airlines) if airlines else None,
+                earliest_departure=return_earliest_departure,
+                latest_departure=return_latest_departure,
+            )
+        )
+
+    result = _search_with_normalized_legs(
+        request_legs,
         cabin=cabin,
         adults=adults,
         sort=sort,
-        max_stops=max_stops,
-        airlines=airlines,
-        earliest_departure=earliest_departure,
-        latest_departure=latest_departure,
-        earliest_arrival=earliest_arrival,
-        latest_arrival=latest_arrival,
-        return_date=return_date,
-        return_earliest_departure=return_earliest_departure,
-        return_latest_departure=return_latest_departure,
+        include_basic_economy=include_basic_economy,
+        correct_roundtrip_prices=False,
         timeout=timeout,
         retries=retries,
-        exclude_basic_economy=exclude_basic,
     )
 
-    # For roundtrip economy, correct inflated expansion prices by fetching
-    # actual bookable fares via GetBookingResults.
-    if result is not None and return_date is not None and cabin == "economy":
-        _correct_roundtrip_economy_prices(
-            result,
-            include_basic_economy=include_basic_economy,
-            timeout=timeout,
-            retries=retries,
-        )
-
     if parsed_number is not None:
-        return _filter_by_flight_number(result, parsed_carrier, parsed_number)
+        return _filter_trip_options_by_flight_number(result, parsed_carrier, parsed_number)
     return result
 
 
-def search_flight(
+# ---------------------------------------------------------------------------
+# check_price() — targeted price lookup for a known flight.
+# ---------------------------------------------------------------------------
+
+
+def price_legs(
+    legs: list[SelectedLeg],
+    *,
+    cabin: str = "economy",
+    adults: int = 1,
+    include_basic_economy: bool = False,
+    timeout: int = 90,
+    retries: int = 2,
+) -> Optional[PriceResult]:
+    """Look up the current bookable fare using explicit leg definitions.
+
+    Args:
+        legs: List of :class:`SelectedLeg` objects (1 or more).
+        cabin: Cabin class (default ``"economy"``).
+        adults: Number of adult passengers (default 1).
+        include_basic_economy: Include basic economy fares (default ``False``).
+        timeout: HTTP request timeout in seconds (default 90).
+        retries: Number of retries on HTTP 429 (default 2).
+
+    Returns:
+        A :class:`PriceResult` or ``None`` if the flight was not found.
+    """
+    if len(legs) == 0:
+        raise ValueError("at least one leg is required")
+
+    validate_cabin(cabin)
+    validate_adults(adults)
+    carrier_filters: list[Optional[str]] = []
+    for index, leg in enumerate(legs):
+        validate_iata_code(leg.origin, f"legs[{index}].origin")
+        validate_iata_code(leg.destination, f"legs[{index}].destination")
+        validate_date(leg.date, f"legs[{index}].date")
+        carrier, _number = parse_flight_number(leg.flight_number)
+        carrier_filters.append(carrier)
+
+    request_legs = build_request_legs_from_selected(legs, carrier_filters=carrier_filters)
+    resolved, selections, rpc_calls = resolve_selected_trip(
+        request_legs,
+        [leg.flight_number for leg in legs],
+        cabin=cabin,
+        adults=adults,
+        timeout=timeout,
+        retries=retries,
+        exclude_basic_economy=(
+            cabin == "economy"
+            and len(legs) == 1
+            and not include_basic_economy
+        ),
+    )
+    if not resolved:
+        return None
+
+    return price_selected_trip(
+        request_legs,
+        resolved,
+        cabin=cabin,
+        adults=adults,
+        include_basic_economy=include_basic_economy,
+        timeout=timeout,
+        retries=retries,
+        rpc_calls=rpc_calls,
+        selections=selections,
+    )
+
+
+def price_selector(
+    selector: str,
+    *,
+    timeout: int = 90,
+    retries: int = 2,
+) -> Optional[PriceResult]:
+    """Look up the current bookable fare for an itinerary selector.
+
+    Selectors come from trip-level search results and preserve the exact
+    itinerary identity across CLI or API calls.
+
+    Args:
+        selector: Opaque selector from :func:`search` or :func:`search_legs`.
+        timeout: HTTP request timeout in seconds (default 90).
+        retries: Number of retries on HTTP 429 (default 2).
+
+    Returns:
+        A :class:`PriceResult`, or ``None`` if the selected itinerary no
+        longer exists.
+    """
+    return price_trip_selector(selector, timeout=timeout, retries=retries)
+
+
+def check_price(
     flight_number: str,
     *,
     origin: str,
     destination: str,
     date: str,
+    return_flight_number: Optional[str] = None,
+    return_date: Optional[str] = None,
     cabin: str = "economy",
     adults: int = 1,
     max_stops: Optional[int] = None,
+    include_basic_economy: bool = False,
     timeout: int = 90,
-    retries: int = 0,
-) -> Optional[Itinerary]:
-    """Search for a specific flight by number.
+    retries: int = 2,
+) -> Optional[PriceResult]:
+    """Look up the current bookable fare for a specific flight.
 
-    Searches Google Flights for the given route and filters to the matching
-    flight number. This is a convenience wrapper around :func:`search`.
+    Unlike :func:`search` which returns all itineraries on a route,
+    ``check_price`` is optimized for the "what does flight X cost today?"
+    use case.
 
     Args:
-        flight_number: Flight number (e.g. ``"DL 171"``, ``"DL171"``,
-            or ``"171"``).
+        flight_number: Outbound flight number (e.g. ``"DL2300"``).
         origin: Origin airport IATA code.
         destination: Destination airport IATA code.
         date: Departure date as ``YYYY-MM-DD``.
+        return_flight_number: Return flight number for roundtrip.
+        return_date: Return date for roundtrip.
         cabin: Cabin class (default ``"economy"``).
         adults: Number of adult passengers (default 1).
         max_stops: Maximum stops (default any).
+        include_basic_economy: Include basic economy fares (default ``False``).
         timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 0).
+        retries: Number of retries on HTTP 429 (default 2).
 
     Returns:
-        The matching :class:`Itinerary`, or ``None`` if not found.
+        A :class:`PriceResult` with the price and matched itinerary,
+        or ``None`` if the flight was not found.
 
     Example::
 
-        from swoop import search_flight
+        from swoop import check_price
 
-        itin = search_flight("DL 171", origin="JFK", destination="LAX", date="2026-06-15")
-        if itin:
-            print(f"${itin.price}")
+        # One-way
+        result = check_price("DL2300", origin="JFK", destination="LAX", date="2026-06-15")
+        if result:
+            print(f"${result.price}")
+
+        # Roundtrip
+        result = check_price(
+            "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
+            return_flight_number="DL2301", return_date="2026-06-22",
+        )
+        if result:
+            print(f"${result.price} roundtrip")
     """
-    result = search(
-        origin,
-        destination,
-        date,
-        flight_number=flight_number,
+    # Parse requested flight numbers for airline narrowing
+    outbound_carrier, _ = parse_flight_number(flight_number)
+    return_carrier = None
+    if return_flight_number is not None:
+        return_carrier, _ = parse_flight_number(return_flight_number)
+
+    validate_search_params(
+        origin, destination, date,
+        return_date=return_date, cabin=cabin, adults=adults,
+    )
+
+    request_legs = [
+        _normalize_rpc_leg(
+            origin,
+            destination,
+            date,
+            max_stops=max_stops,
+            airlines=[outbound_carrier] if outbound_carrier else None,
+        )
+    ]
+    requested_flights = [flight_number]
+    if return_date is not None:
+        request_legs.append(
+            _normalize_rpc_leg(
+                destination,
+                origin,
+                return_date,
+                max_stops=max_stops,
+                airlines=[return_carrier] if return_carrier else None,
+            )
+        )
+        requested_flights.append(return_flight_number)
+
+    resolved, selections, rpc_calls = resolve_selected_trip(
+        request_legs,
+        requested_flights,
         cabin=cabin,
         adults=adults,
-        max_stops=max_stops,
         timeout=timeout,
         retries=retries,
+        exclude_basic_economy=(
+            cabin == "economy"
+            and return_date is None
+            and not include_basic_economy
+        ),
     )
-    if result is None:
+    if not resolved:
         return None
-    # Prefer best over other
-    if result.best:
-        return result.best[0]
-    if result.other:
-        return result.other[0]
-    return None
+
+    return price_selected_trip(
+        request_legs,
+        resolved,
+        cabin=cabin,
+        adults=adults,
+        include_basic_economy=include_basic_economy,
+        timeout=timeout,
+        retries=retries,
+        rpc_calls=rpc_calls,
+        selections=selections,
+    )
 
 
 __all__ = [
     # Functions
     "search",
-    "search_flight",
+    "search_legs",
+    "check_price",
+    "price_selector",
+    "price_legs",
     "get_booking_results",
     "search_raw",
     "parse_flight_number",
     "itinerary_matches_flight",
     # Types
+    "PriceResult",
+    "RawSearchResult",
     "SearchResult",
+    "SearchLeg",
+    "SelectedLeg",
+    "ResolvedLeg",
+    "TripLeg",
+    "TripOption",
     "Itinerary",
     "Flight",
     "BookingOption",

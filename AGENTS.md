@@ -59,7 +59,7 @@ swoop/
 ├── models.py         # Public trip-level result models (SearchResult, TripOption, TripLeg, PriceResult)
 ├── rpc.py            # HTTP client — builds requests, calls Google Flights RPC
 ├── _selection.py     # Staged trip search, selector encoding, selector-based trip pricing helpers
-├── builders.py       # Protobuf request builders (filters, segments, SearchLeg)
+├── builders.py       # Protobuf request builders (filters, segments)
 ├── decoder.py        # Response decoder — nested lists → dataclasses
 ├── _booking.py       # Booking option parsing (GetBookingResults)
 ├── _validate.py      # IATA code validation (optional airportsdata)
@@ -68,7 +68,7 @@ swoop/
 ├── flights_pb2.py    # Generated protobuf code
 └── cli/
     ├── __init__.py   # Click group, main() entry point
-    ├── commands.py   # search_cmd, price_cmd definitions
+    ├── commands.py   # search and price command definitions
     ├── formatters.py # Table/JSON/CSV/brief output renderers
     └── utils.py      # Custom Click types, time/date helpers
 ```
@@ -78,8 +78,6 @@ swoop/
 **Low-level flow:** `search_raw()` → Google RPC → `decoder.decode_result()` → `RawSearchResult`
 
 **CLI flow:** `swoop search` → `commands.search_cmd()` → `swoop.search()` / `swoop.search_legs()` → `formatters.format_search_table()`
-
-**Price flow:** `swoop price` → `commands.price_cmd()` → `swoop.check_price()` / `swoop.price_selector()` / `swoop.price_legs()` → `formatters.format_price_table()`
 
 ## File Map
 
@@ -107,5 +105,5 @@ swoop/
 
 | Topic | File |
 |-------|------|
-| Protobuf response schema | `.claude/docs/google-flights-protobuf-schema.md` |
-| Booking option parsing notes | `.claude/docs/booking-options-proto-notes.md` |
+| Protobuf response schema | `.Codex/docs/google-flights-protobuf-schema.md` |
+| Booking option parsing notes | `.Codex/docs/booking-options-proto-notes.md` |

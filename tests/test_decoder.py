@@ -90,8 +90,8 @@ class TestDecodeFlight:
         assert flight is not None
         assert flight.airline == "DL"
         assert flight.flight_number == "2300"
-        assert flight.departure_airport == "JFK"
-        assert flight.arrival_airport == "LAX"
+        assert flight.departure_airport_code == "JFK"
+        assert flight.arrival_airport_code == "LAX"
         assert flight.travel_time == 315
         assert flight.aircraft == "Boeing 737-900"
         assert flight.departure_time == (8, 30)
@@ -234,8 +234,8 @@ def test_decode_flight_various_airports(dep, arr):
     segment = make_flight_segment(dep_airport=dep, arr_airport=arr)
     flight = _decode_flight(segment)
     assert flight is not None
-    assert flight.departure_airport == dep
-    assert flight.arrival_airport == arr
+    assert flight.departure_airport_code == dep
+    assert flight.arrival_airport_code == arr
 
 
 # --- Layover decoding ---
@@ -247,7 +247,7 @@ class TestDecodeLayover:
         layover = _decode_layover(el)
         assert layover is not None
         assert layover.minutes == 120
-        assert layover.departure_airport == "ATL"
+        assert layover.departure_airport_code == "ATL"
         assert layover.is_overnight is False
 
     def test_overnight_flag(self):

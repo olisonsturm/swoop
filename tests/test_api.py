@@ -19,7 +19,7 @@ from tests.factories import FakeHTTPResponse
 
 def test_version():
     assert hasattr(swoop, "__version__")
-    assert swoop.__version__ == "0.2.2"
+    assert swoop.__version__ == "0.3.0"
 
 
 def test_all_exports_importable():
@@ -59,18 +59,20 @@ def test_search_accepts_valid_cabins(fake_primp):
 
     for cabin in ("economy", "premium-economy", "business", "first"):
         result = swoop.search("JFK", "LAX", "2026-06-01", cabin=cabin)
-        assert result is None  # null inner data -> None
+        assert isinstance(result, swoop.SearchResult)
+        assert result.results == []
 
 
-def test_search_delegates_to_search_raw(monkeypatch):
-    """search() should pass through all args to search_raw correctly."""
+def test_search_delegates_to_leg_search_core(monkeypatch):
+    """search() should normalize request legs and pass filters through."""
     captured = {}
 
-    def fake_search_raw(**kwargs):
+    def fake_search_trip_options(legs, **kwargs):
+        captured["legs"] = legs
         captured.update(kwargs)
-        return None
+        return swoop.SearchResult()
 
-    monkeypatch.setattr(swoop, "search_raw", fake_search_raw)
+    monkeypatch.setattr(swoop, "search_trip_options", fake_search_trip_options)
 
     swoop.search(
         "SFO", "NRT", "2026-07-01",
@@ -86,19 +88,142 @@ def test_search_delegates_to_search_raw(monkeypatch):
         retries=3,
     )
 
-    assert captured["origin"] == "SFO"
-    assert captured["destination"] == "NRT"
-    assert captured["date"] == "2026-07-01"
-    assert captured["return_date"] == "2026-07-15"
+    assert captured["legs"][0]["origin"] == "SFO"
+    assert captured["legs"][0]["destination"] == "NRT"
+    assert captured["legs"][0]["date"] == "2026-07-01"
+    assert captured["legs"][0]["max_stops"] == 1
+    assert captured["legs"][0]["airlines"] == ["NH"]
+    assert captured["legs"][0]["earliest_departure"] == 8
+    assert captured["legs"][0]["latest_departure"] == 16
+    assert captured["legs"][1]["origin"] == "NRT"
+    assert captured["legs"][1]["destination"] == "SFO"
+    assert captured["legs"][1]["date"] == "2026-07-15"
     assert captured["cabin"] == "business"
     assert captured["adults"] == 2
     assert captured["sort"] == swoop.SORT_CHEAPEST
-    assert captured["max_stops"] == 1
-    assert captured["airlines"] == ["NH"]
-    assert captured["earliest_departure"] == 8
-    assert captured["latest_departure"] == 16
+    assert captured["correct_prices"] is False
     assert captured["timeout"] == 60
     assert captured["retries"] == 3
+
+
+def test_search_legs_uses_per_leg_filters(monkeypatch):
+    captured = {}
+
+    def fake_search_trip_options(legs, **kwargs):
+        captured["legs"] = legs
+        captured.update(kwargs)
+        return swoop.SearchResult()
+
+    monkeypatch.setattr(swoop, "search_trip_options", fake_search_trip_options)
+
+    swoop.search_legs([
+        swoop.SearchLeg(
+            date="2026-07-01",
+            from_airport="SFO",
+            to_airport="NRT",
+            max_stops=0,
+            airlines=["NH"],
+        ),
+        swoop.SearchLeg(
+            date="2026-07-15",
+            from_airport="NRT",
+            to_airport="SFO",
+            max_stops=1,
+            airlines=["JL"],
+        ),
+    ], cabin="business", adults=2)
+
+    assert captured["legs"][0]["origin"] == "SFO"
+    assert captured["legs"][0]["max_stops"] == 0
+    assert captured["legs"][0]["airlines"] == ["NH"]
+    assert captured["legs"][1]["origin"] == "NRT"
+    assert captured["legs"][1]["max_stops"] == 1
+    assert captured["legs"][1]["airlines"] == ["JL"]
+    assert captured["correct_prices"] is False
+
+
+def test_search_legs_accepts_more_than_two_legs(monkeypatch):
+    captured = {}
+
+    def fake_search_trip_options(legs, **kwargs):
+        captured["legs"] = legs
+        captured.update(kwargs)
+        return swoop.SearchResult()
+
+    monkeypatch.setattr(swoop, "search_trip_options", fake_search_trip_options)
+
+    result = swoop.search_legs([
+        swoop.SearchLeg(date="2026-07-01", from_airport="JFK", to_airport="LAX"),
+        swoop.SearchLeg(date="2026-07-03", from_airport="LAX", to_airport="SFO"),
+        swoop.SearchLeg(date="2026-07-07", from_airport="SFO", to_airport="JFK"),
+    ])
+
+    assert isinstance(result, swoop.SearchResult)
+    assert len(captured["legs"]) == 3
+
+
+def test_price_legs_accepts_more_than_two_legs(monkeypatch):
+    monkeypatch.setattr(
+        swoop,
+        "resolve_selected_trip",
+        lambda *args, **kwargs: (
+            [
+                Itinerary(
+                    flights=[Flight(
+                        airline="DL",
+                        flight_number="2300",
+                        departure_airport_code="JFK",
+                        arrival_airport_code="LAX",
+                        departure_date=(2026, 7, 1),
+                    )],
+                    direct_price=300,
+                    booking_token="token-1",
+                ),
+                Itinerary(
+                    flights=[Flight(
+                        airline="UA",
+                        flight_number="500",
+                        departure_airport_code="LAX",
+                        arrival_airport_code="SFO",
+                        departure_date=(2026, 7, 3),
+                    )],
+                    direct_price=350,
+                    booking_token="token-2",
+                ),
+                Itinerary(
+                    flights=[Flight(
+                        airline="DL",
+                        flight_number="2301",
+                        departure_airport_code="SFO",
+                        arrival_airport_code="JFK",
+                        departure_date=(2026, 7, 7),
+                    )],
+                    direct_price=900,
+                    booking_token="token-3",
+                ),
+            ],
+            ["explicit", "explicit", "explicit"],
+            3,
+        ),
+    )
+    monkeypatch.setattr(
+        swoop,
+        "price_selected_trip",
+        lambda request_legs, resolved, **kwargs: swoop.PriceResult(
+            price=900,
+            itinerary=resolved[-1],
+            rpc_calls=kwargs["rpc_calls"],
+        ),
+    )
+
+    result = swoop.price_legs([
+        swoop.SelectedLeg(flight_number="DL2300", origin="JFK", destination="LAX", date="2026-07-01"),
+        swoop.SelectedLeg(flight_number="UA500", origin="LAX", destination="SFO", date="2026-07-03"),
+        swoop.SelectedLeg(flight_number="DL2301", origin="SFO", destination="JFK", date="2026-07-07"),
+    ])
+
+    assert result is not None
+    assert result.price == 900
 
 
 def test_search_raw_rate_limit_raises_specific_error(fake_primp):
@@ -161,14 +286,14 @@ def test_booking_option_getitem_raises_on_missing():
 def test_get_booking_results_with_itinerary(monkeypatch):
     """get_booking_results accepts an Itinerary object."""
     itin = Itinerary(
-        departure_airport="JFK",
-        arrival_airport="LAX",
+        departure_airport_code="JFK",
+        arrival_airport_code="LAX",
         departure_date=(2026, 6, 15),
         booking_token="test-token",
         flights=[
             Flight(
-                departure_airport="JFK",
-                arrival_airport="LAX",
+                departure_airport_code="JFK",
+                arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15),
                 airline="DL",
                 flight_number="123",
@@ -204,15 +329,15 @@ def test_build_selected_legs():
     itin = Itinerary(
         flights=[
             Flight(
-                departure_airport="JFK",
-                arrival_airport="ORD",
+                departure_airport_code="JFK",
+                arrival_airport_code="ORD",
                 departure_date=(2026, 6, 15),
                 airline="AA",
                 flight_number="100",
             ),
             Flight(
-                departure_airport="ORD",
-                arrival_airport="LAX",
+                departure_airport_code="ORD",
+                arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15),
                 airline="AA",
                 flight_number="200",
@@ -228,7 +353,7 @@ def test_build_selected_legs():
 def test_build_selected_legs_skips_bad_dates():
     itin = Itinerary(
         flights=[
-            Flight(departure_airport="JFK", arrival_airport="LAX", departure_date=(0, 0, 0)),
+            Flight(departure_airport_code="JFK", arrival_airport_code="LAX", departure_date=(0, 0, 0)),
         ],
     )
     assert rpc._build_selected_legs(itin) == []

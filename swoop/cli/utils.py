@@ -104,16 +104,16 @@ def format_route(itin) -> str:
     """Format itinerary route as 'JFK -> ORD -> LAX'."""
     # Prefer itinerary-level departure/arrival (always IATA codes)
     if len(itin.flights) <= 1:
-        dep = itin.departure_airport or (itin.flights[0].departure_airport if itin.flights else "")
-        arr = itin.arrival_airport or (itin.flights[0].arrival_airport if itin.flights else "")
+        dep = itin.departure_airport_code or (itin.flights[0].departure_airport_code if itin.flights else "")
+        arr = itin.arrival_airport_code or (itin.flights[0].arrival_airport_code if itin.flights else "")
         return f"{_iata_or_short(dep)} -> {_iata_or_short(arr)}"
     # Multi-segment: use itinerary endpoints + layover airports
-    airports = [_iata_or_short(itin.departure_airport)]
+    airports = [_iata_or_short(itin.departure_airport_code)]
     for lay in itin.layovers:
-        airport = lay.departure_airport or lay.arrival_airport
+        airport = lay.departure_airport_code or lay.arrival_airport_code
         if airport:
             airports.append(_iata_or_short(airport))
-    airports.append(_iata_or_short(itin.arrival_airport))
+    airports.append(_iata_or_short(itin.arrival_airport_code))
     return " -> ".join(airports)
 
 

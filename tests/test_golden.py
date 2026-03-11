@@ -40,15 +40,15 @@ class TestGoldenOneWay:
         flight = self.result.best[0].flights[0]
         assert flight.airline != ""
         assert flight.flight_number != ""
-        assert flight.departure_airport != ""
-        assert flight.arrival_airport != ""
+        assert flight.departure_airport_code != ""
+        assert flight.arrival_airport_code != ""
         assert flight.travel_time > 0
 
     def test_itinerary_fields_populated(self):
         itin = self.result.best[0]
         assert itin.airline_code != ""
-        assert itin.departure_airport != ""
-        assert itin.arrival_airport != ""
+        assert itin.departure_airport_code != ""
+        assert itin.arrival_airport_code != ""
         assert itin.travel_time > 0
 
     def test_connecting_flight_has_layover(self):
@@ -104,12 +104,14 @@ class TestGoldenOneWay:
     def test_connecting_itinerary_airports(self):
         """Connecting flight should have correct origin and destination."""
         aa = self.result.best[1]
-        assert aa.departure_airport == "SFO"
-        assert aa.arrival_airport == "MIA"
-        assert aa.flights[0].departure_airport == "SFO"
-        assert aa.flights[0].arrival_airport == "ORD"
-        assert aa.flights[1].departure_airport == "ORD"
-        assert aa.flights[1].arrival_airport == "MIA"
+        assert aa.departure_airport_code == "SFO"
+        assert aa.arrival_airport_code == "MIA"
+        assert aa.flights[0].departure_airport_code == "SFO"
+        assert aa.flights[0].arrival_airport_code == "ORD"
+        assert aa.flights[0].arrival_airport_name == "O'Hare International Airport"
+        assert aa.flights[1].departure_airport_code == "ORD"
+        assert aa.flights[1].arrival_airport_code == "MIA"
+        assert aa.flights[1].arrival_airport_name == "Miami International Airport"
 
     def test_codeshare_details(self):
         """Codeshare on DL flight should have correct airline info."""

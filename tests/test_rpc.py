@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import types
 import urllib.parse
 
@@ -19,6 +20,8 @@ import swoop.rpc as rpc
 from swoop.rpc import (
     _build_booking_f_req,
     _build_f_req,
+    _build_filters_from_legs,
+    _normalize_rpc_leg,
     _parse_booking_rpc_response,
     CABIN_CLASS_MAP,
     STOPS_ANY,
@@ -120,6 +123,59 @@ class TestBuildFReqRoundtrip:
         segments = filters[1][13]
         assert segments[0][8] == selected
         assert segments[1][8] is None
+
+
+class TestBuildFiltersFromLegs:
+    """Leg-normalized filter builder should preserve legacy request shapes."""
+
+    def test_one_way_matches_legacy_builder(self):
+        legacy = decode_f_req(_build_f_req("JFK", "LAX", "2026-03-15"))
+        normalized = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+        ])
+        assert normalized == legacy
+
+    def test_roundtrip_matches_legacy_builder(self):
+        selected = [["JFK", "2026-03-15", "LAX", None, "DL", "4938"]]
+        legacy = decode_f_req(_build_f_req(
+            "JFK",
+            "LAX",
+            "2026-03-15",
+            cabin="business",
+            adults=2,
+            sort=rpc.SORT_CHEAPEST,
+            max_stops=1,
+            airlines=["DL"],
+            earliest_departure=6,
+            latest_departure=10,
+            return_date="2026-03-22",
+            return_earliest_departure=14,
+            return_latest_departure=18,
+            selected_outbound_legs=selected,
+            exclude_basic_economy=True,
+        ))
+        normalized = _build_filters_from_legs([
+            _normalize_rpc_leg(
+                "JFK",
+                "LAX",
+                "2026-03-15",
+                max_stops=1,
+                airlines=["DL"],
+                earliest_departure=6,
+                latest_departure=10,
+                selected_legs=selected,
+            ),
+            _normalize_rpc_leg(
+                "LAX",
+                "JFK",
+                "2026-03-22",
+                max_stops=1,
+                airlines=["DL"],
+                earliest_departure=14,
+                latest_departure=18,
+            ),
+        ], cabin="business", adults=2, sort=rpc.SORT_CHEAPEST, exclude_basic_economy=True)
+        assert normalized == legacy
 
 
 class TestBuildFReqCabinAndStops:
@@ -544,6 +600,31 @@ def test_extract_booking_payload_and_rpc_parsers(monkeypatch) -> None:
     with pytest.raises(rpc.SwoopParseError, match="Failed to parse inner RPC response JSON"):
         rpc._parse_rpc_response(bad_inner_json)
 
+
+def test_booking_parser_logs_debug_for_partial_drops_and_warning_for_total_drop(caplog) -> None:
+    mixed_payload = [
+        make_booking_option(price=250, brand_code="DELTA MAIN CLASSIC", brand_label="Delta Main Classic"),
+        make_booking_option(price=300, brand_code=None, brand_label=None),
+    ]
+    mixed_text = encode_rpc_outer([None, [mixed_payload]])
+
+    caplog.set_level(logging.DEBUG, logger="swoop._booking")
+    parsed = rpc._parse_booking_rpc_response(mixed_text)
+    assert len(parsed) == 1
+    assert "Booking options parser dropped options" in caplog.text
+    assert not any(record.levelno >= logging.WARNING for record in caplog.records)
+
+    caplog.clear()
+
+    dropped_payload = [
+        make_booking_option(price=250, brand_code=None, brand_label=None),
+    ]
+    dropped_text = encode_rpc_outer([None, [dropped_payload]])
+    assert rpc._parse_booking_rpc_response(dropped_text) == []
+    assert any(record.levelno >= logging.WARNING for record in caplog.records)
+
+
+def test_parse_rpc_response_null_and_decode(monkeypatch) -> None:
     none_inner_data = ")]}'" + json.dumps([["wrb.fr", None, "null"]])
     assert rpc._parse_rpc_response(none_inner_data) is None
 

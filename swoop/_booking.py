@@ -11,19 +11,9 @@ import logging
 from typing import Any
 
 from .builders import ItinerarySummary
-from .decoder import BookingOption
+from .decoder import BookingOption, _safe_get
 
 logger = logging.getLogger(__name__)
-
-
-def _safe_get(data: Any, path: list[int], default: Any = None) -> Any:
-    """Safely traverse nested list data."""
-    cur = data
-    for index in path:
-        if not isinstance(cur, list) or index >= len(cur):
-            return default
-        cur = cur[index]
-    return cur
 
 
 def _looks_like_price_block(value: Any) -> bool:
@@ -437,7 +427,8 @@ def _parse_booking_rpc_response(
             logger.warning("Booking options parser missing required fields: %s", ",".join(missing_required))
 
     if dropped_missing_price or dropped_missing_brand or dropped_invalid_price:
-        logger.warning(
+        log = logger.warning if not options else logger.debug
+        log(
             "Booking options parser dropped options (missing_price=%s, missing_brand=%s, invalid_price=%s)",
             dropped_missing_price,
             dropped_missing_brand,

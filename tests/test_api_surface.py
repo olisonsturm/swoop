@@ -10,6 +10,7 @@ from dataclasses import fields
 import pytest
 
 import swoop
+from swoop import PriceResult, ResolvedLeg, SearchLeg, SearchResult, SelectedLeg, TripLeg, TripOption
 from swoop.decoder import (
     BookingOption,
     CarbonEmissions,
@@ -19,7 +20,7 @@ from swoop.decoder import (
     Layover,
     PriceRange,
     QualitySignals,
-    SearchResult,
+    RawSearchResult,
     AmenityFlags,
 )
 from swoop.exceptions import (
@@ -36,13 +37,23 @@ class TestFrozenExports:
     EXPECTED_ALL = {
         # Functions
         "search",
-        "search_flight",
+        "search_legs",
+        "check_price",
+        "price_selector",
+        "price_legs",
         "get_booking_results",
         "search_raw",
         "parse_flight_number",
         "itinerary_matches_flight",
         # Types
+        "PriceResult",
+        "RawSearchResult",
         "SearchResult",
+        "SearchLeg",
+        "SelectedLeg",
+        "ResolvedLeg",
+        "TripLeg",
+        "TripOption",
         "Itinerary",
         "Flight",
         "BookingOption",
@@ -99,8 +110,8 @@ class TestFrozenDataclassFields:
         expected = {
             "airline", "airline_name", "flight_number", "operator",
             "codeshares", "aircraft",
-            "departure_airport", "departure_airport_name",
-            "arrival_airport", "arrival_airport_name",
+            "departure_airport_code", "departure_airport_name",
+            "arrival_airport_code", "arrival_airport_name",
             "departure_date", "arrival_date",
             "departure_time", "arrival_time",
             "travel_time", "seat_pitch_short", "legroom", "co2_grams",
@@ -111,7 +122,7 @@ class TestFrozenDataclassFields:
     def test_itinerary_fields(self):
         expected = {
             "airline_code", "airline_names", "flights", "layovers",
-            "travel_time", "departure_airport", "arrival_airport",
+            "travel_time", "departure_airport_code", "arrival_airport_code",
             "departure_date", "arrival_date", "departure_time", "arrival_time",
             "price_info", "direct_price", "booking_token", "carbon_emissions",
             "stop_count", "is_budget_carrier", "quality_signals",
@@ -119,8 +130,12 @@ class TestFrozenDataclassFields:
         assert self._field_names(Itinerary) == expected
 
     def test_search_result_fields(self):
-        expected = {"_raw", "best", "other", "price_range"}
+        expected = {"results", "price_range", "is_complete"}
         assert self._field_names(SearchResult) == expected
+
+    def test_raw_search_result_fields(self):
+        expected = {"_raw", "best", "other", "price_range"}
+        assert self._field_names(RawSearchResult) == expected
 
     def test_booking_option_fields(self):
         expected = {
@@ -143,8 +158,8 @@ class TestFrozenDataclassFields:
 
     def test_layover_fields(self):
         expected = {
-            "minutes", "departure_airport", "departure_airport_name",
-            "departure_airport_city", "arrival_airport",
+            "minutes", "departure_airport_code", "departure_airport_name",
+            "departure_airport_city", "arrival_airport_code",
             "arrival_airport_name", "arrival_airport_city", "is_overnight",
         }
         assert self._field_names(Layover) == expected
@@ -170,6 +185,26 @@ class TestFrozenDataclassFields:
     def test_price_range_fields(self):
         expected = {"low", "high"}
         assert self._field_names(PriceRange) == expected
+
+    def test_price_result_fields(self):
+        expected = {"price", "fare_brand", "is_basic_economy", "booking_options", "itinerary", "resolved_legs", "rpc_calls"}
+        assert self._field_names(PriceResult) == expected
+
+    def test_resolved_leg_fields(self):
+        expected = {"flight_summary", "origin", "destination", "date", "itinerary", "selection"}
+        assert self._field_names(ResolvedLeg) == expected
+
+    def test_selected_leg_fields(self):
+        expected = {"flight_number", "origin", "destination", "date"}
+        assert self._field_names(SelectedLeg) == expected
+
+    def test_trip_leg_fields(self):
+        expected = {"origin", "destination", "date", "itinerary"}
+        assert self._field_names(TripLeg) == expected
+
+    def test_trip_option_fields(self):
+        expected = {"selector", "price", "legs"}
+        assert self._field_names(TripOption) == expected
 
 
 class TestSearchSignature:
@@ -204,14 +239,64 @@ class TestSearchSignature:
         ]
         assert param_names == expected
 
-    def test_search_flight_params(self):
-        sig = inspect.signature(swoop.search_flight)
+    def test_check_price_params(self):
+        sig = inspect.signature(swoop.check_price)
         param_names = list(sig.parameters.keys())
         expected = [
             "flight_number", "origin", "destination", "date",
-            "cabin", "adults", "max_stops", "timeout", "retries",
+            "return_flight_number", "return_date",
+            "cabin", "adults", "max_stops", "include_basic_economy",
+            "timeout", "retries",
         ]
         assert param_names == expected
+
+    def test_search_legs_params(self):
+        sig = inspect.signature(swoop.search_legs)
+        param_names = list(sig.parameters.keys())
+        expected = [
+            "legs", "cabin", "adults", "sort",
+            "include_basic_economy", "timeout", "retries",
+        ]
+        assert param_names == expected
+
+    def test_price_legs_params(self):
+        sig = inspect.signature(swoop.price_legs)
+        param_names = list(sig.parameters.keys())
+        expected = [
+            "legs", "cabin", "adults",
+            "include_basic_economy", "timeout", "retries",
+        ]
+        assert param_names == expected
+
+    def test_price_selector_params(self):
+        sig = inspect.signature(swoop.price_selector)
+        param_names = list(sig.parameters.keys())
+        expected = ["selector", "timeout", "retries"]
+        assert param_names == expected
+
+
+class TestFrozenDefaults:
+    """Verify critical default values haven't drifted."""
+
+    def test_search_retries_default(self):
+        sig = inspect.signature(swoop.search)
+        assert sig.parameters["retries"].default == 2
+
+    def test_search_legs_retries_default(self):
+        sig = inspect.signature(swoop.search_legs)
+        assert sig.parameters["retries"].default == 2
+
+    def test_check_price_retries_default(self):
+        sig = inspect.signature(swoop.check_price)
+        assert sig.parameters["retries"].default == 2
+
+    def test_price_legs_retries_default(self):
+        sig = inspect.signature(swoop.price_legs)
+        assert sig.parameters["retries"].default == 2
+
+    def test_price_selector_retries_default(self):
+        sig = inspect.signature(swoop.price_selector)
+        assert sig.parameters["retries"].default == 2
 
 
 class TestItineraryPrice:
