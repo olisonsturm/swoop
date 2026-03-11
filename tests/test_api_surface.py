@@ -37,11 +37,13 @@ class TestFrozenExports:
         # Functions
         "search",
         "search_flight",
+        "check_price",
         "get_booking_results",
         "search_raw",
         "parse_flight_number",
         "itinerary_matches_flight",
         # Types
+        "PriceResult",
         "SearchResult",
         "Itinerary",
         "Flight",

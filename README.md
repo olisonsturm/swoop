@@ -50,6 +50,9 @@ swoop search JFK LAX 2026-06-15 --nonstop --sort cheapest
 # Roundtrip, business class
 swoop search JFK LAX 2026-06-15 -r 2026-06-22 --cabin business
 
+# Quick price check for a specific flight
+swoop price DL2300 -f JFK -t LAX -d 2026-06-15
+
 # JSON output for piping
 swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0].price_usd'
 
@@ -63,6 +66,9 @@ swoop book 1 JFK LAX 2026-06-15
 ```bash
 # Look up a specific flight
 swoop flight DL2300 -f JFK -t LAX -d 2026-06-15
+
+# Roundtrip price check
+swoop price DL2300 -f JFK -t LAX -d 2026-06-15 -r 2026-06-22 --return-flight DL2301
 
 # CSV for spreadsheets
 swoop search JFK LAX 2026-06-15 -o csv -q > flights.csv
@@ -95,6 +101,25 @@ for flight in results.best:
 
 <details>
 <summary>More examples</summary>
+
+### Price check for a specific flight
+
+```python
+from swoop import check_price
+
+# One-way (1 RPC call)
+result = check_price("DL2300", origin="JFK", destination="LAX", date="2026-06-15")
+if result:
+    print(f"${result.price}")
+
+# Roundtrip (3 RPC calls)
+result = check_price(
+    "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
+    return_flight_number="DL2301", return_date="2026-06-22",
+)
+if result:
+    print(f"${result.price} roundtrip — {result.fare_brand}")
+```
 
 ### Roundtrip search
 
@@ -174,12 +199,32 @@ Search Google Flights and return a `SearchResult`.
 
 Returns `SearchResult | None`. `None` means no results found.
 
+### `check_price(flight_number, *, origin, destination, date, **kwargs)`
+
+Look up the current price for a specific flight. Optimized for the "what does flight X cost?" use case — uses 1 RPC for one-way, 3 RPCs for roundtrip (vs 10-30+ with `search()`).
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `flight_number` | `str` | required | Flight number (e.g. `"DL2300"`) |
+| `origin` | `str` | required | Origin IATA code |
+| `destination` | `str` | required | Destination IATA code |
+| `date` | `str` | required | Departure date (`YYYY-MM-DD`) |
+| `return_flight_number` | `str \| None` | `None` | Return flight number for roundtrip |
+| `return_date` | `str \| None` | `None` | Return date for roundtrip |
+| `cabin` | `str` | `"economy"` | Cabin class |
+| `include_basic_economy` | `bool` | `False` | Include basic economy fares |
+| `timeout` | `int` | `90` | HTTP timeout in seconds |
+| `retries` | `int` | `2` | Retries on HTTP 429 |
+
+Returns `PriceResult | None`. `PriceResult` has `price`, `fare_brand`, `is_basic_economy`, `booking_options`, `itinerary`, `rpc_calls`.
+
 ### `get_booking_results(itinerary_or_token, **kwargs)`
 
 Get fare options for a specific itinerary. Pass an `Itinerary` object directly, or a booking token string with explicit `origin`, `destination`, `date`, and `selected_legs`. Returns `list[BookingOption]` with `price`, `brand_label`, `brand_code`, `fare_family`, etc. `BookingOption` supports both attribute access (`opt.price`) and dict-style access (`opt["price"]`, `opt.get("price")`).
 
 ### Result types
 
+- **`PriceResult`** — `price: int`, `fare_brand: str | None`, `is_basic_economy: bool`, `booking_options: list[BookingOption]`, `itinerary: Itinerary | None`, `rpc_calls: int`
 - **`SearchResult`** — `best: list[Itinerary]`, `other: list[Itinerary]`, `price_range: PriceRange | None`
 - **`Itinerary`** — Full itinerary with `price`, `flights`, `layovers`, `travel_time`, `booking_token`, `carbon_emissions`
 - **`Flight`** — Segment details: `airline`, `flight_number`, `aircraft`, `legroom`, `co2_grams`, `amenities`
