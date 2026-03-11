@@ -153,13 +153,15 @@ def _trip_summary(option) -> str:
     )
 
 
-def _render_search_price_hint(console, price_hint_command: Optional[str]) -> None:
-    """Render the human exact-pricing hint for search output."""
+def _render_search_price_hint(console, price_commands: Optional[list[str]]) -> None:
+    """Render the human pricing guidance for search output."""
     console.print(" [dim]Prices shown are shopping totals.[/dim]")
-    if price_hint_command:
-        console.print(f" [dim]To price row 1 exactly, rerun:[/dim]")
-        console.print(f" [bold cyan]{price_hint_command}[/bold cyan]")
-        console.print(" [dim]Replace 1 with another row number. For scripts, use selector from JSON with `swoop price --selector ...`.[/dim]")
+    if price_commands:
+        console.print(" [dim]Bookable fare commands for shown rows:[/dim]")
+        for index, command in enumerate(price_commands, 1):
+            console.print(f" [bold cyan]{index}. {command}[/bold cyan]")
+    else:
+        console.print(" [dim]Use --show-price-commands for copy/paste `swoop price --selector ...` commands, or -o json to access selectors directly.[/dim]")
 
 
 def format_search_table(
@@ -173,7 +175,7 @@ def format_search_table(
     return_date: Optional[str] = None,
     legs=None,
     limit: Optional[int] = None,
-    price_hint_command: Optional[str] = None,
+    price_commands: Optional[list[str]] = None,
     no_color: bool = False,
 ) -> None:
     """Render search results as a Rich table to stdout."""
@@ -231,7 +233,7 @@ def format_search_table(
     if not result.is_complete:
         console.print(" [dim]Results are truncated to the best complete trips within the CLI expansion budget.[/dim]")
 
-    _render_search_price_hint(console, price_hint_command)
+    _render_search_price_hint(console, price_commands)
     console.print()
 
 
@@ -301,7 +303,7 @@ def format_search_json(
     return_date: Optional[str] = None,
     legs=None,
     limit: Optional[int] = None,
-    price_hint_command: Optional[str] = None,
+    price_commands: Optional[list[str]] = None,
 ) -> None:
     """Render search results as JSON to stdout."""
     all_options = list(result.results)
@@ -381,7 +383,7 @@ def format_search_brief(
     result,
     *,
     limit: Optional[int] = None,
-    price_hint_command: Optional[str] = None,
+    price_commands: Optional[list[str]] = None,
 ) -> None:
     """Render search results in compact single-line format to stdout."""
     all_options = list(result.results)
@@ -394,7 +396,7 @@ def format_search_brief(
 
     if all_options:
         console = _stdout_console()
-        _render_search_price_hint(console, price_hint_command)
+        _render_search_price_hint(console, price_commands)
 
 
 # ---------------------------------------------------------------------------

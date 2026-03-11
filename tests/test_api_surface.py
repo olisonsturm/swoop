@@ -39,6 +39,7 @@ class TestFrozenExports:
         "search",
         "search_legs",
         "check_price",
+        "price_selector",
         "price_legs",
         "get_booking_results",
         "search_raw",
@@ -265,6 +266,12 @@ class TestSearchSignature:
             "legs", "cabin", "adults",
             "include_basic_economy", "timeout", "retries",
         ]
+        assert param_names == expected
+
+    def test_price_selector_params(self):
+        sig = inspect.signature(swoop.price_selector)
+        param_names = list(sig.parameters.keys())
+        expected = ["selector", "timeout", "retries"]
         assert param_names == expected
 
 

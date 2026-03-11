@@ -370,7 +370,7 @@ def price_legs(
     timeout: int = 90,
     retries: int = 2,
 ) -> Optional[PriceResult]:
-    """Look up the current price using explicit leg definitions.
+    """Look up the current bookable fare using explicit leg definitions.
 
     Args:
         legs: List of :class:`SelectedLeg` objects (1 or more).
@@ -426,6 +426,29 @@ def price_legs(
     )
 
 
+def price_selector(
+    selector: str,
+    *,
+    timeout: int = 90,
+    retries: int = 2,
+) -> Optional[PriceResult]:
+    """Look up the current bookable fare for an itinerary selector.
+
+    Selectors come from trip-level search results and preserve the exact
+    itinerary identity across CLI or API calls.
+
+    Args:
+        selector: Opaque selector from :func:`search` or :func:`search_legs`.
+        timeout: HTTP request timeout in seconds (default 90).
+        retries: Number of retries on HTTP 429 (default 2).
+
+    Returns:
+        A :class:`PriceResult`, or ``None`` if the selected itinerary no
+        longer exists.
+    """
+    return price_trip_selector(selector, timeout=timeout, retries=retries)
+
+
 def check_price(
     flight_number: str,
     *,
@@ -441,7 +464,7 @@ def check_price(
     timeout: int = 90,
     retries: int = 2,
 ) -> Optional[PriceResult]:
-    """Look up the current price for a specific flight.
+    """Look up the current bookable fare for a specific flight.
 
     Unlike :func:`search` which returns all itineraries on a route,
     ``check_price`` is optimized for the "what does flight X cost today?"
@@ -552,6 +575,7 @@ __all__ = [
     "search",
     "search_legs",
     "check_price",
+    "price_selector",
     "price_legs",
     "get_booking_results",
     "search_raw",

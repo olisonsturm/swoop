@@ -247,7 +247,7 @@ class TestMainGroup:
         assert result.exit_code == 0
         assert "search" in result.output
         assert "price" in result.output
-        assert "book" not in result.output
+        assert "\n  book" not in result.output
 
     def test_no_subcommand_shows_help(self):
         runner = CliRunner()
@@ -295,8 +295,9 @@ class TestSearchCommand:
         assert "DL 2300" in result.output  # flight_summary
         assert "Nonstop" in result.output
         assert "Prices shown are shopping totals" in result.output
-        assert "--price 1" in result.output
-        assert "swoop search JFK LAX 2026-06-15 --price 1" in result.output
+        assert "--show-price-commands" in result.output
+        assert "swoop price --selector" in result.output
+        assert "selector-1" not in result.output
 
     @patch("swoop.cli.commands._run_search")
     def test_csv_output(self, mock_search):
@@ -324,7 +325,7 @@ class TestSearchCommand:
         assert "$247" in lines[0]
         assert "DL 2300" in lines[0]
         assert "Prices shown are shopping totals." in result.output
-        assert "swoop search JFK LAX 2026-06-15 --price 1" in result.output
+        assert "--show-price-commands" in result.output
 
     @patch("swoop.cli.commands._run_search")
     def test_limit(self, mock_search):
@@ -465,96 +466,55 @@ class TestSearchCommand:
         assert result.exit_code == 0
         assert "JFK -> LAX" in result.output
 
-    @patch("swoop.cli.commands._price_trip_selector")
     @patch("swoop.cli.commands._run_search")
-    def test_price_drilldown(self, mock_search, mock_price_trip_selector):
-        """--price N prices the exact selected itinerary."""
+    @patch("swoop.price_selector")
+    def test_search_does_not_price_results(self, mock_price_selector, mock_search):
         mock_search.return_value = _make_search_result()
-        mock_price_trip_selector.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, [
-            "search", "JFK", "LAX", "2026-06-15", "--price", "1", "-q",
+            "search", "JFK", "LAX", "2026-06-15", "-q",
         ])
         assert result.exit_code == 0
-        assert "$342" in result.output
-        mock_price_trip_selector.assert_called_once()
-        assert mock_price_trip_selector.call_args[0][0] == "selector-1"
+        mock_price_selector.assert_not_called()
 
-    @patch("swoop.cli.commands._price_trip_selector")
     @patch("swoop.cli.commands._run_search")
-    def test_price_drilldown_uses_selected_row(self, mock_search, mock_price_trip_selector):
-        """Drilldown passes the selected row's opaque selector."""
-        shared_first = _make_flight(airline="UA", airline_name="United Airlines", flight_number="1234")
-        second_a = _make_flight(
-            airline="UA",
-            airline_name="United Airlines",
-            flight_number="2001",
-            departure_airport_code="ORD",
-            arrival_airport_code="LAX",
-            departure_time=(12, 45),
-            arrival_time=(14, 55),
-            travel_time=130,
-        )
-        second_b = _make_flight(
-            airline="UA",
-            airline_name="United Airlines",
-            flight_number="2002",
-            departure_airport_code="ORD",
-            arrival_airport_code="SFO",
-            departure_time=(13, 10),
-            arrival_time=(15, 40),
-            travel_time=150,
-        )
-        itin_a = _make_itinerary(
-            flights=[shared_first, second_a],
-            layovers=[Layover(minutes=90, departure_airport_code="ORD")],
-            departure_airport_code="JFK",
-            arrival_airport_code="LAX",
-            direct_price=301,
-            stop_count=1,
-            travel_time=345,
-        )
-        itin_b = _make_itinerary(
-            flights=[shared_first, second_b],
-            layovers=[Layover(minutes=110, departure_airport_code="ORD")],
-            departure_airport_code="JFK",
-            arrival_airport_code="SFO",
-            direct_price=355,
-            stop_count=1,
-            travel_time=390,
-        )
-        mock_search.return_value = SearchResult(results=[
-            TripOption(selector="selector-a", price=301, legs=[TripLeg(origin="JFK", destination="LAX", date="2026-06-15", itinerary=itin_a)]),
-            TripOption(selector="selector-b", price=355, legs=[TripLeg(origin="JFK", destination="SFO", date="2026-06-15", itinerary=itin_b)]),
-        ])
-        mock_price_trip_selector.return_value = PriceResult(price=355, fare_brand="Main Cabin", rpc_calls=0)
-
+    def test_show_price_commands(self, mock_search):
+        mock_search.return_value = _make_search_result()
         runner = CliRunner()
         result = runner.invoke(main, [
-            "search", "JFK", "LAX", "2026-06-15", "--price", "2", "-q",
+            "search", "JFK", "LAX", "2026-06-15", "--show-price-commands", "-q",
         ])
         assert result.exit_code == 0
-        assert mock_price_trip_selector.call_args[0][0] == "selector-b"
+        assert "Bookable fare commands for shown rows" in result.output
+        assert "1. swoop price --selector 'selector-1'" in result.output
+        assert "2. swoop price --selector 'selector-2'" in result.output
 
     @patch("swoop.cli.commands._run_search")
-    def test_price_drilldown_rejects_limit(self, mock_search):
-        """--price cannot be combined with --limit."""
-        runner = CliRunner(mix_stderr=False)
+    def test_show_price_commands_respects_limit(self, mock_search):
+        mock_search.return_value = _make_search_result()
+        runner = CliRunner()
         result = runner.invoke(main, [
-            "search", "JFK", "LAX", "2026-06-15", "--price", "1", "-l", "5", "-q",
+            "search", "JFK", "LAX", "2026-06-15", "--show-price-commands", "-l", "1", "-q",
         ])
-        assert result.exit_code == 2
-        assert "--price/--price-selector cannot be combined with --limit" in result.stderr
+        assert result.exit_code == 0
+        assert "1. swoop price --selector 'selector-1'" in result.output
+        assert "2. swoop price --selector 'selector-2'" not in result.output
 
-    @patch("swoop.cli.commands._run_search")
-    def test_price_drilldown_rejects_csv(self, mock_search):
-        """--price cannot be combined with -o csv."""
+    def test_show_price_commands_rejects_json(self):
         runner = CliRunner(mix_stderr=False)
         result = runner.invoke(main, [
-            "search", "JFK", "LAX", "2026-06-15", "--price", "1", "-o", "csv", "-q",
+            "search", "JFK", "LAX", "2026-06-15", "--show-price-commands", "-o", "json", "-q",
         ])
         assert result.exit_code == 2
-        assert "--price/--price-selector cannot be combined with -o csv" in result.stderr
+        assert "--show-price-commands is only supported with table or brief output" in result.stderr
+
+    def test_show_price_commands_rejects_csv(self):
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "--show-price-commands", "-o", "csv", "-q",
+        ])
+        assert result.exit_code == 2
+        assert "--show-price-commands is only supported with table or brief output" in result.stderr
 
     @patch("swoop.cli.commands._run_search")
     def test_connecting_flight_table(self, mock_search):
@@ -580,16 +540,6 @@ class TestSearchCommand:
         assert result.exit_code == 0
         mock_search_legs.assert_called_once()
 
-    @patch("swoop.cli.commands._price_trip_selector")
-    def test_price_selector_mode(self, mock_price_trip_selector):
-        mock_price_trip_selector.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
-        runner = CliRunner()
-        result = runner.invoke(main, [
-            "search", "--price-selector", "selector-1", "-q",
-        ])
-        assert result.exit_code == 0
-        mock_price_trip_selector.assert_called_once_with("selector-1", timeout=90, retries=0)
-
 
 # ---------------------------------------------------------------------------
 # Price command tests
@@ -598,22 +548,35 @@ class TestSearchCommand:
 
 class TestPriceCommand:
     @patch("swoop.check_price")
-    def test_price_positional_args(self, mock_check):
-        """Price command with positional FLIGHT ORIGIN DEST DATE."""
+    def test_price_shorthand_one_way(self, mock_check):
         mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, [
-            "price", "DL2300", "JFK", "LAX", "2026-06-15", "-q",
+            "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300", "-q",
         ])
         assert result.exit_code == 0
         assert "$342" in result.output
+        mock_check.assert_called_once_with(
+            "DL2300",
+            origin="JFK",
+            destination="LAX",
+            date="2026-06-15",
+            return_flight_number=None,
+            return_date=None,
+            cabin="economy",
+            adults=1,
+            max_stops=None,
+            include_basic_economy=False,
+            timeout=90,
+            retries=2,
+        )
 
     @patch("swoop.check_price")
     def test_price_json_output(self, mock_check):
         mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, [
-            "price", "DL2300", "JFK", "LAX", "2026-06-15",
+            "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300",
             "-o", "json", "-q",
         ])
         assert result.exit_code == 0
@@ -626,7 +589,7 @@ class TestPriceCommand:
         mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, [
-            "price", "DL2300", "JFK", "LAX", "2026-06-15",
+            "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300",
             "-o", "brief", "-q",
         ])
         assert result.exit_code == 0
@@ -638,15 +601,41 @@ class TestPriceCommand:
         mock_check.return_value = None
         runner = CliRunner(mix_stderr=False)
         result = runner.invoke(main, [
-            "price", "DL2300", "JFK", "LAX", "2026-06-15", "-q",
+            "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300", "-q",
         ])
         assert result.exit_code == 1
 
-    def test_price_missing_args(self):
-        """Positional args missing should error."""
+    def test_price_missing_depart(self):
         runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(main, ["price", "DL2300"])
+        result = runner.invoke(main, ["price", "JFK", "LAX"])
         assert result.exit_code == 2
+        assert "--depart is required" in result.stderr
+
+    @patch("swoop.check_price")
+    def test_price_shorthand_roundtrip(self, mock_check):
+        mock_check.return_value = PriceResult(price=684, fare_brand="Main Cabin", rpc_calls=3)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "price", "JFK", "LAX",
+            "--depart", "2026-06-15", "DL2300",
+            "--return", "2026-06-22", "DL2301",
+            "-q",
+        ])
+        assert result.exit_code == 0
+        mock_check.assert_called_once_with(
+            "DL2300",
+            origin="JFK",
+            destination="LAX",
+            date="2026-06-15",
+            return_flight_number="DL2301",
+            return_date="2026-06-22",
+            cabin="economy",
+            adults=1,
+            max_stops=None,
+            include_basic_economy=False,
+            timeout=90,
+            retries=2,
+        )
 
     @patch("swoop.price_legs")
     def test_price_leg_syntax(self, mock_price_legs):
@@ -665,51 +654,57 @@ class TestPriceCommand:
         assert len(call_args[0][0]) == 2
         assert call_args[0][0][1].flight_number == "DL2301"
 
-    def test_price_positional_and_leg_error(self):
-        """Positional + --leg is an error."""
+    def test_price_shorthand_and_leg_error(self):
+        """Shorthand + --leg is an error."""
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300",
+            "--leg", "JFK", "LAX", "2026-06-15", "DL2300",
+        ])
+        assert result.exit_code == 2
+        assert "mutually exclusive" in result.stderr
+
+    def test_price_return_requires_depart(self):
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "price", "JFK", "LAX", "--return", "2026-06-22", "DL2301",
+        ])
+        assert result.exit_code == 2
+        assert "--return requires --depart" in result.stderr
+
+    def test_price_depart_requires_route_args(self):
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "price", "--depart", "2026-06-15", "DL2300",
+        ])
+        assert result.exit_code == 2
+        assert "ORIGIN DESTINATION are required" in result.stderr
+
+    def test_price_legacy_positional_fails_cleanly(self):
         runner = CliRunner(mix_stderr=False)
         result = runner.invoke(main, [
             "price", "DL2300", "JFK", "LAX", "2026-06-15",
-            "--leg", "JFK", "LAX", "2026-06-15", "DL2300",
         ])
         assert result.exit_code == 2
-        assert "cannot be used together" in result.stderr
+        assert "not a valid iata airport code" in result.stderr.lower()
 
-    def test_price_return_flight_requires_return_date(self):
+    def test_price_legacy_return_flag_fails_cleanly(self):
         runner = CliRunner(mix_stderr=False)
         result = runner.invoke(main, [
-            "price", "DL2300", "JFK", "LAX", "2026-06-15", "--return-flight", "DL2301",
+            "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300", "--return-date", "2026-06-22",
         ])
         assert result.exit_code == 2
-        assert "--return-flight requires --return-date" in result.stderr
+        assert "no such option: --return-date" in result.stderr.lower()
 
-    def test_price_return_date_requires_return_flight_for_positional_mode(self):
-        runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(main, [
-            "price", "DL2300", "JFK", "LAX", "2026-06-15", "--return-date", "2026-06-22",
-        ])
-        assert result.exit_code == 2
-        assert "--return-date requires --return-flight" in result.stderr
-
-    def test_price_leg_conflicts_with_return_flags(self):
-        runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(main, [
-            "price",
-            "--leg", "JFK", "LAX", "2026-06-15", "DL2300",
-            "--return-date", "2026-06-22",
-        ])
-        assert result.exit_code == 2
-        assert "--leg cannot be combined" in result.stderr
-
-    @patch("swoop.cli.commands._price_trip_selector")
-    def test_price_selector_mode(self, mock_price_trip_selector):
-        mock_price_trip_selector.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
+    @patch("swoop.price_selector")
+    def test_price_selector_mode(self, mock_price_selector):
+        mock_price_selector.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, [
             "price", "--selector", "selector-1", "-q",
         ])
         assert result.exit_code == 0
-        mock_price_trip_selector.assert_called_once_with("selector-1", timeout=90, retries=2)
+        mock_price_selector.assert_called_once_with("selector-1", timeout=90, retries=2)
 
 
 # ---------------------------------------------------------------------------
