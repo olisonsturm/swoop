@@ -60,7 +60,7 @@ def _correct_roundtrip_economy_prices(
     *,
     include_basic_economy: bool = False,
     timeout: int = 90,
-    retries: int = 0,
+    retries: int = 2,
 ) -> None:
     """Patch itinerary prices with accurate GetBookingResults fares.
 
@@ -134,7 +134,7 @@ def search(
     return_earliest_departure: Optional[int] = None,
     return_latest_departure: Optional[int] = None,
     timeout: int = 90,
-    retries: int = 0,
+    retries: int = 2,
 ) -> Optional[SearchResult]:
     """Search Google Flights and return decoded results.
 
@@ -165,7 +165,7 @@ def search(
         return_latest_departure: Latest return departure hour (1–24).
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 with exponential backoff
-            (default 0 — no retries).
+            and jitter (default 2).
 
     Returns:
         A :class:`SearchResult` with ``best`` and ``other`` itinerary
@@ -274,7 +274,7 @@ def search_flight(
     adults: int = 1,
     max_stops: Optional[int] = None,
     timeout: int = 90,
-    retries: int = 0,
+    retries: int = 2,
 ) -> Optional[Itinerary]:
     """Search for a specific flight by number.
 
@@ -291,7 +291,7 @@ def search_flight(
         adults: Number of adult passengers (default 1).
         max_stops: Maximum stops (default any).
         timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 0).
+        retries: Number of retries on HTTP 429 (default 2).
 
     Returns:
         The matching :class:`Itinerary`, or ``None`` if not found.

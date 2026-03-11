@@ -137,7 +137,7 @@ for opt in options:
 </details>
 
 > [!TIP]
-> Google rate-limits aggressively. Use `retries=3` in production — both `search()` and `get_booking_results()` support `retries` and `timeout` parameters with exponential backoff.
+> Google rate-limits aggressively. All RPC functions default to `retries=2` with exponential backoff and jitter. Increase to `retries=3` for extra resilience.
 
 ## How it works
 
@@ -170,7 +170,7 @@ Search Google Flights and return a `SearchResult`.
 | `airlines` | `list[str] \| None` | `None` | Filter by airline codes |
 | `include_basic_economy` | `bool` | `False` | Include basic economy fares (excluded by default so prices reflect Main Cabin) |
 | `timeout` | `int` | `90` | HTTP timeout in seconds |
-| `retries` | `int` | `0` | Retries on HTTP 429 with exponential backoff |
+| `retries` | `int` | `2` | Retries on HTTP 429 with exponential backoff + jitter |
 
 Returns `SearchResult | None`. `None` means no results found.
 
