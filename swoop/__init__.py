@@ -245,6 +245,12 @@ def search(
         exclude_basic_economy=exclude_basic,
     )
 
+    # When a flight_number filter is provided, filter BEFORE correcting
+    # roundtrip prices. This avoids calling GetBookingResults on every
+    # itinerary only to discard most of them — turning N+1 RPCs into 2.
+    if parsed_number is not None:
+        result = _filter_by_flight_number(result, parsed_carrier, parsed_number)
+
     # For roundtrip economy, correct inflated expansion prices by fetching
     # actual bookable fares via GetBookingResults.
     if result is not None and return_date is not None and cabin == "economy":
@@ -255,8 +261,6 @@ def search(
             retries=retries,
         )
 
-    if parsed_number is not None:
-        return _filter_by_flight_number(result, parsed_carrier, parsed_number)
     return result
 
 
