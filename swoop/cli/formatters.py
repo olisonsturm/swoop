@@ -434,3 +434,108 @@ def format_booking_json(options: list, *, itin) -> None:
         ],
     }
     print(json.dumps(output, indent=2))
+
+
+# ---------------------------------------------------------------------------
+# Price check formatters
+# ---------------------------------------------------------------------------
+
+
+def format_price_table(
+    result,
+    *,
+    flight_number: str,
+    origin: str,
+    destination: str,
+    date: str,
+    return_date: Optional[str] = None,
+    no_color: bool = False,
+) -> None:
+    """Render a price check result as a Rich table to stdout."""
+    console = _stdout_console(no_color=no_color)
+    console.print()
+
+    trip_type = "Roundtrip" if return_date else "One-way"
+    trip = f"{origin} -> {destination}"
+    if return_date:
+        trip += f" (return {format_date_display(return_date)})"
+    date_display = format_date_display(date)
+
+    console.print(f" [bold]{flight_number} · {trip} · {date_display} · {trip_type}[/bold]")
+    console.print()
+    console.print(f" [bold green]Price: ${result.price:,}[/bold green]")
+
+    if result.fare_brand:
+        console.print(f" [dim]Fare: {result.fare_brand}[/dim]")
+    if result.is_basic_economy:
+        console.print(" [yellow]Basic Economy[/yellow]")
+
+    console.print(f" [dim]RPC calls: {result.rpc_calls}[/dim]")
+
+    if result.booking_options:
+        console.print()
+        table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
+        table.add_column("#", justify="right", style="dim", width=3)
+        table.add_column("Fare", min_width=16)
+        table.add_column("Price", justify="right", width=8)
+        table.add_column("Basic", width=6)
+
+        for i, opt in enumerate(result.booking_options, 1):
+            price = f"${opt.price:,}" if opt.price else "—"
+            table.add_row(
+                str(i),
+                opt.brand_label or opt.brand_code or "—",
+                price,
+                "Yes" if opt.is_basic else "No",
+            )
+        console.print(table)
+
+    console.print()
+
+
+def format_price_json(
+    result,
+    *,
+    flight_number: str,
+    origin: str,
+    destination: str,
+    date: str,
+    return_date: Optional[str] = None,
+) -> None:
+    """Render a price check result as JSON to stdout."""
+    output = {
+        "query": {
+            "flight_number": flight_number,
+            "origin": origin,
+            "destination": destination,
+            "date": date,
+            "return_date": return_date,
+        },
+        "price_usd": result.price,
+        "fare_brand": result.fare_brand,
+        "is_basic_economy": result.is_basic_economy,
+        "rpc_calls": result.rpc_calls,
+        "booking_options": [
+            {
+                "brand_label": opt.brand_label,
+                "brand_code": opt.brand_code,
+                "price_usd": opt.price,
+                "is_basic": opt.is_basic,
+            }
+            for opt in result.booking_options
+        ] if result.booking_options else [],
+    }
+    if result.itinerary:
+        output["itinerary"] = _itin_to_dict(result.itinerary, 1)
+    print(json.dumps(output, indent=2))
+
+
+def format_price_brief(
+    result,
+    *,
+    return_date: Optional[str] = None,
+) -> None:
+    """Render a price check result in compact format to stdout."""
+    trip_type = "roundtrip" if return_date else "one-way"
+    brand = f" ({result.fare_brand})" if result.fare_brand else ""
+    print(f"${result.price:,}{brand} {trip_type} [{result.rpc_calls} RPCs]")

@@ -211,6 +211,7 @@ class TestSearchSignature:
         param_names = list(sig.parameters.keys())
         expected = [
             "flight_number", "origin", "destination", "date",
+            "return_date", "return_flight_number",
             "cabin", "adults", "max_stops", "timeout", "retries",
         ]
         assert param_names == expected

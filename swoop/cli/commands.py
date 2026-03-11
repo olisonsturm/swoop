@@ -308,6 +308,114 @@ def flight_cmd(
         format_flight_detail(itin, no_color=no_color)
 
 
+@click.command("price")
+@click.argument("flight_number", type=str)
+@click.option("-f", "--from", "origin", type=IATA_CODE, required=True, help="Departure airport.")
+@click.option("-t", "--to", "destination", type=IATA_CODE, required=True, help="Arrival airport.")
+@click.option("-d", "--date", type=DATE, required=True, help="Departure date.")
+@click.option("-r", "--return", "return_date", type=DATE, default=None, help="Return date (roundtrip).")
+@click.option("--return-flight", type=str, default=None, help="Return flight number.")
+@click.option("-c", "--cabin", type=click.Choice(CABIN_CHOICES, case_sensitive=False), default="economy", show_default=True)
+@click.option("-p", "--passengers", type=int, default=1, show_default=True)
+@click.option("--max-stops", type=click.IntRange(0, 2), default=None)
+@click.option("--include-basic", is_flag=True, default=False, help="Include basic economy fares.")
+@click.option("--timeout", type=int, default=90, show_default=True)
+@click.option("--retries", type=int, default=2, show_default=True)
+@_output_options(["table", "json", "brief"])
+@click.pass_context
+def price_cmd(
+    ctx, flight_number, origin, destination, date,
+    return_date, return_flight, cabin, passengers, max_stops,
+    include_basic, timeout, retries,
+    output_format, no_color, quiet,
+):
+    """Check the price of a specific flight.
+
+    Uses minimal RPC calls (1 for one-way, 3 for roundtrip).
+
+    \b
+    Examples:
+      swoop price DL2300 -f JFK -t LAX -d 2026-06-15
+      swoop price DL2300 -f JFK -t LAX -d 2026-06-15 -r 2026-06-22 --return-flight DL2301
+      swoop price DL2300 -f JFK -t LAX -d 2026-06-15 -o json
+    """
+    import swoop
+    from swoop.exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
+
+    from .formatters import format_price_brief, format_price_json, format_price_table
+
+    err = _err_console(no_color)
+
+    warning = check_past_date(date)
+    if warning:
+        err.print(f"[yellow]{warning}[/yellow]")
+
+    try:
+        if not quiet and output_format == "table":
+            with err.status("[bold]Checking price...[/bold]"):
+                result = swoop.check_price(
+                    flight_number,
+                    origin=origin,
+                    destination=destination,
+                    date=date,
+                    return_flight_number=return_flight,
+                    return_date=return_date,
+                    cabin=cabin,
+                    adults=passengers,
+                    max_stops=max_stops,
+                    include_basic_economy=include_basic,
+                    timeout=timeout,
+                    retries=retries,
+                )
+        else:
+            result = swoop.check_price(
+                flight_number,
+                origin=origin,
+                destination=destination,
+                date=date,
+                return_flight_number=return_flight,
+                return_date=return_date,
+                cabin=cabin,
+                adults=passengers,
+                max_stops=max_stops,
+                include_basic_economy=include_basic,
+                timeout=timeout,
+                retries=retries,
+            )
+    except ValueError as e:
+        err.print(f"[red]Error: {e}[/red]")
+        ctx.exit(2)
+    except SwoopRateLimitError:
+        err.print("[red]Rate limited. Wait a few minutes. Tip: use --retries 3[/red]")
+        ctx.exit(3)
+    except SwoopHTTPError as e:
+        err.print(f"[red]Google Flights returned HTTP {e.status_code}[/red]")
+        ctx.exit(3)
+    except SwoopParseError:
+        err.print("[red]Could not parse Google Flights response[/red]")
+        ctx.exit(4)
+
+    if result is None:
+        trip = f"{origin} -> {destination}"
+        if return_date:
+            trip += f" (roundtrip)"
+        err.print(
+            f"[yellow]Flight {flight_number} not found on {trip} "
+            f"on {date}.[/yellow]"
+        )
+        ctx.exit(1)
+
+    if output_format == "json":
+        format_price_json(result, flight_number=flight_number, origin=origin,
+                          destination=destination, date=date, return_date=return_date)
+    elif output_format == "brief":
+        format_price_brief(result, return_date=return_date)
+    else:
+        format_price_table(result, flight_number=flight_number, origin=origin,
+                           destination=destination, date=date, return_date=return_date,
+                           no_color=no_color)
+
+
 @click.command("book")
 @click.argument("index", type=int)
 @click.argument("origin", type=IATA_CODE)

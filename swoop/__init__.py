@@ -272,6 +272,8 @@ def search_flight(
     origin: str,
     destination: str,
     date: str,
+    return_date: Optional[str] = None,
+    return_flight_number: Optional[str] = None,
     cabin: str = "economy",
     adults: int = 1,
     max_stops: Optional[int] = None,
@@ -283,12 +285,17 @@ def search_flight(
     Searches Google Flights for the given route and filters to the matching
     flight number. This is a convenience wrapper around :func:`search`.
 
+    For roundtrip searches, provide ``return_date``. If ``return_flight_number``
+    is given, the return leg is also filtered by flight number.
+
     Args:
         flight_number: Flight number (e.g. ``"DL 171"``, ``"DL171"``,
             or ``"171"``).
         origin: Origin airport IATA code.
         destination: Destination airport IATA code.
         date: Departure date as ``YYYY-MM-DD``.
+        return_date: Return date for roundtrip (default ``None``).
+        return_flight_number: Return flight number to filter (default ``None``).
         cabin: Cabin class (default ``"economy"``).
         adults: Number of adult passengers (default 1).
         max_stops: Maximum stops (default any).
@@ -310,6 +317,7 @@ def search_flight(
         origin,
         destination,
         date,
+        return_date=return_date,
         flight_number=flight_number,
         cabin=cabin,
         adults=adults,
