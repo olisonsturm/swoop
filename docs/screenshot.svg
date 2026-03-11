@@ -1,4 +1,4 @@
-<svg class="rich-terminal" viewBox="0 0 1458 416.0" xmlns="http://www.w3.org/2000/svg">
+<svg class="rich-terminal" viewBox="0 0 1458 391.59999999999997" xmlns="http://www.w3.org/2000/svg">
     <!-- Generated with Rich https://www.textualize.io -->
     <style>
 
@@ -19,105 +19,97 @@
         font-weight: 700;
     }
 
-    .terminal-110162711-matrix {
+    .terminal-2977626293-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-110162711-title {
+    .terminal-2977626293-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
     }
 
-    .terminal-110162711-r1 { fill: #c5c8c6 }
-.terminal-110162711-r2 { fill: #c5c8c6;font-weight: bold }
-.terminal-110162711-r3 { fill: #68a0b3;font-weight: bold }
-.terminal-110162711-r4 { fill: #868887 }
-.terminal-110162711-r5 { fill: #98a84b }
-.terminal-110162711-r6 { fill: #98a84b;font-weight: bold }
-.terminal-110162711-r7 { fill: #d0b344 }
-.terminal-110162711-r8 { fill: #8d7b39 }
-.terminal-110162711-r9 { fill: #cc555a }
-.terminal-110162711-r10 { fill: #8a4346 }
-.terminal-110162711-r11 { fill: #4e707b;font-weight: bold }
+    .terminal-2977626293-r1 { fill: #c5c8c6 }
+.terminal-2977626293-r2 { fill: #c5c8c6;font-weight: bold }
+.terminal-2977626293-r3 { fill: #68a0b3;font-weight: bold }
+.terminal-2977626293-r4 { fill: #868887 }
+.terminal-2977626293-r5 { fill: #98a84b;font-weight: bold }
+.terminal-2977626293-r6 { fill: #4e707b;font-weight: bold }
+.terminal-2977626293-r7 { fill: #8d7b39 }
     </style>
 
     <defs>
-    <clipPath id="terminal-110162711-clip-terminal">
-      <rect x="0" y="0" width="1438.6" height="365.0" />
+    <clipPath id="terminal-2977626293-clip-terminal">
+      <rect x="0" y="0" width="1438.6" height="340.59999999999997" />
     </clipPath>
-    <clipPath id="terminal-110162711-line-0">
+    <clipPath id="terminal-2977626293-line-0">
     <rect x="0" y="1.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-110162711-line-1">
+<clipPath id="terminal-2977626293-line-1">
     <rect x="0" y="25.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-110162711-line-2">
+<clipPath id="terminal-2977626293-line-2">
     <rect x="0" y="50.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-110162711-line-3">
+<clipPath id="terminal-2977626293-line-3">
     <rect x="0" y="74.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-110162711-line-4">
+<clipPath id="terminal-2977626293-line-4">
     <rect x="0" y="99.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-110162711-line-5">
+<clipPath id="terminal-2977626293-line-5">
     <rect x="0" y="123.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-110162711-line-6">
+<clipPath id="terminal-2977626293-line-6">
     <rect x="0" y="147.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-110162711-line-7">
+<clipPath id="terminal-2977626293-line-7">
     <rect x="0" y="172.3" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-110162711-line-8">
+<clipPath id="terminal-2977626293-line-8">
     <rect x="0" y="196.7" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-110162711-line-9">
+<clipPath id="terminal-2977626293-line-9">
     <rect x="0" y="221.1" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-110162711-line-10">
+<clipPath id="terminal-2977626293-line-10">
     <rect x="0" y="245.5" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-110162711-line-11">
+<clipPath id="terminal-2977626293-line-11">
     <rect x="0" y="269.9" width="1439.6" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-110162711-line-12">
+<clipPath id="terminal-2977626293-line-12">
     <rect x="0" y="294.3" width="1439.6" height="24.65"/>
-            </clipPath>
-<clipPath id="terminal-110162711-line-13">
-    <rect x="0" y="318.7" width="1439.6" height="24.65"/>
             </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="414" rx="8"/><text class="terminal-110162711-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">swoop&#160;search&#160;JFK&#160;LAX&#160;2026-06-15</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1456" height="389.6" rx="8"/><text class="terminal-2977626293-title" fill="#c5c8c6" text-anchor="middle" x="728" y="27">swoop&#160;search&#160;JFK&#160;LAX&#160;2026-06-15</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-110162711-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#terminal-2977626293-clip-terminal)">
     
-    <g class="terminal-110162711-matrix">
-    <text class="terminal-110162711-r1" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-110162711-line-0)">
-</text><text class="terminal-110162711-r2" x="12.2" y="44.4" textLength="366" clip-path="url(#terminal-110162711-line-1)">Flights:&#160;JFK&#160;-&gt;&#160;LAX&#160;·&#160;Mon&#160;Jun&#160;</text><text class="terminal-110162711-r3" x="378.2" y="44.4" textLength="24.4" clip-path="url(#terminal-110162711-line-1)">15</text><text class="terminal-110162711-r2" x="402.6" y="44.4" textLength="24.4" clip-path="url(#terminal-110162711-line-1)">,&#160;</text><text class="terminal-110162711-r3" x="427" y="44.4" textLength="48.8" clip-path="url(#terminal-110162711-line-1)">2026</text><text class="terminal-110162711-r2" x="475.8" y="44.4" textLength="158.6" clip-path="url(#terminal-110162711-line-1)">&#160;·&#160;Economy&#160;·&#160;</text><text class="terminal-110162711-r3" x="634.4" y="44.4" textLength="12.2" clip-path="url(#terminal-110162711-line-1)">1</text><text class="terminal-110162711-r2" x="646.6" y="44.4" textLength="73.2" clip-path="url(#terminal-110162711-line-1)">&#160;adult</text><text class="terminal-110162711-r1" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-110162711-line-1)">
-</text><text class="terminal-110162711-r1" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-110162711-line-2)">
-</text><text class="terminal-110162711-r2" x="12.2" y="93.2" textLength="36.6" clip-path="url(#terminal-110162711-line-3)">&#160;&#160;#</text><text class="terminal-110162711-r2" x="73.2" y="93.2" textLength="122" clip-path="url(#terminal-110162711-line-3)">Flights&#160;&#160;&#160;</text><text class="terminal-110162711-r2" x="219.6" y="93.2" textLength="122" clip-path="url(#terminal-110162711-line-3)">Airlines&#160;&#160;</text><text class="terminal-110162711-r2" x="366" y="93.2" textLength="292.8" clip-path="url(#terminal-110162711-line-3)">Route&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-110162711-r2" x="683.2" y="93.2" textLength="85.4" clip-path="url(#terminal-110162711-line-3)">&#160;Depart</text><text class="terminal-110162711-r2" x="793" y="93.2" textLength="85.4" clip-path="url(#terminal-110162711-line-3)">&#160;Arrive</text><text class="terminal-110162711-r2" x="902.8" y="93.2" textLength="97.6" clip-path="url(#terminal-110162711-line-3)">Duration</text><text class="terminal-110162711-r2" x="1024.8" y="93.2" textLength="109.8" clip-path="url(#terminal-110162711-line-3)">Stops&#160;&#160;&#160;&#160;</text><text class="terminal-110162711-r2" x="1159" y="93.2" textLength="97.6" clip-path="url(#terminal-110162711-line-3)">&#160;&#160;&#160;Price</text><text class="terminal-110162711-r1" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-110162711-line-3)">
-</text><text class="terminal-110162711-r4" x="12.2" y="117.6" textLength="36.6" clip-path="url(#terminal-110162711-line-4)">&#160;&#160;1</text><text class="terminal-110162711-r1" x="73.2" y="117.6" textLength="122" clip-path="url(#terminal-110162711-line-4)">DL&#160;2300&#160;&#160;&#160;</text><text class="terminal-110162711-r1" x="219.6" y="117.6" textLength="122" clip-path="url(#terminal-110162711-line-4)">Delta&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-110162711-r1" x="366" y="117.6" textLength="292.8" clip-path="url(#terminal-110162711-line-4)">JFK&#160;-&gt;&#160;LAX&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-110162711-r1" x="683.2" y="117.6" textLength="85.4" clip-path="url(#terminal-110162711-line-4)">&#160;&#160;8:30a</text><text class="terminal-110162711-r1" x="793" y="117.6" textLength="85.4" clip-path="url(#terminal-110162711-line-4)">&#160;11:45a</text><text class="terminal-110162711-r1" x="902.8" y="117.6" textLength="97.6" clip-path="url(#terminal-110162711-line-4)">&#160;&#160;5h&#160;15m</text><text class="terminal-110162711-r5" x="1024.8" y="117.6" textLength="109.8" clip-path="url(#terminal-110162711-line-4)">Nonstop&#160;&#160;</text><text class="terminal-110162711-r2" x="1159" y="117.6" textLength="97.6" clip-path="url(#terminal-110162711-line-4)">&#160;&#160;&#160;&#160;$247</text><text class="terminal-110162711-r1" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-110162711-line-4)">
-</text><text class="terminal-110162711-r4" x="12.2" y="142" textLength="36.6" clip-path="url(#terminal-110162711-line-5)">&#160;&#160;2</text><text class="terminal-110162711-r1" x="73.2" y="142" textLength="122" clip-path="url(#terminal-110162711-line-5)">B6&#160;524&#160;&#160;&#160;&#160;</text><text class="terminal-110162711-r1" x="219.6" y="142" textLength="122" clip-path="url(#terminal-110162711-line-5)">JetBlue&#160;&#160;&#160;</text><text class="terminal-110162711-r1" x="366" y="142" textLength="292.8" clip-path="url(#terminal-110162711-line-5)">JFK&#160;-&gt;&#160;LAX&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-110162711-r1" x="683.2" y="142" textLength="85.4" clip-path="url(#terminal-110162711-line-5)">&#160;&#160;9:00a</text><text class="terminal-110162711-r1" x="793" y="142" textLength="85.4" clip-path="url(#terminal-110162711-line-5)">&#160;12:30p</text><text class="terminal-110162711-r1" x="902.8" y="142" textLength="97.6" clip-path="url(#terminal-110162711-line-5)">&#160;&#160;5h&#160;30m</text><text class="terminal-110162711-r5" x="1024.8" y="142" textLength="109.8" clip-path="url(#terminal-110162711-line-5)">Nonstop&#160;&#160;</text><text class="terminal-110162711-r6" x="1207.8" y="142" textLength="48.8" clip-path="url(#terminal-110162711-line-5)">$219</text><text class="terminal-110162711-r1" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-110162711-line-5)">
-</text><text class="terminal-110162711-r4" x="12.2" y="166.4" textLength="36.6" clip-path="url(#terminal-110162711-line-6)">&#160;&#160;3</text><text class="terminal-110162711-r1" x="73.2" y="166.4" textLength="122" clip-path="url(#terminal-110162711-line-6)">UA&#160;12&#160;/&#160;34</text><text class="terminal-110162711-r1" x="219.6" y="166.4" textLength="122" clip-path="url(#terminal-110162711-line-6)">United&#160;&#160;&#160;&#160;</text><text class="terminal-110162711-r1" x="366" y="166.4" textLength="292.8" clip-path="url(#terminal-110162711-line-6)">JFK&#160;-&gt;&#160;ORD&#160;-&gt;&#160;LAX&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-110162711-r1" x="683.2" y="166.4" textLength="85.4" clip-path="url(#terminal-110162711-line-6)">&#160;10:15a</text><text class="terminal-110162711-r1" x="793" y="166.4" textLength="85.4" clip-path="url(#terminal-110162711-line-6)">&#160;&#160;3:20p</text><text class="terminal-110162711-r1" x="902.8" y="166.4" textLength="97.6" clip-path="url(#terminal-110162711-line-6)">&#160;&#160;8h&#160;05m</text><text class="terminal-110162711-r7" x="1024.8" y="166.4" textLength="109.8" clip-path="url(#terminal-110162711-line-6)">1&#160;stop&#160;&#160;&#160;</text><text class="terminal-110162711-r2" x="1159" y="166.4" textLength="97.6" clip-path="url(#terminal-110162711-line-6)">&#160;&#160;&#160;&#160;$283</text><text class="terminal-110162711-r1" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-110162711-line-6)">
-</text><text class="terminal-110162711-r8" x="1024.8" y="190.8" textLength="109.8" clip-path="url(#terminal-110162711-line-7)">1h35m&#160;ORD</text><text class="terminal-110162711-r1" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-110162711-line-7)">
-</text><text class="terminal-110162711-r4" x="12.2" y="215.2" textLength="36.6" clip-path="url(#terminal-110162711-line-8)">&#160;&#160;4</text><text class="terminal-110162711-r1" x="73.2" y="215.2" textLength="122" clip-path="url(#terminal-110162711-line-8)">NK&#160;80&#160;+2&#160;&#160;</text><text class="terminal-110162711-r1" x="219.6" y="215.2" textLength="73.2" clip-path="url(#terminal-110162711-line-8)">Spirit</text><text class="terminal-110162711-r4" x="292.8" y="215.2" textLength="24.4" clip-path="url(#terminal-110162711-line-8)">&#160;*</text><text class="terminal-110162711-r1" x="366" y="215.2" textLength="292.8" clip-path="url(#terminal-110162711-line-8)">JFK&#160;-&gt;&#160;ATL&#160;-&gt;&#160;DFW&#160;-&gt;&#160;LAX</text><text class="terminal-110162711-r1" x="683.2" y="215.2" textLength="85.4" clip-path="url(#terminal-110162711-line-8)">&#160;&#160;2:05p</text><text class="terminal-110162711-r1" x="793" y="215.2" textLength="85.4" clip-path="url(#terminal-110162711-line-8)">&#160;&#160;9:05p</text><text class="terminal-110162711-r1" x="902.8" y="215.2" textLength="97.6" clip-path="url(#terminal-110162711-line-8)">&#160;&#160;&#160;&#160;&#160;11h</text><text class="terminal-110162711-r9" x="1024.8" y="215.2" textLength="109.8" clip-path="url(#terminal-110162711-line-8)">2&#160;stops&#160;&#160;</text><text class="terminal-110162711-r2" x="1159" y="215.2" textLength="97.6" clip-path="url(#terminal-110162711-line-8)">&#160;&#160;&#160;&#160;$239</text><text class="terminal-110162711-r1" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-110162711-line-8)">
-</text><text class="terminal-110162711-r10" x="1024.8" y="239.6" textLength="85.4" clip-path="url(#terminal-110162711-line-9)">45m&#160;ATL</text><text class="terminal-110162711-r1" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-110162711-line-9)">
-</text><text class="terminal-110162711-r10" x="1024.8" y="264" textLength="85.4" clip-path="url(#terminal-110162711-line-10)">55m&#160;DFW</text><text class="terminal-110162711-r1" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-110162711-line-10)">
-</text><text class="terminal-110162711-r1" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-110162711-line-11)">
-</text><text class="terminal-110162711-r4" x="12.2" y="312.8" textLength="170.8" clip-path="url(#terminal-110162711-line-12)">Price&#160;range:&#160;$</text><text class="terminal-110162711-r11" x="183" y="312.8" textLength="36.6" clip-path="url(#terminal-110162711-line-12)">219</text><text class="terminal-110162711-r4" x="219.6" y="312.8" textLength="24.4" clip-path="url(#terminal-110162711-line-12)">-$</text><text class="terminal-110162711-r11" x="244" y="312.8" textLength="36.6" clip-path="url(#terminal-110162711-line-12)">283</text><text class="terminal-110162711-r4" x="280.6" y="312.8" textLength="36.6" clip-path="url(#terminal-110162711-line-12)">&#160;·&#160;</text><text class="terminal-110162711-r11" x="317.2" y="312.8" textLength="12.2" clip-path="url(#terminal-110162711-line-12)">4</text><text class="terminal-110162711-r4" x="329.4" y="312.8" textLength="48.8" clip-path="url(#terminal-110162711-line-12)">&#160;of&#160;</text><text class="terminal-110162711-r11" x="378.2" y="312.8" textLength="12.2" clip-path="url(#terminal-110162711-line-12)">4</text><text class="terminal-110162711-r4" x="390.4" y="312.8" textLength="170.8" clip-path="url(#terminal-110162711-line-12)">&#160;results&#160;shown</text><text class="terminal-110162711-r1" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-110162711-line-12)">
-</text><text class="terminal-110162711-r4" x="12.2" y="337.2" textLength="707.6" clip-path="url(#terminal-110162711-line-13)">Tip:&#160;use&#160;--show-price-commands&#160;for&#160;copy/paste&#160;selector&#160;pricing&#160;commands</text><text class="terminal-110162711-r1" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-110162711-line-13)">
-</text><text class="terminal-110162711-r1" x="1439.6" y="361.6" textLength="12.2" clip-path="url(#terminal-110162711-line-14)">
+    <g class="terminal-2977626293-matrix">
+    <text class="terminal-2977626293-r1" x="1439.6" y="20" textLength="12.2" clip-path="url(#terminal-2977626293-line-0)">
+</text><text class="terminal-2977626293-r2" x="12.2" y="44.4" textLength="366" clip-path="url(#terminal-2977626293-line-1)">Flights:&#160;JFK&#160;-&gt;&#160;LAX&#160;·&#160;Mon&#160;Jun&#160;</text><text class="terminal-2977626293-r3" x="378.2" y="44.4" textLength="24.4" clip-path="url(#terminal-2977626293-line-1)">15</text><text class="terminal-2977626293-r2" x="402.6" y="44.4" textLength="24.4" clip-path="url(#terminal-2977626293-line-1)">,&#160;</text><text class="terminal-2977626293-r3" x="427" y="44.4" textLength="48.8" clip-path="url(#terminal-2977626293-line-1)">2026</text><text class="terminal-2977626293-r2" x="475.8" y="44.4" textLength="158.6" clip-path="url(#terminal-2977626293-line-1)">&#160;·&#160;Economy&#160;·&#160;</text><text class="terminal-2977626293-r3" x="634.4" y="44.4" textLength="12.2" clip-path="url(#terminal-2977626293-line-1)">1</text><text class="terminal-2977626293-r2" x="646.6" y="44.4" textLength="73.2" clip-path="url(#terminal-2977626293-line-1)">&#160;adult</text><text class="terminal-2977626293-r1" x="1439.6" y="44.4" textLength="12.2" clip-path="url(#terminal-2977626293-line-1)">
+</text><text class="terminal-2977626293-r1" x="1439.6" y="68.8" textLength="12.2" clip-path="url(#terminal-2977626293-line-2)">
+</text><text class="terminal-2977626293-r2" x="12.2" y="93.2" textLength="36.6" clip-path="url(#terminal-2977626293-line-3)">&#160;&#160;#</text><text class="terminal-2977626293-r2" x="73.2" y="93.2" textLength="756.4" clip-path="url(#terminal-2977626293-line-3)">Trip&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-2977626293-r2" x="854" y="93.2" textLength="97.6" clip-path="url(#terminal-2977626293-line-3)">&#160;&#160;&#160;Price</text><text class="terminal-2977626293-r1" x="1439.6" y="93.2" textLength="12.2" clip-path="url(#terminal-2977626293-line-3)">
+</text><text class="terminal-2977626293-r4" x="12.2" y="117.6" textLength="36.6" clip-path="url(#terminal-2977626293-line-4)">&#160;&#160;1</text><text class="terminal-2977626293-r1" x="73.2" y="117.6" textLength="756.4" clip-path="url(#terminal-2977626293-line-4)">Leg&#160;1:&#160;DL&#160;2300&#160;&#160;JFK-&gt;LAX&#160;&#160;08:30-11:45&#160;&#160;5h&#160;15m&#160;&#160;Nonstop&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-2977626293-r2" x="854" y="117.6" textLength="97.6" clip-path="url(#terminal-2977626293-line-4)">&#160;&#160;&#160;&#160;$247</text><text class="terminal-2977626293-r1" x="1439.6" y="117.6" textLength="12.2" clip-path="url(#terminal-2977626293-line-4)">
+</text><text class="terminal-2977626293-r4" x="12.2" y="142" textLength="36.6" clip-path="url(#terminal-2977626293-line-5)">&#160;&#160;2</text><text class="terminal-2977626293-r1" x="73.2" y="142" textLength="756.4" clip-path="url(#terminal-2977626293-line-5)">Leg&#160;1:&#160;B6&#160;524&#160;&#160;JFK-&gt;LAX&#160;&#160;09:00-12:30&#160;&#160;5h&#160;30m&#160;&#160;Nonstop&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-2977626293-r5" x="902.8" y="142" textLength="48.8" clip-path="url(#terminal-2977626293-line-5)">$219</text><text class="terminal-2977626293-r1" x="1439.6" y="142" textLength="12.2" clip-path="url(#terminal-2977626293-line-5)">
+</text><text class="terminal-2977626293-r4" x="12.2" y="166.4" textLength="36.6" clip-path="url(#terminal-2977626293-line-6)">&#160;&#160;3</text><text class="terminal-2977626293-r1" x="73.2" y="166.4" textLength="756.4" clip-path="url(#terminal-2977626293-line-6)">Leg&#160;1:&#160;UA&#160;12&#160;/&#160;34&#160;&#160;JFK-&gt;ORD-&gt;LAX&#160;&#160;10:15-15:20&#160;&#160;8h&#160;05m&#160;&#160;1&#160;stop&#160;</text><text class="terminal-2977626293-r2" x="854" y="166.4" textLength="97.6" clip-path="url(#terminal-2977626293-line-6)">&#160;&#160;&#160;&#160;$283</text><text class="terminal-2977626293-r1" x="1439.6" y="166.4" textLength="12.2" clip-path="url(#terminal-2977626293-line-6)">
+</text><text class="terminal-2977626293-r4" x="12.2" y="190.8" textLength="36.6" clip-path="url(#terminal-2977626293-line-7)">&#160;&#160;4</text><text class="terminal-2977626293-r1" x="73.2" y="190.8" textLength="756.4" clip-path="url(#terminal-2977626293-line-7)">Leg&#160;1:&#160;NK&#160;80&#160;+2&#160;&#160;JFK-&gt;ATL-&gt;DFW-&gt;LAX&#160;&#160;14:05-21:05&#160;&#160;11h&#160;&#160;2&#160;stops</text><text class="terminal-2977626293-r2" x="854" y="190.8" textLength="97.6" clip-path="url(#terminal-2977626293-line-7)">&#160;&#160;&#160;&#160;$239</text><text class="terminal-2977626293-r1" x="1439.6" y="190.8" textLength="12.2" clip-path="url(#terminal-2977626293-line-7)">
+</text><text class="terminal-2977626293-r1" x="1439.6" y="215.2" textLength="12.2" clip-path="url(#terminal-2977626293-line-8)">
+</text><text class="terminal-2977626293-r4" x="12.2" y="239.6" textLength="170.8" clip-path="url(#terminal-2977626293-line-9)">Price&#160;range:&#160;$</text><text class="terminal-2977626293-r6" x="183" y="239.6" textLength="36.6" clip-path="url(#terminal-2977626293-line-9)">219</text><text class="terminal-2977626293-r4" x="219.6" y="239.6" textLength="24.4" clip-path="url(#terminal-2977626293-line-9)">-$</text><text class="terminal-2977626293-r6" x="244" y="239.6" textLength="36.6" clip-path="url(#terminal-2977626293-line-9)">283</text><text class="terminal-2977626293-r4" x="280.6" y="239.6" textLength="36.6" clip-path="url(#terminal-2977626293-line-9)">&#160;·&#160;</text><text class="terminal-2977626293-r6" x="317.2" y="239.6" textLength="12.2" clip-path="url(#terminal-2977626293-line-9)">4</text><text class="terminal-2977626293-r4" x="329.4" y="239.6" textLength="48.8" clip-path="url(#terminal-2977626293-line-9)">&#160;of&#160;</text><text class="terminal-2977626293-r6" x="378.2" y="239.6" textLength="12.2" clip-path="url(#terminal-2977626293-line-9)">4</text><text class="terminal-2977626293-r4" x="390.4" y="239.6" textLength="170.8" clip-path="url(#terminal-2977626293-line-9)">&#160;results&#160;shown</text><text class="terminal-2977626293-r1" x="1439.6" y="239.6" textLength="12.2" clip-path="url(#terminal-2977626293-line-9)">
+</text><text class="terminal-2977626293-r4" x="12.2" y="264" textLength="402.6" clip-path="url(#terminal-2977626293-line-10)">Prices&#160;shown&#160;are&#160;shopping&#160;totals.</text><text class="terminal-2977626293-r1" x="1439.6" y="264" textLength="12.2" clip-path="url(#terminal-2977626293-line-10)">
+</text><text class="terminal-2977626293-r4" x="12.2" y="288.4" textLength="793" clip-path="url(#terminal-2977626293-line-11)">Use&#160;--show-price-commands&#160;for&#160;copy/paste&#160;`swoop&#160;price&#160;--selector&#160;</text><text class="terminal-2977626293-r7" x="805.2" y="288.4" textLength="36.6" clip-path="url(#terminal-2977626293-line-11)">...</text><text class="terminal-2977626293-r4" x="841.8" y="288.4" textLength="524.6" clip-path="url(#terminal-2977626293-line-11)">`&#160;commands,&#160;or&#160;-o&#160;json&#160;to&#160;access&#160;selectors&#160;</text><text class="terminal-2977626293-r1" x="1439.6" y="288.4" textLength="12.2" clip-path="url(#terminal-2977626293-line-11)">
+</text><text class="terminal-2977626293-r4" x="0" y="312.8" textLength="109.8" clip-path="url(#terminal-2977626293-line-12)">directly.</text><text class="terminal-2977626293-r1" x="1439.6" y="312.8" textLength="12.2" clip-path="url(#terminal-2977626293-line-12)">
+</text><text class="terminal-2977626293-r1" x="1439.6" y="337.2" textLength="12.2" clip-path="url(#terminal-2977626293-line-13)">
 </text>
     </g>
     </g>
