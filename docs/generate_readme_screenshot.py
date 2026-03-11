@@ -12,7 +12,8 @@ from pathlib import Path
 from rich.console import Console
 
 from swoop.cli import formatters
-from swoop.decoder import Flight, Itinerary, Layover, PriceRange, SearchResult
+from swoop.decoder import Flight, Itinerary, Layover, PriceRange
+from swoop.models import SearchResult, TripLeg, TripOption
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PATH = ROOT / "docs" / "screenshot.svg"
@@ -111,10 +112,16 @@ def _sample_result() -> SearchResult:
             is_budget_carrier=True,
         ),
     ]
+    options = [
+        TripOption(
+            selector=f"swoop:sel:1:sample{i}",
+            price=itin.direct_price,
+            legs=[TripLeg(origin="JFK", destination="LAX", date="2026-06-15", itinerary=itin)],
+        )
+        for i, itin in enumerate(itineraries)
+    ]
     return SearchResult(
-        _raw=[],
-        best=itineraries,
-        other=[],
+        results=options,
         price_range=PriceRange(low=219, high=283),
     )
 
