@@ -26,11 +26,10 @@ from ._booking import (
     _normalize_attribute_vector,
     _parse_booking_rpc_response,
     _read_varint,
-    _safe_get,
     _skip_wire_value,
     parse_booking_payload,
 )
-from .decoder import BookingOption, SearchResult, Itinerary, decode_result
+from .decoder import BookingOption, SearchResult, Itinerary, decode_result, _safe_get
 from .exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
 
 logger = logging.getLogger(__name__)

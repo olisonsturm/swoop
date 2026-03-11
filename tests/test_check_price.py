@@ -261,7 +261,7 @@ class TestCheckPriceRoundtrip:
             return outbound_result
 
         with patch("swoop.search_raw", side_effect=mock_search_raw), \
-             patch("swoop.get_booking_results", side_effect=Exception("network error")):
+             patch("swoop.get_booking_results", side_effect=SwoopRateLimitError()):
             result = check_price(
                 "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
                 return_flight_number="DL2301", return_date="2026-06-22",

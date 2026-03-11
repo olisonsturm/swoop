@@ -1,7 +1,5 @@
 """CLI commands for swoop: search, flight, book."""
 
-import sys
-
 import click
 from rich.console import Console
 
