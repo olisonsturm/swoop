@@ -325,6 +325,11 @@ def search_flight(
         timeout=timeout,
         retries=retries,
     )
+
+    if return_flight_number is not None and result is not None:
+        ret_carrier, ret_number = parse_flight_number(return_flight_number)
+        result = _filter_by_flight_number(result, ret_carrier, ret_number)
+
     if result is None:
         return None
     # Prefer best over other
