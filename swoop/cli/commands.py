@@ -378,7 +378,7 @@ def price_cmd(
       swoop price DL2300 JFK LAX 2026-06-15 -r 2026-06-22 --return-flight DL2301
 
     \b
-    Multi-leg syntax (--leg):
+    Explicit leg syntax (--leg, up to 2 legs):
       swoop price --leg JFK LAX 2026-06-15 DL2300 --leg LAX JFK 2026-06-22 DL2301
     """
     import swoop
@@ -504,4 +504,3 @@ def price_cmd(
         format_price_table(result, flight_number=flight_number, origin=origin,
                            destination=destination, date=date, return_date=return_date,
                            no_color=no_color)
-
