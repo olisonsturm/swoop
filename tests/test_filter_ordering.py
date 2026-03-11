@@ -29,7 +29,7 @@ class TestFilterBeforeCorrectOrdering:
             booking_calls.append(itin_or_token)
             return [BookingOption(price=342, is_basic=False)]
 
-        with patch("swoop.search_raw", return_value=result), \
+        with patch("swoop._search_from_legs", return_value=result), \
              patch("swoop.get_booking_results", side_effect=mock_get_booking):
             output = swoop.search(
                 "JFK", "LAX", "2026-06-15",

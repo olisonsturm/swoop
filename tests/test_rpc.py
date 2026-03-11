@@ -19,6 +19,8 @@ import swoop.rpc as rpc
 from swoop.rpc import (
     _build_booking_f_req,
     _build_f_req,
+    _build_filters_from_legs,
+    _normalize_rpc_leg,
     _parse_booking_rpc_response,
     CABIN_CLASS_MAP,
     STOPS_ANY,
@@ -120,6 +122,59 @@ class TestBuildFReqRoundtrip:
         segments = filters[1][13]
         assert segments[0][8] == selected
         assert segments[1][8] is None
+
+
+class TestBuildFiltersFromLegs:
+    """Leg-normalized filter builder should preserve legacy request shapes."""
+
+    def test_one_way_matches_legacy_builder(self):
+        legacy = decode_f_req(_build_f_req("JFK", "LAX", "2026-03-15"))
+        normalized = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+        ])
+        assert normalized == legacy
+
+    def test_roundtrip_matches_legacy_builder(self):
+        selected = [["JFK", "2026-03-15", "LAX", None, "DL", "4938"]]
+        legacy = decode_f_req(_build_f_req(
+            "JFK",
+            "LAX",
+            "2026-03-15",
+            cabin="business",
+            adults=2,
+            sort=rpc.SORT_CHEAPEST,
+            max_stops=1,
+            airlines=["DL"],
+            earliest_departure=6,
+            latest_departure=10,
+            return_date="2026-03-22",
+            return_earliest_departure=14,
+            return_latest_departure=18,
+            selected_outbound_legs=selected,
+            exclude_basic_economy=True,
+        ))
+        normalized = _build_filters_from_legs([
+            _normalize_rpc_leg(
+                "JFK",
+                "LAX",
+                "2026-03-15",
+                max_stops=1,
+                airlines=["DL"],
+                earliest_departure=6,
+                latest_departure=10,
+                selected_legs=selected,
+            ),
+            _normalize_rpc_leg(
+                "LAX",
+                "JFK",
+                "2026-03-22",
+                max_stops=1,
+                airlines=["DL"],
+                earliest_departure=14,
+                latest_departure=18,
+            ),
+        ], cabin="business", adults=2, sort=rpc.SORT_CHEAPEST, exclude_basic_economy=True)
+        assert normalized == legacy
 
 
 class TestBuildFReqCabinAndStops:

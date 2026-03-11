@@ -7,7 +7,7 @@ from click.testing import CliRunner
 
 from swoop.cli import main
 from swoop import PriceResult
-from swoop.cli.commands import search_cmd, book_cmd, price_cmd
+from swoop.cli.commands import search_cmd, price_cmd
 from swoop.cli.utils import format_time, format_duration, format_date_display, format_route, check_past_date, IATACodeType, DateType
 from swoop.decoder import (
     BookingOption,
@@ -235,7 +235,7 @@ class TestMainGroup:
         assert result.exit_code == 0
         assert "search" in result.output
         assert "price" in result.output
-        assert "book" in result.output
+        assert "book" not in result.output
 
     def test_no_subcommand_shows_help(self):
         runner = CliRunner()
@@ -268,6 +268,7 @@ class TestSearchCommand:
         assert data["query"]["origin"] == "JFK"
         assert len(data["results"]) == 3
         assert data["results"][0]["price_usd"] == 247
+        assert data["results"][0]["flight_summary"] == "DL 2300"
 
     @patch("swoop.cli.commands._run_search")
     def test_table_output(self, mock_search):
@@ -277,10 +278,10 @@ class TestSearchCommand:
             "search", "JFK", "LAX", "2026-06-15", "-q",
         ])
         assert result.exit_code == 0
-        assert "Delta" in result.output
-        assert "$247" in result.output
+        assert "DL 2300" in result.output  # flight_summary
         assert "Nonstop" in result.output
         assert "Tip:" in result.output
+        assert "--price 1" in result.output
 
     @patch("swoop.cli.commands._run_search")
     def test_csv_output(self, mock_search):
@@ -292,6 +293,7 @@ class TestSearchCommand:
         assert result.exit_code == 0
         lines = result.output.strip().split("\n")
         assert "index" in lines[0]  # header
+        assert "flight_summary" in lines[0]
         assert len(lines) == 4  # header + 3 results
 
     @patch("swoop.cli.commands._run_search")
@@ -305,6 +307,7 @@ class TestSearchCommand:
         lines = result.output.strip().split("\n")
         assert len(lines) == 3
         assert "$247" in lines[0]
+        assert "DL 2300" in lines[0]
 
     @patch("swoop.cli.commands._run_search")
     def test_limit(self, mock_search):
@@ -435,6 +438,105 @@ class TestSearchCommand:
         assert args[1] == "LAX"
 
     @patch("swoop.cli.commands._run_search")
+    def test_roundtrip_labels_prices(self, mock_search):
+        """Roundtrip search labels prices as roundtrip totals."""
+        mock_search.return_value = _make_search_result(1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-r", "2026-06-22", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "roundtrip totals" in result.output
+
+    @patch("swoop.cli.commands._price_search_result")
+    @patch("swoop.cli.commands._run_search")
+    def test_price_drilldown(self, mock_search, mock_price_search_result):
+        """--price N prices the exact selected itinerary."""
+        mock_search.return_value = _make_search_result()
+        mock_price_search_result.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "--price", "1", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "$342" in result.output
+        mock_price_search_result.assert_called_once()
+        assert mock_price_search_result.call_args[0][0] is mock_search.return_value.best[0]
+
+    @patch("swoop.cli.commands._price_search_result")
+    @patch("swoop.cli.commands._run_search")
+    def test_price_drilldown_uses_selected_row(self, mock_search, mock_price_search_result):
+        """Drilldown passes the exact selected itinerary, not just its first flight number."""
+        shared_first = _make_flight(airline="UA", airline_name="United Airlines", flight_number="1234")
+        second_a = _make_flight(
+            airline="UA",
+            airline_name="United Airlines",
+            flight_number="2001",
+            departure_airport_code="ORD",
+            arrival_airport_code="LAX",
+            departure_time=(12, 45),
+            arrival_time=(14, 55),
+            travel_time=130,
+        )
+        second_b = _make_flight(
+            airline="UA",
+            airline_name="United Airlines",
+            flight_number="2002",
+            departure_airport_code="ORD",
+            arrival_airport_code="SFO",
+            departure_time=(13, 10),
+            arrival_time=(15, 40),
+            travel_time=150,
+        )
+        itin_a = _make_itinerary(
+            flights=[shared_first, second_a],
+            layovers=[Layover(minutes=90, departure_airport_code="ORD")],
+            departure_airport_code="JFK",
+            arrival_airport_code="LAX",
+            direct_price=301,
+            stop_count=1,
+            travel_time=345,
+        )
+        itin_b = _make_itinerary(
+            flights=[shared_first, second_b],
+            layovers=[Layover(minutes=110, departure_airport_code="ORD")],
+            departure_airport_code="JFK",
+            arrival_airport_code="SFO",
+            direct_price=355,
+            stop_count=1,
+            travel_time=390,
+        )
+        mock_search.return_value = SearchResult(_raw=[], best=[itin_a], other=[itin_b])
+        mock_price_search_result.return_value = PriceResult(price=355, fare_brand="Main Cabin", rpc_calls=0)
+
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "--price", "2", "-q",
+        ])
+        assert result.exit_code == 0
+        assert mock_price_search_result.call_args[0][0] is itin_b
+
+    @patch("swoop.cli.commands._run_search")
+    def test_price_drilldown_rejects_limit(self, mock_search):
+        """--price cannot be combined with --limit."""
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "--price", "1", "-l", "5", "-q",
+        ])
+        assert result.exit_code == 2
+        assert "--price cannot be combined with --limit" in result.stderr
+
+    @patch("swoop.cli.commands._run_search")
+    def test_price_drilldown_rejects_csv(self, mock_search):
+        """--price cannot be combined with -o csv."""
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "--price", "1", "-o", "csv", "-q",
+        ])
+        assert result.exit_code == 2
+        assert "--price cannot be combined with -o csv" in result.stderr
+
+    @patch("swoop.cli.commands._run_search")
     def test_connecting_flight_table(self, mock_search):
         """Table output shows layover info for connecting flights."""
         mock_search.return_value = SearchResult(
@@ -450,83 +552,18 @@ class TestSearchCommand:
 
 
 # ---------------------------------------------------------------------------
-# Book command tests
-# ---------------------------------------------------------------------------
-
-
-class TestBookCommand:
-    @patch("swoop.get_booking_results")
-    @patch("swoop.cli.commands._run_search")
-    def test_table_output(self, mock_search, mock_book):
-        mock_search.return_value = _make_search_result()
-        mock_book.return_value = _make_booking_options()
-        runner = CliRunner()
-        result = runner.invoke(main, [
-            "book", "1", "JFK", "LAX", "2026-06-15", "-q",
-        ])
-        assert result.exit_code == 0
-        assert "Blue Basic" in result.output
-        assert "$219" in result.output
-
-    @patch("swoop.get_booking_results")
-    @patch("swoop.cli.commands._run_search")
-    def test_json_output(self, mock_search, mock_book):
-        mock_search.return_value = _make_search_result()
-        mock_book.return_value = _make_booking_options()
-        runner = CliRunner()
-        result = runner.invoke(main, [
-            "book", "1", "JFK", "LAX", "2026-06-15", "-o", "json", "-q",
-        ])
-        assert result.exit_code == 0
-        import json
-        data = json.loads(result.output)
-        assert len(data["options"]) == 3
-        assert data["options"][0]["price_usd"] == 219
-
-    @patch("swoop.cli.commands._run_search")
-    def test_index_out_of_range(self, mock_search):
-        mock_search.return_value = _make_search_result(1)
-        runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(main, [
-            "book", "99", "JFK", "LAX", "2026-06-15", "-q",
-        ])
-        assert result.exit_code == 2
-        assert "out of range" in result.stderr
-
-    @patch("swoop.cli.commands._run_search")
-    def test_no_results(self, mock_search):
-        mock_search.return_value = None
-        runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(main, [
-            "book", "1", "JFK", "LAX", "2026-06-15", "-q",
-        ])
-        assert result.exit_code == 1
-        assert "No flights found" in result.stderr
-
-    @patch("swoop.cli.commands._run_search")
-    def test_no_booking_token(self, mock_search):
-        itin = _make_itinerary(booking_token="")
-        mock_search.return_value = SearchResult(_raw=[], best=[itin], other=[])
-        runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(main, [
-            "book", "1", "JFK", "LAX", "2026-06-15", "-q",
-        ])
-        assert result.exit_code == 1
-        assert "No booking token" in result.stderr
-
-
-# ---------------------------------------------------------------------------
 # Price command tests
 # ---------------------------------------------------------------------------
 
 
 class TestPriceCommand:
     @patch("swoop.check_price")
-    def test_price_table_output(self, mock_check):
+    def test_price_positional_args(self, mock_check):
+        """Price command with positional FLIGHT ORIGIN DEST DATE."""
         mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, [
-            "price", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15", "-q",
+            "price", "DL2300", "JFK", "LAX", "2026-06-15", "-q",
         ])
         assert result.exit_code == 0
         assert "$342" in result.output
@@ -536,7 +573,7 @@ class TestPriceCommand:
         mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, [
-            "price", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15",
+            "price", "DL2300", "JFK", "LAX", "2026-06-15",
             "-o", "json", "-q",
         ])
         assert result.exit_code == 0
@@ -549,7 +586,7 @@ class TestPriceCommand:
         mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, [
-            "price", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15",
+            "price", "DL2300", "JFK", "LAX", "2026-06-15",
             "-o", "brief", "-q",
         ])
         assert result.exit_code == 0
@@ -561,14 +598,60 @@ class TestPriceCommand:
         mock_check.return_value = None
         runner = CliRunner(mix_stderr=False)
         result = runner.invoke(main, [
-            "price", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15", "-q",
+            "price", "DL2300", "JFK", "LAX", "2026-06-15", "-q",
         ])
         assert result.exit_code == 1
 
-    def test_price_missing_options(self):
+    def test_price_missing_args(self):
+        """Positional args missing should error."""
         runner = CliRunner(mix_stderr=False)
         result = runner.invoke(main, ["price", "DL2300"])
         assert result.exit_code == 2
+
+    @patch("swoop.check_price")
+    def test_price_leg_syntax(self, mock_check):
+        """--leg repeated syntax works."""
+        mock_check.return_value = PriceResult(price=684, fare_brand="Main Cabin", rpc_calls=3)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "price",
+            "--leg", "JFK", "LAX", "2026-06-15", "DL2300",
+            "--leg", "LAX", "JFK", "2026-06-22", "DL2301",
+            "-q",
+        ])
+        assert result.exit_code == 0
+        assert "$684" in result.output
+        call_kwargs = mock_check.call_args
+        assert call_kwargs[1]["return_flight_number"] == "DL2301"
+        assert call_kwargs[1]["return_date"] == "2026-06-22"
+
+    def test_price_positional_and_leg_error(self):
+        """Positional + --leg is an error."""
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "price", "DL2300", "JFK", "LAX", "2026-06-15",
+            "--leg", "JFK", "LAX", "2026-06-15", "DL2300",
+        ])
+        assert result.exit_code == 2
+        assert "cannot be used together" in result.stderr
+
+    def test_price_return_flight_requires_return_date(self):
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "price", "DL2300", "JFK", "LAX", "2026-06-15", "--return-flight", "DL2301",
+        ])
+        assert result.exit_code == 2
+        assert "--return-flight requires --return-date" in result.stderr
+
+    def test_price_leg_conflicts_with_return_flags(self):
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "price",
+            "--leg", "JFK", "LAX", "2026-06-15", "DL2300",
+            "--return-date", "2026-06-22",
+        ])
+        assert result.exit_code == 2
+        assert "--leg cannot be combined" in result.stderr
 
 
 # ---------------------------------------------------------------------------

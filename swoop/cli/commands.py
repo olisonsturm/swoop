@@ -1,4 +1,4 @@
-"""CLI commands for swoop: search, price, book."""
+"""CLI commands for swoop: search and price."""
 
 import click
 from rich.console import Console
@@ -58,6 +58,41 @@ def _run_search(
     )
 
 
+def _price_search_result(
+    itinerary,
+    *,
+    origin,
+    destination,
+    date,
+    return_date,
+    cabin,
+    passengers,
+    nonstop,
+    max_stops,
+    include_basic,
+    timeout,
+    retries,
+):
+    """Price an already-selected itinerary exactly."""
+    import swoop
+
+    stops = 0 if nonstop else max_stops
+    return swoop._price_from_outbound_itinerary(
+        itinerary,
+        origin=origin,
+        destination=destination,
+        date=date,
+        return_date=return_date,
+        cabin=cabin,
+        adults=passengers,
+        max_stops=stops,
+        include_basic_economy=include_basic,
+        timeout=timeout,
+        retries=retries,
+        outbound_selection="explicit",
+    )
+
+
 # Shared search options decorator
 def _search_options(f):
     """Apply common search filter options to a command."""
@@ -105,6 +140,8 @@ def _output_options(formats: list[str]):
 @click.argument("date", type=DATE)
 @_search_options
 @click.option("-l", "--limit", type=int, default=None, help="Max results to display.")
+@click.option("--price", "price_index", type=int, default=None,
+              help="Show price + fares for search result #N.")
 @_output_options(["table", "json", "csv", "brief"])
 @click.pass_context
 def search_cmd(
@@ -113,7 +150,7 @@ def search_cmd(
     airline, flight_number, include_basic,
     depart_after, depart_before, arrive_after, arrive_before,
     return_depart_after, return_depart_before,
-    timeout, retries, limit,
+    timeout, retries, limit, price_index,
     output_format, no_color, quiet,
 ):
     """Search for flights.
@@ -123,6 +160,7 @@ def search_cmd(
       swoop search JFK LAX 2026-06-15
       swoop search JFK LAX 2026-06-15 --nonstop --sort cheapest
       swoop search JFK LAX 2026-06-15 -r 2026-06-22 --cabin business
+      swoop search JFK LAX 2026-06-15 --price 1
       swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0]'
     """
     from swoop.exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
@@ -135,6 +173,15 @@ def search_cmd(
     )
 
     err = _err_console(no_color)
+
+    # Validate --price incompatibilities
+    if price_index is not None:
+        if limit is not None:
+            err.print("[red]Error: --price cannot be combined with --limit.[/red]")
+            ctx.exit(2)
+        if output_format == "csv":
+            err.print("[red]Error: --price cannot be combined with -o csv.[/red]")
+            ctx.exit(2)
 
     # Past date warning
     warning = check_past_date(date)
@@ -209,6 +256,84 @@ def search_cmd(
         limit=limit,
     )
 
+    # If --price is set, drill down into that result
+    if price_index is not None:
+        from .formatters import format_price_brief, format_price_json, format_price_table
+
+        all_itins = [*result.best, *result.other]
+        if price_index < 1 or price_index > len(all_itins):
+            err.print(
+                f"[red]Error: --price {price_index} out of range. "
+                f"Only {len(all_itins)} results available.[/red]"
+            )
+            ctx.exit(2)
+            return
+
+        itin = all_itins[price_index - 1]
+        if not itin.flights:
+            err.print("[red]Error: selected itinerary has no flight info.[/red]")
+            ctx.exit(2)
+            return
+
+        try:
+            if not quiet and output_format == "table":
+                with err.status("[bold]Checking price...[/bold]"):
+                    price_result = _price_search_result(
+                        itin,
+                        origin=origin,
+                        destination=destination,
+                        date=date,
+                        return_date=return_date,
+                        cabin=cabin,
+                        passengers=passengers,
+                        nonstop=nonstop,
+                        max_stops=max_stops,
+                        include_basic=include_basic,
+                        timeout=timeout,
+                        retries=retries,
+                    )
+            else:
+                price_result = _price_search_result(
+                    itin,
+                    origin=origin,
+                    destination=destination,
+                    date=date,
+                    return_date=return_date,
+                    cabin=cabin,
+                    passengers=passengers,
+                    nonstop=nonstop,
+                    max_stops=max_stops,
+                    include_basic=include_basic,
+                    timeout=timeout,
+                    retries=retries,
+                )
+        except (ValueError, SwoopHTTPError, SwoopParseError, SwoopRateLimitError) as e:
+            err.print(f"[red]Error checking price: {e}[/red]")
+            ctx.exit(3)
+            return
+
+        if price_result is None:
+            err.print(f"[yellow]Could not get price for result #{price_index}.[/yellow]")
+            ctx.exit(1)
+            return
+
+        flight_label = (
+            price_result.resolved_legs[0].flight_summary
+            if price_result.resolved_legs
+            else f"{itin.flights[0].airline}{itin.flights[0].flight_number}"
+        )
+
+        if output_format == "json":
+            format_price_json(price_result, flight_number=flight_label, origin=origin,
+                              destination=destination, date=date, return_date=return_date)
+        elif output_format == "brief":
+            format_price_brief(price_result, return_date=return_date)
+        else:
+            format_price_table(price_result, flight_number=flight_label, origin=origin,
+                               destination=destination, date=date, return_date=return_date,
+                               no_color=no_color)
+        return
+
     if output_format == "table":
         format_search_table(result, no_color=no_color, **fmt_kwargs)
     elif output_format == "json":
@@ -220,12 +345,14 @@ def search_cmd(
 
 
 @click.command("price")
-@click.argument("flight_number", type=str)
-@click.option("-f", "--from", "origin", type=IATA_CODE, required=True, help="Departure airport.")
-@click.option("-t", "--to", "destination", type=IATA_CODE, required=True, help="Arrival airport.")
-@click.option("-d", "--date", type=DATE, required=True, help="Departure date.")
-@click.option("-r", "--return", "return_date", type=DATE, default=None, help="Return date (roundtrip).")
+@click.argument("flight_number", type=str, required=False, default=None)
+@click.argument("origin", type=IATA_CODE, required=False, default=None)
+@click.argument("destination", type=IATA_CODE, required=False, default=None)
+@click.argument("date", type=DATE, required=False, default=None)
+@click.option("-r", "--return-date", type=DATE, default=None, help="Return date (roundtrip).")
 @click.option("--return-flight", type=str, default=None, help="Return flight number.")
+@click.option("--leg", multiple=True, type=(IATA_CODE, IATA_CODE, DATE, str),
+              help="Explicit leg: ORIGIN DEST DATE FLIGHT (repeatable).")
 @click.option("-c", "--cabin", type=click.Choice(CABIN_CHOICES, case_sensitive=False), default="economy", show_default=True)
 @click.option("-p", "--passengers", type=int, default=1, show_default=True)
 @click.option("--max-stops", type=click.IntRange(0, 2), default=None)
@@ -236,7 +363,7 @@ def search_cmd(
 @click.pass_context
 def price_cmd(
     ctx, flight_number, origin, destination, date,
-    return_date, return_flight, cabin, passengers, max_stops,
+    return_date, return_flight, leg, cabin, passengers, max_stops,
     include_basic, timeout, retries,
     output_format, no_color, quiet,
 ):
@@ -245,10 +372,14 @@ def price_cmd(
     Uses minimal RPC calls (1 for one-way, 3 for roundtrip).
 
     \b
-    Examples:
-      swoop price DL2300 -f JFK -t LAX -d 2026-06-15
-      swoop price DL2300 -f JFK -t LAX -d 2026-06-15 -r 2026-06-22 --return-flight DL2301
-      swoop price DL2300 -f JFK -t LAX -d 2026-06-15 -o json
+    Simple syntax (positional args):
+      swoop price DL2300 JFK LAX 2026-06-15
+      swoop price DL2300 JFK LAX 2026-06-15 -r 2026-06-22
+      swoop price DL2300 JFK LAX 2026-06-15 -r 2026-06-22 --return-flight DL2301
+
+    \b
+    Multi-leg syntax (--leg):
+      swoop price --leg JFK LAX 2026-06-15 DL2300 --leg LAX JFK 2026-06-22 DL2301
     """
     import swoop
     from swoop.exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
@@ -256,6 +387,54 @@ def price_cmd(
     from .formatters import format_price_brief, format_price_json, format_price_table
 
     err = _err_console(no_color)
+
+    # Validate: positional args and --leg are mutually exclusive
+    has_positional = flight_number is not None
+    has_leg = len(leg) > 0
+
+    if has_positional and has_leg:
+        err.print("[red]Error: positional args and --leg cannot be used together.[/red]")
+        ctx.exit(2)
+        return
+
+    if has_leg and (return_date is not None or return_flight is not None):
+        err.print("[red]Error: --leg cannot be combined with --return-date or --return-flight.[/red]")
+        ctx.exit(2)
+        return
+
+    if has_leg:
+        # --leg syntax: each tuple is (origin, dest, date, flight_number)
+        if len(leg) == 1:
+            leg_origin, leg_dest, leg_date, leg_flight = leg[0]
+            flight_number = leg_flight
+            origin = leg_origin
+            destination = leg_dest
+            date = leg_date
+        elif len(leg) == 2:
+            leg_origin, leg_dest, leg_date, leg_flight = leg[0]
+            ret_origin, ret_dest, ret_date, ret_flight = leg[1]
+            flight_number = leg_flight
+            origin = leg_origin
+            destination = leg_dest
+            date = leg_date
+            return_date = ret_date
+            return_flight = ret_flight
+        else:
+            err.print("[red]Error: at most 2 --leg options are supported.[/red]")
+            ctx.exit(2)
+            return
+    elif not has_positional:
+        err.print("[red]Error: provide FLIGHT ORIGIN DEST DATE or use --leg.[/red]")
+        ctx.exit(2)
+        return
+    elif origin is None or destination is None or date is None:
+        err.print("[red]Error: FLIGHT_NUMBER ORIGIN DESTINATION DATE are all required.[/red]")
+        ctx.exit(2)
+        return
+    elif return_flight is not None and return_date is None:
+        err.print("[red]Error: --return-flight requires --return-date.[/red]")
+        ctx.exit(2)
+        return
 
     warning = check_past_date(date)
     if warning:
@@ -309,7 +488,7 @@ def price_cmd(
     if result is None:
         trip = f"{origin} -> {destination}"
         if return_date:
-            trip += f" (roundtrip)"
+            trip += " (roundtrip)"
         err.print(
             f"[yellow]Flight {flight_number} not found on {trip} "
             f"on {date}.[/yellow]"
@@ -326,136 +505,3 @@ def price_cmd(
                            destination=destination, date=date, return_date=return_date,
                            no_color=no_color)
 
-
-@click.command("book")
-@click.argument("index", type=int)
-@click.argument("origin", type=IATA_CODE)
-@click.argument("destination", type=IATA_CODE)
-@click.argument("date", type=DATE)
-@_search_options
-@_output_options(["table", "json"])
-@click.pass_context
-def book_cmd(
-    ctx, index, origin, destination, date,
-    return_date, cabin, passengers, sort, nonstop, max_stops,
-    airline, flight_number, include_basic,
-    depart_after, depart_before, arrive_after, arrive_before,
-    return_depart_after, return_depart_before,
-    timeout, retries,
-    output_format, no_color, quiet,
-):
-    """Show fare tiers for a search result.
-
-    Re-runs the search, picks result #INDEX, and shows booking options.
-
-    \b
-    Examples:
-      swoop book 1 JFK LAX 2026-06-15
-      swoop book 2 JFK LAX 2026-06-15 --nonstop -o json
-    """
-    import swoop
-    from swoop.exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
-
-    from .formatters import format_booking_json, format_booking_table
-
-    err = _err_console(no_color)
-
-    if index < 1:
-        err.print("[red]Error: INDEX must be >= 1.[/red]")
-        ctx.exit(2)
-
-    warning = check_past_date(date)
-    if warning:
-        err.print(f"[yellow]{warning}[/yellow]")
-
-    # Re-run search
-    try:
-        if not quiet and output_format == "table":
-            with err.status("[bold]Searching flights...[/bold]"):
-                result = _run_search(
-                    origin, destination, date,
-                    return_date=return_date, cabin=cabin, passengers=passengers,
-                    sort=sort, nonstop=nonstop, max_stops=max_stops,
-                    airline=airline, flight_number=flight_number,
-                    include_basic=include_basic,
-                    depart_after=depart_after, depart_before=depart_before,
-                    arrive_after=arrive_after, arrive_before=arrive_before,
-                    return_depart_after=return_depart_after,
-                    return_depart_before=return_depart_before,
-                    timeout=timeout, retries=retries,
-                )
-        else:
-            result = _run_search(
-                origin, destination, date,
-                return_date=return_date, cabin=cabin, passengers=passengers,
-                sort=sort, nonstop=nonstop, max_stops=max_stops,
-                airline=airline, flight_number=flight_number,
-                include_basic=include_basic,
-                depart_after=depart_after, depart_before=depart_before,
-                arrive_after=arrive_after, arrive_before=arrive_before,
-                return_depart_after=return_depart_after,
-                return_depart_before=return_depart_before,
-                timeout=timeout, retries=retries,
-            )
-    except ValueError as e:
-        err.print(f"[red]Error: {e}[/red]")
-        ctx.exit(2)
-    except SwoopRateLimitError:
-        err.print("[red]Rate limited. Wait a few minutes. Tip: use --retries 3[/red]")
-        ctx.exit(3)
-    except SwoopHTTPError as e:
-        err.print(f"[red]Google Flights returned HTTP {e.status_code}[/red]")
-        ctx.exit(3)
-    except SwoopParseError:
-        err.print("[red]Could not parse Google Flights response[/red]")
-        ctx.exit(4)
-
-    if result is None or (not result.best and not result.other):
-        err.print(
-            f"[yellow]No flights found for {origin} -> {destination} "
-            f"on {date}.[/yellow]"
-        )
-        ctx.exit(1)
-
-    all_itins = [*result.best, *result.other]
-    if index > len(all_itins):
-        err.print(
-            f"[red]Error: INDEX {index} out of range. "
-            f"Only {len(all_itins)} results available.[/red]"
-        )
-        ctx.exit(2)
-
-    itin = all_itins[index - 1]
-
-    if not itin.booking_token:
-        err.print("[yellow]No booking token available for this itinerary.[/yellow]")
-        ctx.exit(1)
-
-    # Fetch booking options
-    try:
-        if not quiet and output_format == "table":
-            with err.status("[bold]Fetching fare options...[/bold]"):
-                options = swoop.get_booking_results(
-                    itin, timeout=timeout, retries=retries,
-                )
-        else:
-            options = swoop.get_booking_results(
-                itin, timeout=timeout, retries=retries,
-            )
-    except SwoopRateLimitError:
-        err.print("[red]Rate limited. Wait a few minutes. Tip: use --retries 3[/red]")
-        ctx.exit(3)
-    except SwoopHTTPError as e:
-        err.print(f"[red]Google Flights returned HTTP {e.status_code}[/red]")
-        ctx.exit(3)
-    except SwoopParseError:
-        err.print("[red]Could not parse Google Flights response[/red]")
-        ctx.exit(4)
-    except Exception as e:
-        err.print(f"[red]Error fetching booking options: {e}[/red]")
-        ctx.exit(4)
-
-    if output_format == "json":
-        format_booking_json(options, itin=itin)
-    else:
-        format_booking_table(options, itin=itin, no_color=no_color)

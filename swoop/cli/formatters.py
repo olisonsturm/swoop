@@ -53,6 +53,31 @@ def _airline_names(itin) -> str:
     return ", ".join(names) if names else itin.airline_code or ""
 
 
+def _flight_summary(itin) -> str:
+    """Compact flight number summary for an itinerary.
+
+    - Nonstop: "DL 2300"
+    - 2 segments same carrier: "UA 1234 / 5678"
+    - 2 segments diff carrier: "UA 1234 / AA 200"
+    - 3+ segments: "UA 1234 +2"
+    - No flights: ""
+    """
+    flights = itin.flights or []
+    if not flights:
+        return ""
+    first = flights[0]
+    first_str = f"{first.airline} {first.flight_number}" if first.airline and first.flight_number else str(first.flight_number or "")
+    if len(flights) == 1:
+        return first_str
+    if len(flights) == 2:
+        second = flights[1]
+        if first.airline and second.airline and first.airline == second.airline:
+            return f"{first.airline} {first.flight_number} / {second.flight_number}"
+        second_str = f"{second.airline} {second.flight_number}" if second.airline and second.flight_number else str(second.flight_number or "")
+        return f"{first_str} / {second_str}"
+    return f"{first_str} +{len(flights) - 1}"
+
+
 def _price_text(price: Optional[int], cheapest: Optional[int]) -> Text:
     """Formatted price, cheapest highlighted green."""
     if price is None:
@@ -108,6 +133,7 @@ def format_search_table(
 
     table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
     table.add_column("#", justify="right", style="dim", width=3)
+    table.add_column("Flights", min_width=10)
     table.add_column("Airlines", min_width=10)
     table.add_column("Route", min_width=12)
     table.add_column("Depart", justify="right", width=7)
@@ -126,6 +152,7 @@ def format_search_table(
 
         table.add_row(
             str(i),
+            _flight_summary(itin),
             airline if isinstance(airline, Text) else str(airline),
             format_route(itin),
             format_time(dep_h, dep_m),
@@ -151,9 +178,13 @@ def format_search_table(
         else:
             console.print(f" [dim]{shown} of {total} results shown[/dim]")
 
+    if return_date:
+        console.print(
+            " [dim]Prices shown are roundtrip totals. Each row is an outbound selection.[/dim]"
+        )
+
     console.print(
-        f" [dim]Tip: swoop book 1 {origin} {destination} {date} "
-        f"to see fare options for result #1[/dim]"
+        " [dim]Tip: re-run with --price 1 to see fares for result #1[/dim]"
     )
     console.print()
 
@@ -198,6 +229,7 @@ def _itin_to_dict(itin, index: int) -> dict:
 
     return {
         "index": index,
+        "flight_summary": _flight_summary(itin),
         "price_usd": itin.price,
         "airlines": _airline_names(itin) if isinstance(_airline_names(itin), str) else str(_airline_names(itin)),
         "departure_airport_code": itin.departure_airport_code,
@@ -265,13 +297,14 @@ def format_search_csv(
 
     writer = csv.writer(sys.stdout)
     writer.writerow([
-        "index", "airlines", "departure_airport_code", "arrival_airport_code",
+        "index", "flight_summary", "airlines", "departure_airport_code", "arrival_airport_code",
         "departure_time", "arrival_time", "duration_minutes", "stops", "price_usd",
     ])
     for i, itin in enumerate(all_itins, 1):
         stops = itin.stop_count if itin.stop_count is not None else len(itin.layovers)
         writer.writerow([
             i,
+            _flight_summary(itin),
             _airline_names(itin),
             itin.departure_airport_code,
             itin.arrival_airport_code,
@@ -302,84 +335,50 @@ def format_search_brief(
         dep = format_time(itin.departure_time[0], itin.departure_time[1])
         arr = format_time(itin.arrival_time[0], itin.arrival_time[1])
         route = f"{itin.departure_airport_code}->{itin.arrival_airport_code}"
-        print(f"{i:<3} {price:<8} {dur:<7} {stop_str:<8} {airline:<12} {route}  {dep}-{arr}")
-
-
-# ---------------------------------------------------------------------------
-# Booking formatters
-# ---------------------------------------------------------------------------
-
-
-def format_booking_table(
-    options: list,
-    *,
-    itin,
-    no_color: bool = False,
-) -> None:
-    """Render fare options as a Rich table to stdout."""
-    console = _stdout_console(no_color=no_color)
-
-    airline = _airline_names(itin)
-    route = format_route(itin)
-
-    console.print()
-    console.print(f" [bold]Fare options: {airline} {route}[/bold]")
-    console.print()
-
-    if not options:
-        console.print(" [yellow]No fare options available.[/yellow]")
-        console.print()
-        return
-
-    table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
-    table.add_column("#", justify="right", style="dim", width=3)
-    table.add_column("Fare", min_width=16)
-    table.add_column("Cabin", min_width=10)
-    table.add_column("Price", justify="right", width=8)
-    table.add_column("Rebookable", width=10)
-
-    for i, opt in enumerate(options, 1):
-        price = f"${opt.price:,}" if opt.price else "—"
-        cabin = opt.fare_family or ("basic" if opt.is_basic else "standard")
-        rebook = "No" if opt.is_basic else "Yes"
-        if opt.rebookability_signal:
-            rebook = opt.rebookability_signal
-
-        table.add_row(
-            str(i),
-            opt.brand_label or opt.brand_code or "—",
-            cabin,
-            price,
-            rebook,
-        )
-
-    console.print(table)
-    console.print()
-
-
-def format_booking_json(options: list, *, itin) -> None:
-    """Render fare options as JSON to stdout."""
-    output = {
-        "itinerary": _itin_to_dict(itin, 1),
-        "options": [
-            {
-                "index": i + 1,
-                "brand_label": opt.brand_label,
-                "brand_code": opt.brand_code,
-                "fare_family": opt.fare_family,
-                "price_usd": opt.price,
-                "is_basic": opt.is_basic,
-                "rebookability": opt.rebookability_signal or ("no" if opt.is_basic else "yes"),
-            }
-            for i, opt in enumerate(options)
-        ],
-    }
-    print(json.dumps(output, indent=2))
+        fs = _flight_summary(itin)
+        print(f"{i:<3} {fs:<14} {price:<8} {dur:<7} {stop_str:<8} {airline:<12} {route}  {dep}-{arr}")
 
 
 # ---------------------------------------------------------------------------
 # Price check formatters
 # ---------------------------------------------------------------------------
+
+
+def _render_resolved_legs(console, resolved_legs) -> None:
+    """Render resolved flight details for each leg."""
+    leg_labels = ["Outbound", "Return"]
+    for idx, leg in enumerate(resolved_legs):
+        label = leg_labels[idx] if idx < len(leg_labels) else f"Leg {idx + 1}"
+        console.print(f"  [bold]{label}[/bold] · {leg.selection}")
+
+        itin = leg.itinerary
+        if itin and itin.flights:
+            for fi, flight in enumerate(itin.flights):
+                fid = f"{flight.airline} {flight.flight_number}" if flight.airline else str(flight.flight_number or "")
+                dep = format_time(flight.departure_time[0], flight.departure_time[1])
+                arr = format_time(flight.arrival_time[0], flight.arrival_time[1])
+                dur = format_duration(flight.travel_time) if flight.travel_time else ""
+                route = f"{flight.departure_airport_code} -> {flight.arrival_airport_code}"
+                console.print(f"  {fid}  {route}")
+                console.print(f"  Depart: {dep}   Arrive: {arr}   Duration: {dur}")
+                details = []
+                if flight.aircraft:
+                    details.append(f"Aircraft: {flight.aircraft}")
+                if flight.legroom:
+                    details.append(f"Legroom: {flight.legroom}")
+                if details:
+                    console.print(f"  [dim]{' · '.join(details)}[/dim]")
+
+                # Show layover after this segment (if not last segment)
+                if fi < len(itin.layovers):
+                    lay = itin.layovers[fi]
+                    h, m = divmod(lay.minutes, 60)
+                    lay_dur = f"{h}h {m:02d}m" if h and m else (f"{h}h" if h else f"{m}m")
+                    airport = lay.departure_airport_code or lay.arrival_airport_code or ""
+                    console.print(f"  [dim]  Layover: {lay_dur} {airport}[/dim]")
+        else:
+            console.print(f"  {leg.flight_summary}  {leg.origin} -> {leg.destination}")
+        console.print()
 
 
 def format_price_table(
@@ -404,7 +403,14 @@ def format_price_table(
 
     console.print(f" [bold]{flight_number} · {trip} · {date_display} · {trip_type}[/bold]")
     console.print()
+
+    # Resolved flight details
+    if result.resolved_legs:
+        _render_resolved_legs(console, result.resolved_legs)
+
     console.print(f" [bold green]Price: ${result.price:,}[/bold green]")
+    if return_date:
+        console.print(" [dim](roundtrip)[/dim]")
 
     if result.fare_brand:
         console.print(f" [dim]Fare: {result.fare_brand}[/dim]")
@@ -468,6 +474,18 @@ def format_price_json(
     }
     if result.itinerary:
         output["itinerary"] = _itin_to_dict(result.itinerary, 1)
+    if result.resolved_legs:
+        output["resolved_legs"] = [
+            {
+                "flight_summary": leg.flight_summary,
+                "origin": leg.origin,
+                "destination": leg.destination,
+                "date": leg.date,
+                "selection": leg.selection,
+                "itinerary": _itin_to_dict(leg.itinerary, idx + 1) if leg.itinerary else None,
+            }
+            for idx, leg in enumerate(result.resolved_legs)
+        ]
     print(json.dumps(output, indent=2))
 
 
