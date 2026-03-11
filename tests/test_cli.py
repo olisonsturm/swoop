@@ -7,7 +7,7 @@ from click.testing import CliRunner
 
 from swoop.cli import main
 from swoop import PriceResult
-from swoop.cli.commands import search_cmd, book_cmd, price_cmd
+from swoop.cli.commands import search_cmd, price_cmd
 from swoop.cli.utils import format_time, format_duration, format_date_display, format_route, check_past_date, IATACodeType, DateType
 from swoop.decoder import (
     BookingOption,
@@ -235,7 +235,7 @@ class TestMainGroup:
         assert result.exit_code == 0
         assert "search" in result.output
         assert "price" in result.output
-        assert "book" in result.output
+        assert "book" not in result.output
 
     def test_no_subcommand_shows_help(self):
         runner = CliRunner()
@@ -447,72 +447,6 @@ class TestSearchCommand:
         assert result.exit_code == 0
         assert "1 stop" in result.output
         assert "ORD" in result.output
-
-
-# ---------------------------------------------------------------------------
-# Book command tests
-# ---------------------------------------------------------------------------
-
-
-class TestBookCommand:
-    @patch("swoop.get_booking_results")
-    @patch("swoop.cli.commands._run_search")
-    def test_table_output(self, mock_search, mock_book):
-        mock_search.return_value = _make_search_result()
-        mock_book.return_value = _make_booking_options()
-        runner = CliRunner()
-        result = runner.invoke(main, [
-            "book", "1", "JFK", "LAX", "2026-06-15", "-q",
-        ])
-        assert result.exit_code == 0
-        assert "Blue Basic" in result.output
-        assert "$219" in result.output
-
-    @patch("swoop.get_booking_results")
-    @patch("swoop.cli.commands._run_search")
-    def test_json_output(self, mock_search, mock_book):
-        mock_search.return_value = _make_search_result()
-        mock_book.return_value = _make_booking_options()
-        runner = CliRunner()
-        result = runner.invoke(main, [
-            "book", "1", "JFK", "LAX", "2026-06-15", "-o", "json", "-q",
-        ])
-        assert result.exit_code == 0
-        import json
-        data = json.loads(result.output)
-        assert len(data["options"]) == 3
-        assert data["options"][0]["price_usd"] == 219
-
-    @patch("swoop.cli.commands._run_search")
-    def test_index_out_of_range(self, mock_search):
-        mock_search.return_value = _make_search_result(1)
-        runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(main, [
-            "book", "99", "JFK", "LAX", "2026-06-15", "-q",
-        ])
-        assert result.exit_code == 2
-        assert "out of range" in result.stderr
-
-    @patch("swoop.cli.commands._run_search")
-    def test_no_results(self, mock_search):
-        mock_search.return_value = None
-        runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(main, [
-            "book", "1", "JFK", "LAX", "2026-06-15", "-q",
-        ])
-        assert result.exit_code == 1
-        assert "No flights found" in result.stderr
-
-    @patch("swoop.cli.commands._run_search")
-    def test_no_booking_token(self, mock_search):
-        itin = _make_itinerary(booking_token="")
-        mock_search.return_value = SearchResult(_raw=[], best=[itin], other=[])
-        runner = CliRunner(mix_stderr=False)
-        result = runner.invoke(main, [
-            "book", "1", "JFK", "LAX", "2026-06-15", "-q",
-        ])
-        assert result.exit_code == 1
-        assert "No booking token" in result.stderr
 
 
 # ---------------------------------------------------------------------------
