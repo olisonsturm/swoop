@@ -59,19 +59,20 @@ def test_search_accepts_valid_cabins(fake_primp):
 
     for cabin in ("economy", "premium-economy", "business", "first"):
         result = swoop.search("JFK", "LAX", "2026-06-01", cabin=cabin)
-        assert result is None  # null inner data -> None
+        assert isinstance(result, swoop.SearchResult)
+        assert result.results == []
 
 
 def test_search_delegates_to_leg_search_core(monkeypatch):
     """search() should normalize request legs and pass filters through."""
     captured = {}
 
-    def fake_search_from_legs(legs, **kwargs):
+    def fake_search_trip_options(legs, **kwargs):
         captured["legs"] = legs
         captured.update(kwargs)
-        return None
+        return swoop.SearchResult()
 
-    monkeypatch.setattr(swoop, "_search_from_legs", fake_search_from_legs)
+    monkeypatch.setattr(swoop, "search_trip_options", fake_search_trip_options)
 
     swoop.search(
         "SFO", "NRT", "2026-07-01",
@@ -100,6 +101,7 @@ def test_search_delegates_to_leg_search_core(monkeypatch):
     assert captured["cabin"] == "business"
     assert captured["adults"] == 2
     assert captured["sort"] == swoop.SORT_CHEAPEST
+    assert captured["correct_prices"] is False
     assert captured["timeout"] == 60
     assert captured["retries"] == 3
 
@@ -107,12 +109,12 @@ def test_search_delegates_to_leg_search_core(monkeypatch):
 def test_search_legs_uses_per_leg_filters(monkeypatch):
     captured = {}
 
-    def fake_search_from_legs(legs, **kwargs):
+    def fake_search_trip_options(legs, **kwargs):
         captured["legs"] = legs
         captured.update(kwargs)
-        return None
+        return swoop.SearchResult()
 
-    monkeypatch.setattr(swoop, "_search_from_legs", fake_search_from_legs)
+    monkeypatch.setattr(swoop, "search_trip_options", fake_search_trip_options)
 
     swoop.search_legs([
         swoop.SearchLeg(
@@ -137,24 +139,91 @@ def test_search_legs_uses_per_leg_filters(monkeypatch):
     assert captured["legs"][1]["origin"] == "NRT"
     assert captured["legs"][1]["max_stops"] == 1
     assert captured["legs"][1]["airlines"] == ["JL"]
+    assert captured["correct_prices"] is False
 
 
-def test_search_legs_rejects_more_than_two_legs():
-    with pytest.raises(ValueError, match="multi-city search is not yet supported"):
-        swoop.search_legs([
-            swoop.SearchLeg(date="2026-07-01", from_airport="JFK", to_airport="LAX"),
-            swoop.SearchLeg(date="2026-07-03", from_airport="LAX", to_airport="SFO"),
-            swoop.SearchLeg(date="2026-07-07", from_airport="SFO", to_airport="JFK"),
-        ])
+def test_search_legs_accepts_more_than_two_legs(monkeypatch):
+    captured = {}
+
+    def fake_search_trip_options(legs, **kwargs):
+        captured["legs"] = legs
+        captured.update(kwargs)
+        return swoop.SearchResult()
+
+    monkeypatch.setattr(swoop, "search_trip_options", fake_search_trip_options)
+
+    result = swoop.search_legs([
+        swoop.SearchLeg(date="2026-07-01", from_airport="JFK", to_airport="LAX"),
+        swoop.SearchLeg(date="2026-07-03", from_airport="LAX", to_airport="SFO"),
+        swoop.SearchLeg(date="2026-07-07", from_airport="SFO", to_airport="JFK"),
+    ])
+
+    assert isinstance(result, swoop.SearchResult)
+    assert len(captured["legs"]) == 3
 
 
-def test_price_legs_rejects_more_than_two_legs():
-    with pytest.raises(ValueError, match="multi-city pricing is not yet supported"):
-        swoop.price_legs([
-            swoop.SelectedLeg(flight_number="DL2300", origin="JFK", destination="LAX", date="2026-07-01"),
-            swoop.SelectedLeg(flight_number="UA500", origin="LAX", destination="SFO", date="2026-07-03"),
-            swoop.SelectedLeg(flight_number="DL2301", origin="SFO", destination="JFK", date="2026-07-07"),
-        ])
+def test_price_legs_accepts_more_than_two_legs(monkeypatch):
+    monkeypatch.setattr(
+        swoop,
+        "resolve_selected_trip",
+        lambda *args, **kwargs: (
+            [
+                Itinerary(
+                    flights=[Flight(
+                        airline="DL",
+                        flight_number="2300",
+                        departure_airport_code="JFK",
+                        arrival_airport_code="LAX",
+                        departure_date=(2026, 7, 1),
+                    )],
+                    direct_price=300,
+                    booking_token="token-1",
+                ),
+                Itinerary(
+                    flights=[Flight(
+                        airline="UA",
+                        flight_number="500",
+                        departure_airport_code="LAX",
+                        arrival_airport_code="SFO",
+                        departure_date=(2026, 7, 3),
+                    )],
+                    direct_price=350,
+                    booking_token="token-2",
+                ),
+                Itinerary(
+                    flights=[Flight(
+                        airline="DL",
+                        flight_number="2301",
+                        departure_airport_code="SFO",
+                        arrival_airport_code="JFK",
+                        departure_date=(2026, 7, 7),
+                    )],
+                    direct_price=900,
+                    booking_token="token-3",
+                ),
+            ],
+            ["explicit", "explicit", "explicit"],
+            3,
+        ),
+    )
+    monkeypatch.setattr(
+        swoop,
+        "price_selected_trip",
+        lambda request_legs, resolved, **kwargs: swoop.PriceResult(
+            price=900,
+            itinerary=resolved[-1],
+            rpc_calls=kwargs["rpc_calls"],
+        ),
+    )
+
+    result = swoop.price_legs([
+        swoop.SelectedLeg(flight_number="DL2300", origin="JFK", destination="LAX", date="2026-07-01"),
+        swoop.SelectedLeg(flight_number="UA500", origin="LAX", destination="SFO", date="2026-07-03"),
+        swoop.SelectedLeg(flight_number="DL2301", origin="SFO", destination="JFK", date="2026-07-07"),
+    ])
+
+    assert result is not None
+    assert result.price == 900
 
 
 def test_search_raw_rate_limit_raises_specific_error(fake_primp):

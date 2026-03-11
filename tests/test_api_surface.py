@@ -10,7 +10,7 @@ from dataclasses import fields
 import pytest
 
 import swoop
-from swoop import PriceResult, ResolvedLeg, SelectedLeg, SearchLeg
+from swoop import PriceResult, ResolvedLeg, SearchLeg, SearchResult, SelectedLeg, TripLeg, TripOption
 from swoop.decoder import (
     BookingOption,
     CarbonEmissions,
@@ -20,7 +20,7 @@ from swoop.decoder import (
     Layover,
     PriceRange,
     QualitySignals,
-    SearchResult,
+    RawSearchResult,
     AmenityFlags,
 )
 from swoop.exceptions import (
@@ -39,6 +39,7 @@ class TestFrozenExports:
         "search",
         "search_legs",
         "check_price",
+        "price_selector",
         "price_legs",
         "get_booking_results",
         "search_raw",
@@ -46,10 +47,13 @@ class TestFrozenExports:
         "itinerary_matches_flight",
         # Types
         "PriceResult",
+        "RawSearchResult",
         "SearchResult",
         "SearchLeg",
         "SelectedLeg",
         "ResolvedLeg",
+        "TripLeg",
+        "TripOption",
         "Itinerary",
         "Flight",
         "BookingOption",
@@ -126,8 +130,12 @@ class TestFrozenDataclassFields:
         assert self._field_names(Itinerary) == expected
 
     def test_search_result_fields(self):
-        expected = {"_raw", "best", "other", "price_range"}
+        expected = {"results", "price_range", "is_complete"}
         assert self._field_names(SearchResult) == expected
+
+    def test_raw_search_result_fields(self):
+        expected = {"_raw", "best", "other", "price_range"}
+        assert self._field_names(RawSearchResult) == expected
 
     def test_booking_option_fields(self):
         expected = {
@@ -190,6 +198,14 @@ class TestFrozenDataclassFields:
         expected = {"flight_number", "origin", "destination", "date"}
         assert self._field_names(SelectedLeg) == expected
 
+    def test_trip_leg_fields(self):
+        expected = {"origin", "destination", "date", "itinerary"}
+        assert self._field_names(TripLeg) == expected
+
+    def test_trip_option_fields(self):
+        expected = {"selector", "price", "legs"}
+        assert self._field_names(TripOption) == expected
+
 
 class TestSearchSignature:
     """Verify search() accepts the expected parameters."""
@@ -250,6 +266,12 @@ class TestSearchSignature:
             "legs", "cabin", "adults",
             "include_basic_economy", "timeout", "retries",
         ]
+        assert param_names == expected
+
+    def test_price_selector_params(self):
+        sig = inspect.signature(swoop.price_selector)
+        param_names = list(sig.parameters.keys())
+        expected = ["selector", "timeout", "retries"]
         assert param_names == expected
 
 

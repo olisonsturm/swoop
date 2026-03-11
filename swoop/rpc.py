@@ -29,7 +29,7 @@ from ._booking import (
     _skip_wire_value,
     parse_booking_payload,
 )
-from .decoder import BookingOption, SearchResult, Itinerary, decode_result, _safe_get
+from .decoder import BookingOption, RawSearchResult, Itinerary, decode_result, _safe_get
 from .exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
 
 logger = logging.getLogger(__name__)
@@ -347,7 +347,7 @@ def _search_from_legs(
     timeout: int = 90,
     retries: int = 2,
     exclude_basic_economy: bool = False,
-) -> Optional[SearchResult]:
+) -> Optional[RawSearchResult]:
     """Search Google Flights from normalized leg definitions."""
     encoded_body = _encode_f_req_payload(
         _build_filters_from_legs(
@@ -471,7 +471,7 @@ def search_raw(
     timeout: int = 90,
     retries: int = 2,
     exclude_basic_economy: bool = False,
-) -> Optional[SearchResult]:
+) -> Optional[RawSearchResult]:
     """Search Google Flights via RPC endpoint and return decoded results.
 
     Returns None if no data found. Raises on network errors.
@@ -644,7 +644,39 @@ def get_booking_results(
     )
 
 
-def _parse_rpc_response(text: str) -> Optional[SearchResult]:
+def get_trip_booking_results(
+    booking_token: str,
+    legs: list[dict[str, Any]],
+    *,
+    cabin: str = "economy",
+    adults: int = 1,
+    timeout: int = 90,
+    retries: int = 2,
+) -> list[BookingOption]:
+    """Fetch booking options for an exact multi-leg trip selection."""
+    if not booking_token or not legs:
+        return []
+
+    filters = _build_filters_from_legs(
+        legs,
+        cabin=cabin,
+        adults=adults,
+        sort=SORT_DEPARTURE_TIME,
+    )
+    inner = [[None, booking_token], filters[1], None, 0]
+    encoded_body = _encode_f_req_payload(inner)
+
+    res = _http_post(
+        BOOKING_RPC_URL,
+        content=f"f.req={encoded_body}".encode(),
+        timeout=timeout,
+        retries=retries,
+    )
+
+    return _parse_booking_rpc_response(res.text)
+
+
+def _parse_rpc_response(text: str) -> Optional[RawSearchResult]:
     """Parse the RPC response.
 
     Response format: `)]}'` security prefix -> strip -> JSON parse

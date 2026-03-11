@@ -114,7 +114,7 @@ class TestCheckPriceRoundtrip:
     """Test check_price() for roundtrip flights."""
 
     def test_roundtrip_makes_multiple_rpc_calls(self):
-        """Roundtrip check_price calls search_raw twice + get_booking_results once."""
+        """Roundtrip check_price resolves two search stages plus exact booking."""
         outbound_itin = Itinerary(
             flights=[Flight(
                 airline="DL", flight_number="2300",
@@ -145,20 +145,20 @@ class TestCheckPriceRoundtrip:
 
         call_count = 0
 
-        def mock_search_raw(*args, **kwargs):
+        def mock_search_from_legs(legs, **kwargs):
             nonlocal call_count
             call_count += 1
-            if kwargs.get("selected_outbound_legs") is not None:
+            if legs[0].get("selected_legs") is not None:
                 return return_result
             return outbound_result
 
-        def mock_get_booking(*args, **kwargs):
+        def mock_fetch_trip_booking(*args, **kwargs):
             nonlocal call_count
             call_count += 1
             return booking_options
 
-        with patch("swoop.search_raw", side_effect=mock_search_raw), \
-             patch("swoop.get_booking_results", side_effect=mock_get_booking):
+        with patch("swoop._selection._search_from_legs", side_effect=mock_search_from_legs), \
+             patch("swoop._selection.fetch_trip_booking_options", side_effect=mock_fetch_trip_booking):
             result = check_price(
                 "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
                 return_flight_number="DL2301", return_date="2026-06-22",
@@ -172,7 +172,7 @@ class TestCheckPriceRoundtrip:
         assert len(result.booking_options) == 2
 
     def test_roundtrip_return_expansion_has_no_airline_filter(self):
-        """Return expansion search_raw call must not filter by outbound airline."""
+        """Return-stage search should use the return carrier, not the outbound one."""
         outbound_itin = Itinerary(
             flights=[Flight(
                 airline="DL", flight_number="2300",
@@ -196,16 +196,16 @@ class TestCheckPriceRoundtrip:
         outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
         return_result = SearchResult(_raw=[], best=[return_itin], other=[])
 
-        search_raw_calls = []
+        search_calls = []
 
-        def mock_search_raw(*args, **kwargs):
-            search_raw_calls.append(kwargs)
-            if kwargs.get("selected_outbound_legs") is not None:
+        def mock_search_from_legs(legs, **kwargs):
+            search_calls.append(legs)
+            if legs[0].get("selected_legs") is not None:
                 return return_result
             return outbound_result
 
-        with patch("swoop.search_raw", side_effect=mock_search_raw), \
-             patch("swoop.get_booking_results", return_value=[
+        with patch("swoop._selection._search_from_legs", side_effect=mock_search_from_legs), \
+             patch("swoop._selection.fetch_trip_booking_options", return_value=[
                  BookingOption(price=700, brand_label="Main Cabin", is_basic=False),
              ]):
             check_price(
@@ -213,9 +213,8 @@ class TestCheckPriceRoundtrip:
                 return_flight_number="UA456", return_date="2026-06-22",
             )
 
-        # The return expansion call (second search_raw) must have airlines=None
-        assert len(search_raw_calls) == 2
-        assert search_raw_calls[1]["airlines"] is None
+        assert len(search_calls) == 2
+        assert search_calls[1][1]["airlines"] == ["UA"]
 
     def test_roundtrip_include_basic_economy(self):
         """With include_basic_economy=True, basic fares are eligible."""
@@ -247,13 +246,13 @@ class TestCheckPriceRoundtrip:
             BookingOption(price=580, brand_label="Basic Economy", is_basic=True),
         ]
 
-        def mock_search_raw(*args, **kwargs):
-            if kwargs.get("selected_outbound_legs") is not None:
+        def mock_search_from_legs(legs, **kwargs):
+            if legs[0].get("selected_legs") is not None:
                 return return_result
             return outbound_result
 
-        with patch("swoop.search_raw", side_effect=mock_search_raw), \
-             patch("swoop.get_booking_results", return_value=booking_options):
+        with patch("swoop._selection._search_from_legs", side_effect=mock_search_from_legs), \
+             patch("swoop._selection.fetch_trip_booking_options", return_value=booking_options):
             result = check_price(
                 "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
                 return_flight_number="DL2301", return_date="2026-06-22",
@@ -268,7 +267,7 @@ class TestCheckPriceRoundtrip:
         """Returns None if outbound flight not found."""
         empty_result = SearchResult(_raw=[], best=[], other=[])
 
-        with patch("swoop.search_raw", return_value=empty_result):
+        with patch("swoop._selection._search_from_legs", return_value=empty_result):
             result = check_price(
                 "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
                 return_date="2026-06-22",
@@ -302,13 +301,13 @@ class TestCheckPriceRoundtrip:
         outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
         return_result = SearchResult(_raw=[], best=[return_itin], other=[])
 
-        def mock_search_raw(*args, **kwargs):
-            if kwargs.get("selected_outbound_legs") is not None:
+        def mock_search_from_legs(legs, **kwargs):
+            if legs[0].get("selected_legs") is not None:
                 return return_result
             return outbound_result
 
-        with patch("swoop.search_raw", side_effect=mock_search_raw), \
-             patch("swoop.get_booking_results", side_effect=SwoopRateLimitError()):
+        with patch("swoop._selection._search_from_legs", side_effect=mock_search_from_legs), \
+             patch("swoop._selection.fetch_trip_booking_options", side_effect=SwoopRateLimitError()):
             result = check_price(
                 "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
                 return_flight_number="DL2301", return_date="2026-06-22",

@@ -427,7 +427,8 @@ def _parse_booking_rpc_response(
             logger.warning("Booking options parser missing required fields: %s", ",".join(missing_required))
 
     if dropped_missing_price or dropped_missing_brand or dropped_invalid_price:
-        logger.warning(
+        log = logger.warning if not options else logger.debug
+        log(
             "Booking options parser dropped options (missing_price=%s, missing_brand=%s, invalid_price=%s)",
             dropped_missing_price,
             dropped_missing_brand,

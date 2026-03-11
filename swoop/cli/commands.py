@@ -9,7 +9,6 @@ from .utils import (
     IATA_CODE,
     SORT_MAP,
     check_past_date,
-    format_date_display,
 )
 
 
@@ -58,39 +57,72 @@ def _run_search(
     )
 
 
-def _price_search_result(
-    itinerary,
+def _run_search_legs(
+    legs,
     *,
-    origin,
-    destination,
-    date,
-    return_date,
     cabin,
     passengers,
+    sort,
     nonstop,
     max_stops,
+    airline,
     include_basic,
     timeout,
     retries,
 ):
-    """Price an already-selected itinerary exactly."""
+    """Run swoop.search_legs() with global CLI filters applied to each leg."""
     import swoop
 
-    stops = 0 if nonstop else max_stops
-    return swoop._price_from_outbound_itinerary(
-        itinerary,
-        origin=origin,
-        destination=destination,
-        date=date,
-        return_date=return_date,
+    stops = max_stops
+    if nonstop:
+        stops = 0
+
+    sort_val = SORT_MAP.get(sort, swoop.SORT_DEPARTURE_TIME)
+    airlines = list(airline) if airline else None
+    search_legs = [
+        swoop.SearchLeg(
+            date=leg_date,
+            from_airport=leg_origin,
+            to_airport=leg_destination,
+            max_stops=stops,
+            airlines=airlines,
+        )
+        for leg_origin, leg_destination, leg_date in legs
+    ]
+    return swoop.search_legs(
+        search_legs,
         cabin=cabin,
         adults=passengers,
-        max_stops=stops,
+        sort=sort_val,
         include_basic_economy=include_basic,
         timeout=timeout,
         retries=retries,
-        outbound_selection="explicit",
     )
+
+
+def _shell_quote_force(value):
+    """Return a POSIX-safe single-quoted shell literal."""
+    text = str(value)
+    return "'" + text.replace("'", "'\"'\"'") + "'"
+
+
+def _build_price_selector_command(selector: str) -> str:
+    """Build a copy/paste selector pricing command."""
+    return f"swoop price --selector {_shell_quote_force(selector)}"
+
+
+def _query_legs_from_price_result(result):
+    """Build formatter query legs from a PriceResult."""
+    return [
+        {
+            "flight_number": leg.flight_summary,
+            "origin": leg.origin,
+            "destination": leg.destination,
+            "date": leg.date,
+            "selection": leg.selection,
+        }
+        for leg in result.resolved_legs
+    ]
 
 
 # Shared search options decorator
@@ -135,22 +167,25 @@ def _output_options(formats: list[str]):
 
 
 @click.command("search")
-@click.argument("origin", type=IATA_CODE)
-@click.argument("destination", type=IATA_CODE)
-@click.argument("date", type=DATE)
+@click.argument("origin", type=IATA_CODE, required=False, default=None)
+@click.argument("destination", type=IATA_CODE, required=False, default=None)
+@click.argument("date", type=DATE, required=False, default=None)
 @_search_options
+@click.option("--leg", multiple=True, type=(IATA_CODE, IATA_CODE, DATE),
+              help="Explicit leg: ORIGIN DEST DATE (repeatable).")
 @click.option("-l", "--limit", type=int, default=None, help="Max results to display.")
-@click.option("--price", "price_index", type=int, default=None,
-              help="Show price + fares for search result #N.")
+@click.option("--show-price-commands", is_flag=True, default=False,
+              help="Show copy/paste `swoop price --selector ...` commands for displayed rows.")
 @_output_options(["table", "json", "csv", "brief"])
 @click.pass_context
 def search_cmd(
     ctx, origin, destination, date,
+    leg,
     return_date, cabin, passengers, sort, nonstop, max_stops,
     airline, flight_number, include_basic,
     depart_after, depart_before, arrive_after, arrive_before,
     return_depart_after, return_depart_before,
-    timeout, retries, limit, price_index,
+    timeout, retries, limit, show_price_commands,
     output_format, no_color, quiet,
 ):
     """Search for flights.
@@ -160,7 +195,8 @@ def search_cmd(
       swoop search JFK LAX 2026-06-15
       swoop search JFK LAX 2026-06-15 --nonstop --sort cheapest
       swoop search JFK LAX 2026-06-15 -r 2026-06-22 --cabin business
-      swoop search JFK LAX 2026-06-15 --price 1
+      swoop search --leg JFK LAX 2026-06-15 --leg LAX SFO 2026-06-18
+      swoop search JFK LAX 2026-06-15 --show-price-commands
       swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0]'
     """
     from swoop.exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
@@ -173,37 +209,72 @@ def search_cmd(
     )
 
     err = _err_console(no_color)
+    has_positional = any(value is not None for value in (origin, destination, date))
+    has_full_positional = all(value is not None for value in (origin, destination, date))
+    has_leg = len(leg) > 0
 
-    # Validate --price incompatibilities
-    if price_index is not None:
-        if limit is not None:
-            err.print("[red]Error: --price cannot be combined with --limit.[/red]")
+    if show_price_commands and output_format in {"json", "csv"}:
+        err.print("[red]Error: --show-price-commands is only supported with table or brief output.[/red]")
+        ctx.exit(2)
+
+    if has_leg and has_positional:
+        err.print("[red]Error: positional args and --leg cannot be used together.[/red]")
+        ctx.exit(2)
+    if has_leg:
+        if return_date is not None:
+            err.print("[red]Error: --leg cannot be combined with --return.[/red]")
             ctx.exit(2)
-        if output_format == "csv":
-            err.print("[red]Error: --price cannot be combined with -o csv.[/red]")
+        if flight_number is not None:
+            err.print("[red]Error: --leg cannot be combined with --flight.[/red]")
             ctx.exit(2)
+        if any(value is not None for value in (
+            depart_after, depart_before, arrive_after, arrive_before,
+            return_depart_after, return_depart_before,
+        )):
+            err.print("[red]Error: time-window filters are not supported with --leg searches.[/red]")
+            ctx.exit(2)
+    elif has_positional and not has_full_positional:
+        err.print("[red]Error: ORIGIN DESTINATION DATE are all required.[/red]")
+        ctx.exit(2)
+    elif not has_full_positional:
+        err.print("[red]Error: provide ORIGIN DESTINATION DATE or use --leg.[/red]")
+        ctx.exit(2)
 
-    # Past date warning
-    warning = check_past_date(date)
-    if warning:
-        err.print(f"[yellow]{warning}[/yellow]")
+    if has_leg:
+        for leg_origin, leg_destination, leg_date in leg:
+            warning = check_past_date(leg_date)
+            if warning:
+                err.print(f"[yellow]{warning}[/yellow]")
+                break
+    else:
+        warning = check_past_date(date)
+        if warning:
+            err.print(f"[yellow]{warning}[/yellow]")
 
-    # Spinner
     if not quiet and output_format == "table":
         with err.status("[bold]Searching flights...[/bold]"):
             try:
-                result = _run_search(
-                    origin, destination, date,
-                    return_date=return_date, cabin=cabin, passengers=passengers,
-                    sort=sort, nonstop=nonstop, max_stops=max_stops,
-                    airline=airline, flight_number=flight_number,
-                    include_basic=include_basic,
-                    depart_after=depart_after, depart_before=depart_before,
-                    arrive_after=arrive_after, arrive_before=arrive_before,
-                    return_depart_after=return_depart_after,
-                    return_depart_before=return_depart_before,
-                    timeout=timeout, retries=retries,
-                )
+                if has_leg:
+                    result = _run_search_legs(
+                        leg,
+                        cabin=cabin, passengers=passengers, sort=sort,
+                        nonstop=nonstop, max_stops=max_stops,
+                        airline=airline, include_basic=include_basic,
+                        timeout=timeout, retries=retries,
+                    )
+                else:
+                    result = _run_search(
+                        origin, destination, date,
+                        return_date=return_date, cabin=cabin, passengers=passengers,
+                        sort=sort, nonstop=nonstop, max_stops=max_stops,
+                        airline=airline, flight_number=flight_number,
+                        include_basic=include_basic,
+                        depart_after=depart_after, depart_before=depart_before,
+                        arrive_after=arrive_after, arrive_before=arrive_before,
+                        return_depart_after=return_depart_after,
+                        return_depart_before=return_depart_before,
+                        timeout=timeout, retries=retries,
+                    )
             except ValueError as e:
                 err.print(f"[red]Error: {e}[/red]")
                 ctx.exit(2)
@@ -218,18 +289,27 @@ def search_cmd(
                 ctx.exit(4)
     else:
         try:
-            result = _run_search(
-                origin, destination, date,
-                return_date=return_date, cabin=cabin, passengers=passengers,
-                sort=sort, nonstop=nonstop, max_stops=max_stops,
-                airline=airline, flight_number=flight_number,
-                include_basic=include_basic,
-                depart_after=depart_after, depart_before=depart_before,
-                arrive_after=arrive_after, arrive_before=arrive_before,
-                return_depart_after=return_depart_after,
-                return_depart_before=return_depart_before,
-                timeout=timeout, retries=retries,
-            )
+            if has_leg:
+                result = _run_search_legs(
+                    leg,
+                    cabin=cabin, passengers=passengers, sort=sort,
+                    nonstop=nonstop, max_stops=max_stops,
+                    airline=airline, include_basic=include_basic,
+                    timeout=timeout, retries=retries,
+                )
+            else:
+                result = _run_search(
+                    origin, destination, date,
+                    return_date=return_date, cabin=cabin, passengers=passengers,
+                    sort=sort, nonstop=nonstop, max_stops=max_stops,
+                    airline=airline, flight_number=flight_number,
+                    include_basic=include_basic,
+                    depart_after=depart_after, depart_before=depart_before,
+                    arrive_after=arrive_after, arrive_before=arrive_before,
+                    return_depart_after=return_depart_after,
+                    return_depart_before=return_depart_before,
+                    timeout=timeout, retries=retries,
+                )
         except ValueError as e:
             err.print(f"[red]Error: {e}[/red]")
             ctx.exit(2)
@@ -243,96 +323,34 @@ def search_cmd(
             err.print("[red]Could not parse Google Flights response[/red]")
             ctx.exit(4)
 
-    if result is None or (not result.best and not result.other):
-        err.print(
-            f"[yellow]No flights found for {origin} -> {destination} "
-            f"on {date}.[/yellow]"
-        )
+    if result is None or not result.results:
+        if has_leg:
+            err.print("[yellow]No flights found for the requested trip.[/yellow]")
+        else:
+            err.print(
+                f"[yellow]No flights found for {origin} -> {destination} "
+                f"on {date}.[/yellow]"
+            )
         ctx.exit(1)
 
+    display_origin = leg[0][0] if has_leg else origin
+    display_destination = leg[-1][1] if has_leg else destination
+    display_date = leg[0][2] if has_leg else date
+    display_return_date = None if has_leg else return_date
+    display_options = list(result.results[:limit]) if limit else list(result.results)
+    price_commands = None
+    if show_price_commands:
+        price_commands = [
+            _build_price_selector_command(option.selector)
+            for option in display_options
+        ]
     fmt_kwargs = dict(
-        origin=origin, destination=destination, date=date,
-        cabin=cabin, adults=passengers, return_date=return_date,
+        origin=display_origin, destination=display_destination, date=display_date,
+        cabin=cabin, adults=passengers, return_date=display_return_date,
+        legs=leg if has_leg else None,
         limit=limit,
+        price_commands=price_commands,
     )
-
-    # If --price is set, drill down into that result
-    if price_index is not None:
-        from .formatters import format_price_brief, format_price_json, format_price_table
-
-        all_itins = [*result.best, *result.other]
-        if price_index < 1 or price_index > len(all_itins):
-            err.print(
-                f"[red]Error: --price {price_index} out of range. "
-                f"Only {len(all_itins)} results available.[/red]"
-            )
-            ctx.exit(2)
-            return
-
-        itin = all_itins[price_index - 1]
-        if not itin.flights:
-            err.print("[red]Error: selected itinerary has no flight info.[/red]")
-            ctx.exit(2)
-            return
-
-        try:
-            if not quiet and output_format == "table":
-                with err.status("[bold]Checking price...[/bold]"):
-                    price_result = _price_search_result(
-                        itin,
-                        origin=origin,
-                        destination=destination,
-                        date=date,
-                        return_date=return_date,
-                        cabin=cabin,
-                        passengers=passengers,
-                        nonstop=nonstop,
-                        max_stops=max_stops,
-                        include_basic=include_basic,
-                        timeout=timeout,
-                        retries=retries,
-                    )
-            else:
-                price_result = _price_search_result(
-                    itin,
-                    origin=origin,
-                    destination=destination,
-                    date=date,
-                    return_date=return_date,
-                    cabin=cabin,
-                    passengers=passengers,
-                    nonstop=nonstop,
-                    max_stops=max_stops,
-                    include_basic=include_basic,
-                    timeout=timeout,
-                    retries=retries,
-                )
-        except (ValueError, SwoopHTTPError, SwoopParseError, SwoopRateLimitError) as e:
-            err.print(f"[red]Error checking price: {e}[/red]")
-            ctx.exit(3)
-            return
-
-        if price_result is None:
-            err.print(f"[yellow]Could not get price for result #{price_index}.[/yellow]")
-            ctx.exit(1)
-            return
-
-        flight_label = (
-            price_result.resolved_legs[0].flight_summary
-            if price_result.resolved_legs
-            else f"{itin.flights[0].airline}{itin.flights[0].flight_number}"
-        )
-
-        if output_format == "json":
-            format_price_json(price_result, flight_number=flight_label, origin=origin,
-                              destination=destination, date=date, return_date=return_date)
-        elif output_format == "brief":
-            format_price_brief(price_result, return_date=return_date)
-        else:
-            format_price_table(price_result, flight_number=flight_label, origin=origin,
-                               destination=destination, date=date, return_date=return_date,
-                               no_color=no_color)
-        return
 
     if output_format == "table":
         format_search_table(result, no_color=no_color, **fmt_kwargs)
@@ -341,16 +359,19 @@ def search_cmd(
     elif output_format == "csv":
         format_search_csv(result, limit=limit)
     elif output_format == "brief":
-        format_search_brief(result, limit=limit)
+        format_search_brief(
+            result,
+            limit=limit,
+            price_commands=fmt_kwargs["price_commands"],
+        )
 
 
 @click.command("price")
-@click.argument("flight_number", type=str, required=False, default=None)
 @click.argument("origin", type=IATA_CODE, required=False, default=None)
 @click.argument("destination", type=IATA_CODE, required=False, default=None)
-@click.argument("date", type=DATE, required=False, default=None)
-@click.option("-r", "--return-date", type=DATE, default=None, help="Return date (roundtrip).")
-@click.option("--return-flight", type=str, default=None, help="Return flight number.")
+@click.option("--selector", type=str, default=None, help="Opaque itinerary selector from search JSON.")
+@click.option("-d", "--depart", type=(DATE, str), default=None, help="Departure leg: DATE FLIGHT.")
+@click.option("-r", "--return", "return_leg", type=(DATE, str), default=None, help="Return leg: DATE FLIGHT.")
 @click.option("--leg", multiple=True, type=(IATA_CODE, IATA_CODE, DATE, str),
               help="Explicit leg: ORIGIN DEST DATE FLIGHT (repeatable).")
 @click.option("-c", "--cabin", type=click.Choice(CABIN_CHOICES, case_sensitive=False), default="economy", show_default=True)
@@ -362,23 +383,23 @@ def search_cmd(
 @_output_options(["table", "json", "brief"])
 @click.pass_context
 def price_cmd(
-    ctx, flight_number, origin, destination, date,
-    return_date, return_flight, leg, cabin, passengers, max_stops,
+    ctx, origin, destination,
+    selector,
+    depart, return_leg, leg, cabin, passengers, max_stops,
     include_basic, timeout, retries,
     output_format, no_color, quiet,
 ):
-    """Check the price of a specific flight.
+    """Check the current bookable fare for a chosen itinerary.
 
     Uses minimal RPC calls (1 for one-way, 3 for roundtrip).
 
     \b
-    Simple syntax (positional args):
-      swoop price DL2300 JFK LAX 2026-06-15
-      swoop price DL2300 JFK LAX 2026-06-15 -r 2026-06-22
-      swoop price DL2300 JFK LAX 2026-06-15 -r 2026-06-22 --return-flight DL2301
+    Shorthand syntax:
+      swoop price JFK LAX --depart 2026-06-15 DL2300
+      swoop price JFK LAX --depart 2026-06-15 DL2300 --return 2026-06-22 DL2301
 
     \b
-    Multi-leg syntax (--leg):
+    Explicit leg syntax (--leg):
       swoop price --leg JFK LAX 2026-06-15 DL2300 --leg LAX JFK 2026-06-22 DL2301
     """
     import swoop
@@ -388,68 +409,147 @@ def price_cmd(
 
     err = _err_console(no_color)
 
-    # Validate: positional args and --leg are mutually exclusive
-    has_positional = flight_number is not None
+    has_route_args = any(value is not None for value in (origin, destination))
+    has_full_route = all(value is not None for value in (origin, destination))
+    has_depart = depart is not None
+    has_return = return_leg is not None
+    has_shorthand = has_route_args or has_depart or has_return
     has_leg = len(leg) > 0
+    has_selector = selector is not None
 
-    if has_positional and has_leg:
-        err.print("[red]Error: positional args and --leg cannot be used together.[/red]")
+    if has_selector and (has_shorthand or has_leg):
+        err.print("[red]Error: --selector, shorthand args, and --leg are mutually exclusive.[/red]")
+        ctx.exit(2)
+        return
+    if has_leg and has_shorthand:
+        err.print("[red]Error: shorthand args and --leg are mutually exclusive.[/red]")
         ctx.exit(2)
         return
 
-    if has_leg and (return_date is not None or return_flight is not None):
-        err.print("[red]Error: --leg cannot be combined with --return-date or --return-flight.[/red]")
+    if has_selector:
+        if max_stops is not None or cabin != "economy" or passengers != 1 or include_basic:
+            err.print("[red]Error: --selector is self-contained and cannot be combined with pricing overrides.[/red]")
+            ctx.exit(2)
+            return
+    elif has_leg and max_stops is not None:
+        err.print("[red]Error: --max-stops is not supported with explicit --leg pricing.[/red]")
         ctx.exit(2)
         return
 
     if has_leg:
-        # --leg syntax: each tuple is (origin, dest, date, flight_number)
-        if len(leg) == 1:
-            leg_origin, leg_dest, leg_date, leg_flight = leg[0]
-            flight_number = leg_flight
-            origin = leg_origin
-            destination = leg_dest
-            date = leg_date
-        elif len(leg) == 2:
-            leg_origin, leg_dest, leg_date, leg_flight = leg[0]
-            ret_origin, ret_dest, ret_date, ret_flight = leg[1]
-            flight_number = leg_flight
-            origin = leg_origin
-            destination = leg_dest
-            date = leg_date
-            return_date = ret_date
-            return_flight = ret_flight
-        else:
-            err.print("[red]Error: at most 2 --leg options are supported.[/red]")
-            ctx.exit(2)
-            return
-    elif not has_positional:
-        err.print("[red]Error: provide FLIGHT ORIGIN DEST DATE or use --leg.[/red]")
+        query_legs = [
+            {
+                "flight_number": leg_flight,
+                "origin": leg_origin,
+                "destination": leg_dest,
+                "date": leg_date,
+                "selection": "explicit",
+            }
+            for leg_origin, leg_dest, leg_date, leg_flight in leg
+        ]
+    elif not has_selector and not has_shorthand:
+        err.print("[red]Error: provide ORIGIN DEST with --depart, or use --leg/--selector.[/red]")
         ctx.exit(2)
         return
-    elif origin is None or destination is None or date is None:
-        err.print("[red]Error: FLIGHT_NUMBER ORIGIN DESTINATION DATE are all required.[/red]")
+    elif has_route_args and not has_full_route:
+        err.print("[red]Error: ORIGIN DESTINATION are both required for shorthand pricing.[/red]")
         ctx.exit(2)
         return
-    elif return_flight is not None and return_date is None:
-        err.print("[red]Error: --return-flight requires --return-date.[/red]")
+    elif has_return and not has_depart:
+        err.print("[red]Error: --return requires --depart.[/red]")
+        ctx.exit(2)
+        return
+    elif has_shorthand and not has_full_route:
+        err.print("[red]Error: ORIGIN DESTINATION are required for shorthand pricing.[/red]")
+        ctx.exit(2)
+        return
+    elif has_shorthand and not has_depart:
+        err.print("[red]Error: --depart is required for shorthand pricing.[/red]")
         ctx.exit(2)
         return
 
-    warning = check_past_date(date)
-    if warning:
-        err.print(f"[yellow]{warning}[/yellow]")
+    if has_selector:
+        query_legs = None
+    elif has_leg:
+        for _leg_origin, _leg_dest, leg_date, _leg_flight in leg:
+            warning = check_past_date(leg_date)
+            if warning:
+                err.print(f"[yellow]{warning}[/yellow]")
+                break
+    else:
+        warning = check_past_date(depart[0])
+        if warning:
+            err.print(f"[yellow]{warning}[/yellow]")
+        elif has_return:
+            warning = check_past_date(return_leg[0])
+            if warning:
+                err.print(f"[yellow]{warning}[/yellow]")
 
     try:
         if not quiet and output_format == "table":
             with err.status("[bold]Checking price...[/bold]"):
+                if has_selector:
+                    result = swoop.price_selector(selector, timeout=timeout, retries=retries)
+                elif has_leg:
+                    result = swoop.price_legs(
+                        [
+                            swoop.SelectedLeg(
+                                flight_number=leg_flight,
+                                origin=leg_origin,
+                                destination=leg_dest,
+                                date=leg_date,
+                            )
+                            for leg_origin, leg_dest, leg_date, leg_flight in leg
+                        ],
+                        cabin=cabin,
+                        adults=passengers,
+                        include_basic_economy=include_basic,
+                        timeout=timeout,
+                        retries=retries,
+                    )
+                else:
+                    result = swoop.check_price(
+                        depart[1],
+                        origin=origin,
+                        destination=destination,
+                        date=depart[0],
+                        return_flight_number=return_leg[1] if has_return else None,
+                        return_date=return_leg[0] if has_return else None,
+                        cabin=cabin,
+                        adults=passengers,
+                        max_stops=max_stops,
+                        include_basic_economy=include_basic,
+                        timeout=timeout,
+                        retries=retries,
+                    )
+        else:
+            if has_selector:
+                result = swoop.price_selector(selector, timeout=timeout, retries=retries)
+            elif has_leg:
+                result = swoop.price_legs(
+                    [
+                        swoop.SelectedLeg(
+                            flight_number=leg_flight,
+                            origin=leg_origin,
+                            destination=leg_dest,
+                            date=leg_date,
+                        )
+                        for leg_origin, leg_dest, leg_date, leg_flight in leg
+                    ],
+                    cabin=cabin,
+                    adults=passengers,
+                    include_basic_economy=include_basic,
+                    timeout=timeout,
+                    retries=retries,
+                )
+            else:
                 result = swoop.check_price(
-                    flight_number,
+                    depart[1],
                     origin=origin,
                     destination=destination,
-                    date=date,
-                    return_flight_number=return_flight,
-                    return_date=return_date,
+                    date=depart[0],
+                    return_flight_number=return_leg[1] if has_return else None,
+                    return_date=return_leg[0] if has_return else None,
                     cabin=cabin,
                     adults=passengers,
                     max_stops=max_stops,
@@ -457,21 +557,6 @@ def price_cmd(
                     timeout=timeout,
                     retries=retries,
                 )
-        else:
-            result = swoop.check_price(
-                flight_number,
-                origin=origin,
-                destination=destination,
-                date=date,
-                return_flight_number=return_flight,
-                return_date=return_date,
-                cabin=cabin,
-                adults=passengers,
-                max_stops=max_stops,
-                include_basic_economy=include_basic,
-                timeout=timeout,
-                retries=retries,
-            )
     except ValueError as e:
         err.print(f"[red]Error: {e}[/red]")
         ctx.exit(2)
@@ -486,22 +571,45 @@ def price_cmd(
         ctx.exit(4)
 
     if result is None:
-        trip = f"{origin} -> {destination}"
-        if return_date:
-            trip += " (roundtrip)"
-        err.print(
-            f"[yellow]Flight {flight_number} not found on {trip} "
-            f"on {date}.[/yellow]"
-        )
+        if has_selector:
+            err.print("[yellow]Selected itinerary no longer exists.[/yellow]")
+        elif has_leg:
+            err.print("[yellow]Selected itinerary was not found for the requested trip.[/yellow]")
+        else:
+            trip = f"{origin} -> {destination} on {depart[0]}"
+            if has_return:
+                trip += f" / {destination} -> {origin} on {return_leg[0]}"
+            err.print(
+                f"[yellow]Requested itinerary was not found for {trip}.[/yellow]"
+            )
         ctx.exit(1)
 
-    if output_format == "json":
-        format_price_json(result, flight_number=flight_number, origin=origin,
-                          destination=destination, date=date, return_date=return_date)
-    elif output_format == "brief":
-        format_price_brief(result, return_date=return_date)
-    else:
-        format_price_table(result, flight_number=flight_number, origin=origin,
-                           destination=destination, date=date, return_date=return_date,
-                           no_color=no_color)
+    if not has_selector and not has_leg:
+        query_legs = [
+            {
+                "flight_number": depart[1],
+                "origin": origin,
+                "destination": destination,
+                "date": depart[0],
+                "selection": "explicit",
+            }
+        ]
+        if has_return:
+            query_legs.append(
+                {
+                    "flight_number": return_leg[1],
+                    "origin": destination,
+                    "destination": origin,
+                    "date": return_leg[0],
+                    "selection": "explicit",
+                }
+            )
+    if query_legs is None:
+        query_legs = _query_legs_from_price_result(result)
 
+    if output_format == "json":
+        format_price_json(result, query_legs=query_legs)
+    elif output_format == "brief":
+        format_price_brief(result, query_legs=query_legs)
+    else:
+        format_price_table(result, query_legs=query_legs, no_color=no_color)
