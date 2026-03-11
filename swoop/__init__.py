@@ -81,7 +81,7 @@ def _correct_roundtrip_economy_prices(
             options = get_booking_results(
                 itinerary, timeout=timeout, retries=retries,
             )
-        except Exception as exc:
+        except (SwoopHTTPError, SwoopParseError) as exc:
             logger.debug("GetBookingResults failed, keeping original price: %s", exc)
             continue
 
@@ -532,7 +532,7 @@ def check_price(
             retries=retries,
         )
         rpc_calls += 1
-    except Exception as exc:
+    except (SwoopHTTPError, SwoopParseError) as exc:
         logger.debug("GetBookingResults failed for roundtrip: %s", exc)
         # Fall back to direct_price from return expansion
         price = return_itin.price
