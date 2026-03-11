@@ -391,8 +391,6 @@ def price_cmd(
 ):
     """Check the current bookable fare for a chosen itinerary.
 
-    Uses minimal RPC calls (1 for one-way, 3 for roundtrip).
-
     \b
     Shorthand syntax:
       swoop price JFK LAX --depart 2026-06-15 DL2300

@@ -475,8 +475,6 @@ def format_price_table(
     if result.is_basic_economy:
         console.print(" [yellow]Basic Economy[/yellow]")
 
-    console.print(f" [dim]RPC calls: {result.rpc_calls}[/dim]")
-
     if result.booking_options:
         console.print()
         table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
@@ -511,7 +509,6 @@ def format_price_json(
         "price_usd": result.price,
         "fare_brand": result.fare_brand,
         "is_basic_economy": result.is_basic_economy,
-        "rpc_calls": result.rpc_calls,
         "booking_options": [
             {
                 "brand_label": opt.brand_label,
@@ -547,4 +544,4 @@ def format_price_brief(
     """Render a price check result in compact format to stdout."""
     trip_type = f"{len(query_legs or result.resolved_legs or [])}-leg"
     brand = f" ({result.fare_brand})" if result.fare_brand else ""
-    print(f"${result.price:,}{brand} {trip_type} [{result.rpc_calls} RPCs]")
+    print(f"${result.price:,}{brand} {trip_type}")

@@ -583,6 +583,7 @@ class TestPriceCommand:
         import json
         data = json.loads(result.output)
         assert data["price_usd"] == 342
+        assert "rpc_calls" not in data
 
     @patch("swoop.check_price")
     def test_price_brief_output(self, mock_check):
@@ -595,6 +596,17 @@ class TestPriceCommand:
         assert result.exit_code == 0
         assert "$342" in result.output
         assert "1-leg" in result.output
+        assert "RPC" not in result.output
+
+    @patch("swoop.check_price")
+    def test_price_table_output_hides_rpc_call_count(self, mock_check):
+        mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300",
+        ])
+        assert result.exit_code == 0
+        assert "RPC calls:" not in result.output
 
     @patch("swoop.check_price")
     def test_price_not_found(self, mock_check):

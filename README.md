@@ -126,12 +126,10 @@ print(results.is_complete)
 ```python
 from swoop import check_price
 
-# One-way (1 RPC call)
 result = check_price("DL2300", origin="JFK", destination="LAX", date="2026-06-15")
 if result:
     print(f"${result.price}")
 
-# Roundtrip (3 RPC calls)
 result = check_price(
     "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
     return_flight_number="DL2301", return_date="2026-06-22",
@@ -279,7 +277,7 @@ Low-level single-pass search escape hatch. Returns `RawSearchResult` with raw `b
 
 ### `check_price(flight_number, *, origin, destination, date, **kwargs)`
 
-Look up the current bookable fare for a specific flight. Optimized for the "what does flight X cost?" use case — uses 1 RPC for one-way, 3 RPCs for roundtrip.
+Look up the current bookable fare for a specific flight. Optimized for the "what does flight X cost?" use case.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|

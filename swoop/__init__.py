@@ -473,10 +473,7 @@ def check_price(
 
     Unlike :func:`search` which returns all itineraries on a route,
     ``check_price`` is optimized for the "what does flight X cost today?"
-    use case. It uses far fewer RPC calls:
-
-    - **One-way**: 1 RPC (search with airline filter + exclude basic economy).
-    - **Roundtrip**: 3 RPCs (outbound search, return expansion, booking results).
+    use case.
 
     Args:
         flight_number: Outbound flight number (e.g. ``"DL2300"``).
