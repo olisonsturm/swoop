@@ -152,7 +152,7 @@ def _search_with_normalized_legs(
     timeout: int = 90,
     retries: int = 2,
     correct_roundtrip_prices: bool = False,
-) -> Optional[SearchResult]:
+) -> SearchResult:
     """Execute a staged trip search from normalized leg definitions."""
     return search_trip_options(
         request_legs,
@@ -175,7 +175,7 @@ def search_legs(
     include_basic_economy: bool = False,
     timeout: int = 90,
     retries: int = 2,
-) -> Optional[SearchResult]:
+) -> SearchResult:
     """Search Google Flights using explicit leg definitions.
 
     Trip type is determined from ``len(legs)``.
@@ -238,7 +238,7 @@ def search(
     return_latest_departure: Optional[int] = None,
     timeout: int = 90,
     retries: int = 2,
-) -> Optional[SearchResult]:
+) -> SearchResult:
     """Search Google Flights and return decoded results.
 
     Args:

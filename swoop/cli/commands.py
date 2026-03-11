@@ -145,7 +145,7 @@ def _search_options(f):
         click.option("--return-depart-after", type=click.IntRange(0, 23), default=None, help="Return departure window start."),
         click.option("--return-depart-before", type=click.IntRange(1, 24), default=None, help="Return departure window end."),
         click.option("--timeout", type=int, default=90, show_default=True, help="HTTP timeout in seconds."),
-        click.option("--retries", type=int, default=0, show_default=True, help="Retries on rate limit."),
+        click.option("--retries", type=int, default=2, show_default=True, help="Retries on rate limit."),
     ]
     for option in reversed(options):
         f = option(f)

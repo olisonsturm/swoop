@@ -275,6 +275,30 @@ class TestSearchSignature:
         assert param_names == expected
 
 
+class TestFrozenDefaults:
+    """Verify critical default values haven't drifted."""
+
+    def test_search_retries_default(self):
+        sig = inspect.signature(swoop.search)
+        assert sig.parameters["retries"].default == 2
+
+    def test_search_legs_retries_default(self):
+        sig = inspect.signature(swoop.search_legs)
+        assert sig.parameters["retries"].default == 2
+
+    def test_check_price_retries_default(self):
+        sig = inspect.signature(swoop.check_price)
+        assert sig.parameters["retries"].default == 2
+
+    def test_price_legs_retries_default(self):
+        sig = inspect.signature(swoop.price_legs)
+        assert sig.parameters["retries"].default == 2
+
+    def test_price_selector_retries_default(self):
+        sig = inspect.signature(swoop.price_selector)
+        assert sig.parameters["retries"].default == 2
+
+
 class TestItineraryPrice:
     """Verify the canonical ``price`` property on Itinerary."""
 

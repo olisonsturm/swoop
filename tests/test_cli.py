@@ -530,6 +530,16 @@ class TestSearchCommand:
         assert "stop" in result.output
         assert "ORD" in result.output
 
+    @patch("swoop.cli.commands._run_search")
+    def test_default_retries(self, mock_search):
+        """CLI search passes retries=2 by default."""
+        mock_search.return_value = _make_search_result()
+        runner = CliRunner()
+        result = runner.invoke(main, ["search", "JFK", "LAX", "2026-06-15", "-q"])
+        assert result.exit_code == 0
+        _, kwargs = mock_search.call_args
+        assert kwargs["retries"] == 2
+
     @patch("swoop.cli.commands._run_search_legs")
     def test_leg_search_mode(self, mock_search_legs):
         mock_search_legs.return_value = _make_search_result(1)
