@@ -5,7 +5,7 @@ and decodes the nested-list responses into typed Python dataclasses.
 
 Basic usage::
 
-    from swoop import search
+    from swoop import price_selector, search
 
     results = search("JFK", "LAX", "2026-06-01")
     for option in results.results:
@@ -13,6 +13,11 @@ Basic usage::
         for leg in option.legs:
             if leg.itinerary is not None:
                 print(f"  {leg.origin}->{leg.destination} — {leg.itinerary.airline_names}")
+
+    chosen = results.results[0]
+    bookable = price_selector(chosen.selector)
+    if bookable is not None:
+        print(bookable.price)
 """
 
 __version__ = "0.3.0"

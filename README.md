@@ -56,13 +56,13 @@ swoop search JFK LAX 2026-06-15 -r 2026-06-22 --cabin business
 # Official multi-city search
 swoop search --leg JFK LAX 2026-06-15 --leg LAX SFO 2026-06-18 --leg SFO SEA 2026-06-21
 
-# Quick price check for a specific flight
-swoop price DL2300 JFK LAX 2026-06-15
+# Bookable fare for a known flight
+swoop price JFK LAX --depart 2026-06-15 DL2300
 
-# Human drilldown from search row #1
-swoop search JFK LAX 2026-06-15 --price 1
+# Show copy/paste price commands for displayed rows
+swoop search JFK LAX 2026-06-15 --show-price-commands
 
-# Script-stable drilldown via selector
+# Script-stable pricing via selector
 SELECTOR=$(swoop search JFK LAX 2026-06-15 -o json -q | jq -r '.results[0].selector')
 swoop price --selector "$SELECTOR"
 ```
@@ -71,8 +71,8 @@ swoop price --selector "$SELECTOR"
 <summary>More CLI examples</summary>
 
 ```bash
-# Roundtrip price check
-swoop price DL2300 JFK LAX 2026-06-15 -r 2026-06-22 --return-flight DL2301
+# Roundtrip shorthand pricing
+swoop price JFK LAX --depart 2026-06-15 DL2300 --return 2026-06-22 DL2301
 
 # Explicit leg pricing (supports 3+ legs)
 swoop price --leg JFK LAX 2026-06-15 DL2300 --leg LAX SFO 2026-06-18 UA544 --leg SFO SEA 2026-06-21 AS331
@@ -83,9 +83,6 @@ swoop search JFK LAX 2026-06-15 -o csv -q > flights.csv
 # Search JSON for piping
 swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0] | {selector, price_usd, legs}'
 
-# Selector drilldown from the search command itself
-swoop search --price-selector "$SELECTOR" -q
-
 # Filter by airline and time window
 swoop search JFK LAX 2026-06-15 -a DL -a UA --depart-after 8 --depart-before 14
 ```
@@ -95,7 +92,7 @@ swoop search JFK LAX 2026-06-15 -a DL -a UA --depart-after 8 --depart-before 14
 Run `swoop search --help` for all options.
 
 > [!TIP]
-> Search shows shopping totals for browsing. Use `--price N` when you're reading tables yourself, and use `selector` plus `swoop price --selector ...` when you're scripting.
+> Search shows shopping totals for browsing. Use `--show-price-commands` for copy/paste `swoop price --selector ...` commands in human output, or use `selector` from JSON with `swoop price --selector ...` in scripts.
 
 ## Python API
 
@@ -119,7 +116,7 @@ for option in results.results[:3]:
 print(results.is_complete)
 ```
 
-`search()` and `search_legs()` return shopping totals. Use `check_price()`, `price_legs()`, or selector-based pricing when you need the exact bookable fare for one chosen itinerary.
+`search()` and `search_legs()` return shopping totals. Use `check_price()`, `price_legs()`, or `price_selector()` when you need the bookable fare for one chosen itinerary.
 
 <details>
 <summary>More examples</summary>
@@ -145,10 +142,23 @@ if result:
         print(f"  {leg.flight_summary} {leg.origin}->{leg.destination} ({leg.selection})")
 ```
 
+### Price a chosen search result by selector
+
+```python
+from swoop import price_selector, search
+
+results = search("JFK", "LAX", "2026-06-15")
+option = results.results[0]
+
+price = price_selector(option.selector)
+if price:
+    print(f"${price.price} — {price.fare_brand}")
+```
+
 ### Leg-based search and pricing
 
 ```python
-from swoop import SearchLeg, SelectedLeg, search_legs, price_legs
+from swoop import SearchLeg, SelectedLeg, price_legs, search_legs
 
 # Search with explicit legs (official entrypoint for multi-city)
 results = search_legs([
@@ -257,7 +267,11 @@ Search one or more explicit legs and return a trip-level `SearchResult`. This is
 
 ### `price_legs(legs, **kwargs)`
 
-Price one or more exact legs and return `PriceResult | None`.
+Price one or more explicit legs and return `PriceResult | None`.
+
+### `price_selector(selector, **kwargs)`
+
+Price a selected trip row by opaque selector and return `PriceResult | None`.
 
 ### `search_raw(origin, destination, date, **kwargs)`
 
@@ -265,7 +279,7 @@ Low-level single-pass search escape hatch. Returns `RawSearchResult` with raw `b
 
 ### `check_price(flight_number, *, origin, destination, date, **kwargs)`
 
-Look up the current price for a specific flight. Optimized for the "what does flight X cost?" use case — uses 1 RPC for one-way, 3 RPCs for roundtrip (vs 10-30+ with `search()`).
+Look up the current bookable fare for a specific flight. Optimized for the "what does flight X cost?" use case — uses 1 RPC for one-way, 3 RPCs for roundtrip.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|

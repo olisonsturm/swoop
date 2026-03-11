@@ -1,6 +1,6 @@
 # Swoop — Google Flights Price Scraper
 
-Python library for searching Google Flights programmatically via the same RPC endpoints the web app uses. Supports one-way, roundtrip, and official multi-city search/pricing with trip-level results and selector-based exact pricing.
+Python library for searching Google Flights programmatically via the same RPC endpoints the web app uses. Supports one-way, roundtrip, and official multi-city search/pricing with trip-level results and selector-based bookable pricing.
 
 ## Quick Commands
 
@@ -54,11 +54,11 @@ One commit per task/phase — not one giant commit at the end. Format: `<type>: 
 
 ```
 swoop/
-├── __init__.py       # Public API: search(), search_legs(), check_price(), price_legs(), dataclasses, version
+├── __init__.py       # Public API: search(), search_legs(), check_price(), price_selector(), price_legs(), dataclasses, version
 ├── __main__.py       # `python -m swoop` entry point
 ├── models.py         # Public trip-level result models (SearchResult, TripOption, TripLeg, PriceResult)
 ├── rpc.py            # HTTP client — builds requests, calls Google Flights RPC
-├── _selection.py     # Staged trip search, selector encoding, exact-trip pricing helpers
+├── _selection.py     # Staged trip search, selector encoding, selector-based trip pricing helpers
 ├── builders.py       # Protobuf request builders (filters, segments)
 ├── decoder.py        # Response decoder — nested lists → dataclasses
 ├── _booking.py       # Booking option parsing (GetBookingResults)
@@ -84,14 +84,14 @@ swoop/
 | File | Purpose |
 |------|---------|
 | `models.py` | Public trip-level dataclasses: `SearchResult`, `TripOption`, `TripLeg`, `PriceResult`, etc. |
-| `_selection.py` | Staged multi-leg expansion, selector encode/decode, exact-trip pricing |
+| `_selection.py` | Staged multi-leg expansion, selector encode/decode, selector-based trip pricing |
 | `rpc.py` | RPC client, HTTP transport, request building |
 | `builders.py` | Protobuf filter/segment builders |
 | `decoder.py` | Response decoding and low-level `RawSearchResult` / itinerary dataclasses |
 | `_booking.py` | `parse_booking_payload()` — booking option extraction |
 | `_validate.py` | `validate_iata()` with optional airportsdata |
 | `exceptions.py` | `SwoopError`, `SwoopRPCError`, `SwoopValidationError` |
-| `__init__.py` | Public re-exports: `search`, `search_legs`, `check_price`, `price_legs`, `RawSearchResult`, `SearchResult`, `TripOption`, `TripLeg`, etc. |
+| `__init__.py` | Public re-exports: `search`, `search_legs`, `check_price`, `price_selector`, `price_legs`, `RawSearchResult`, `SearchResult`, `TripOption`, `TripLeg`, etc. |
 | `cli/__init__.py` | Click group + `main()` entry point |
 | `cli/commands.py` | `search_cmd`, `price_cmd` |
 | `cli/formatters.py` | Trip-level table, JSON, CSV, and brief formatters |
