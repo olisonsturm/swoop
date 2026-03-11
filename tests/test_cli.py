@@ -6,7 +6,8 @@ import pytest
 from click.testing import CliRunner
 
 from swoop.cli import main
-from swoop.cli.commands import search_cmd, flight_cmd, book_cmd
+from swoop import PriceResult
+from swoop.cli.commands import search_cmd, flight_cmd, book_cmd, price_cmd
 from swoop.cli.utils import format_time, format_duration, format_date_display, format_route, check_past_date, IATACodeType, DateType
 from swoop.decoder import (
     BookingOption,
@@ -558,6 +559,62 @@ class TestBookCommand:
         ])
         assert result.exit_code == 1
         assert "No booking token" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# Price command tests
+# ---------------------------------------------------------------------------
+
+
+class TestPriceCommand:
+    @patch("swoop.check_price")
+    def test_price_table_output(self, mock_check):
+        mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "price", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "$342" in result.output
+
+    @patch("swoop.check_price")
+    def test_price_json_output(self, mock_check):
+        mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "price", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15",
+            "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        import json
+        data = json.loads(result.output)
+        assert data["price_usd"] == 342
+
+    @patch("swoop.check_price")
+    def test_price_brief_output(self, mock_check):
+        mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "price", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15",
+            "-o", "brief", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "$342" in result.output
+        assert "one-way" in result.output
+
+    @patch("swoop.check_price")
+    def test_price_not_found(self, mock_check):
+        mock_check.return_value = None
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "price", "DL2300", "-f", "JFK", "-t", "LAX", "-d", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 1
+
+    def test_price_missing_options(self):
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, ["price", "DL2300"])
+        assert result.exit_code == 2
 
 
 # ---------------------------------------------------------------------------
