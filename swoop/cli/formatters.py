@@ -1,17 +1,15 @@
 """Output formatters for the CLI — table, JSON, CSV, brief."""
 
 import csv
-import io
 import json
 import sys
-from dataclasses import asdict
 from typing import Optional
 
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from .utils import format_date_display, format_duration, format_route, format_time
+from .utils import format_date_display, format_duration, format_time
 
 
 def _stderr_console(**kwargs) -> Console:
@@ -88,6 +86,73 @@ def _price_text(price: Optional[int], cheapest: Optional[int]) -> Text:
     return text
 
 
+def _format_clock(value) -> Optional[str]:
+    if not isinstance(value, (list, tuple)) or len(value) < 2:
+        return None
+    hour, minute = value[0], value[1]
+    if hour is None or minute is None:
+        return None
+    return f"{int(hour):02d}:{int(minute):02d}"
+
+
+def _format_date_tuple(value) -> Optional[str]:
+    if not isinstance(value, (list, tuple)) or len(value) < 3:
+        return None
+    year, month, day = value[0], value[1], value[2]
+    if not year or not month or not day:
+        return None
+    return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
+
+
+def _trip_header(
+    *,
+    origin: Optional[str],
+    destination: Optional[str],
+    date: Optional[str],
+    return_date: Optional[str],
+    legs,
+) -> str:
+    if legs:
+        parts = [f"{leg_origin} -> {leg_destination} ({format_date_display(leg_date)})" for leg_origin, leg_destination, leg_date in legs]
+        return " / ".join(parts)
+    trip = f"{origin} -> {destination}"
+    if return_date:
+        trip += f" (return {format_date_display(return_date)})"
+    if date:
+        trip += f" · {format_date_display(date)}"
+    return trip
+
+
+def _trip_leg_line(leg) -> str:
+    itinerary = leg.itinerary
+    if itinerary is None:
+        return f"{leg.origin}->{leg.destination} ({leg.date})"
+    dep = _format_clock(itinerary.departure_time)
+    arr = _format_clock(itinerary.arrival_time)
+    duration = format_duration(itinerary.travel_time)
+    stops = itinerary.stop_count if itinerary.stop_count is not None else len(itinerary.layovers)
+    stop_str = "Nonstop" if stops == 0 else f"{stops} stop{'s' if stops > 1 else ''}"
+    route = "->".join(
+        [flight.departure_airport_code for flight in itinerary.flights] +
+        ([itinerary.flights[-1].arrival_airport_code] if itinerary.flights else [])
+    )
+    return (
+        f"{_flight_summary(itinerary)}  {route or f'{leg.origin}->{leg.destination}'}  "
+        f"{dep or '?'}-{arr or '?'}  {duration}  {stop_str}"
+    )
+
+
+def _trip_lines(option) -> list[str]:
+    return [f"Leg {index + 1}: {_trip_leg_line(leg)}" for index, leg in enumerate(option.legs)]
+
+
+def _trip_summary(option) -> str:
+    return " | ".join(
+        _flight_summary(leg.itinerary) if leg.itinerary is not None else f"{leg.origin}->{leg.destination}"
+        for leg in option.legs
+    )
+
+
 def format_search_table(
     result,
     *,
@@ -97,77 +162,52 @@ def format_search_table(
     cabin: str = "economy",
     adults: int = 1,
     return_date: Optional[str] = None,
+    legs=None,
     limit: Optional[int] = None,
     no_color: bool = False,
 ) -> None:
     """Render search results as a Rich table to stdout."""
     console = _stdout_console(no_color=no_color)
-    all_itins = [*result.best, *result.other]
+    all_options = list(result.results)
 
-    if not all_itins:
+    if not all_options:
         console.print("[yellow]No flights found.[/yellow]")
         return
 
     if limit:
-        display_itins = all_itins[:limit]
+        display_options = all_options[:limit]
     else:
-        display_itins = all_itins
+        display_options = all_options
 
-    # Header
-    trip = f"{origin} -> {destination}"
-    if return_date:
-        trip += f" (roundtrip, return {format_date_display(return_date)})"
-    date_display = format_date_display(date)
     cabin_display = cabin.replace("-", " ").title()
     pax = f"{adults} adult" if adults == 1 else f"{adults} adults"
 
     console.print()
     console.print(
-        f" [bold]Flights: {trip} · {date_display} · {cabin_display} · {pax}[/bold]"
+        f" [bold]Flights: {_trip_header(origin=origin, destination=destination, date=date, return_date=return_date, legs=legs)} · {cabin_display} · {pax}[/bold]"
     )
     console.print()
 
-    # Find cheapest for highlighting
-    prices = [it.price for it in display_itins if it.price is not None]
+    prices = [option.price for option in display_options if option.price is not None]
     cheapest = min(prices) if prices else None
 
     table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
     table.add_column("#", justify="right", style="dim", width=3)
-    table.add_column("Flights", min_width=10)
-    table.add_column("Airlines", min_width=10)
-    table.add_column("Route", min_width=12)
-    table.add_column("Depart", justify="right", width=7)
-    table.add_column("Arrive", justify="right", width=7)
-    table.add_column("Duration", justify="right", width=8)
-    table.add_column("Stops", min_width=8)
+    table.add_column("Trip", min_width=36)
     table.add_column("Price", justify="right", width=8)
 
-    for i, itin in enumerate(display_itins, 1):
-        dep_h, dep_m = itin.departure_time
-        arr_h, arr_m = itin.arrival_time
-        airline = _airline_names(itin)
-        if itin.is_budget_carrier:
-            airline = Text(airline)
-            airline.append(" *", style="dim")
-
+    for i, option in enumerate(display_options, 1):
         table.add_row(
             str(i),
-            _flight_summary(itin),
-            airline if isinstance(airline, Text) else str(airline),
-            format_route(itin),
-            format_time(dep_h, dep_m),
-            format_time(arr_h, arr_m),
-            format_duration(itin.travel_time),
-            _stops_text(itin),
-            _price_text(itin.price, cheapest),
+            "\n".join(_trip_lines(option)),
+            _price_text(option.price, cheapest),
         )
 
     console.print(table)
     console.print()
 
-    # Footer
-    total = len(all_itins)
-    shown = len(display_itins)
+    total = len(all_options)
+    shown = len(display_options)
     if result.price_range and result.price_range.low is not None:
         pr = result.price_range
         range_str = f"${pr.low:,}-${pr.high:,}" if pr.high else f"from ${pr.low:,}"
@@ -178,18 +218,16 @@ def format_search_table(
         else:
             console.print(f" [dim]{shown} of {total} results shown[/dim]")
 
-    if return_date:
-        console.print(
-            " [dim]Prices shown are roundtrip totals. Each row is an outbound selection.[/dim]"
-        )
+    if not result.is_complete:
+        console.print(" [dim]Results are truncated to the best complete trips within the CLI expansion budget.[/dim]")
 
     console.print(
-        " [dim]Tip: re-run with --price 1 to see fares for result #1[/dim]"
+        " [dim]Tip: use --price 1 for quick drilldown or --price-selector <selector> for scripts[/dim]"
     )
     console.print()
 
 
-def _itin_to_dict(itin, index: int) -> dict:
+def _itin_to_dict(itin) -> dict:
     """Convert an itinerary to a JSON-serializable dict."""
     flights = []
     for f in itin.flights:
@@ -200,10 +238,10 @@ def _itin_to_dict(itin, index: int) -> dict:
             "aircraft": f.aircraft,
             "departure_airport_code": f.departure_airport_code,
             "arrival_airport_code": f.arrival_airport_code,
-            "departure_time": f"{f.departure_time[0]:02d}:{f.departure_time[1]:02d}",
-            "arrival_time": f"{f.arrival_time[0]:02d}:{f.arrival_time[1]:02d}",
-            "departure_date": f"{f.departure_date[0]:04d}-{f.departure_date[1]:02d}-{f.departure_date[2]:02d}" if f.departure_date != (0, 0, 0) else None,
-            "arrival_date": f"{f.arrival_date[0]:04d}-{f.arrival_date[1]:02d}-{f.arrival_date[2]:02d}" if f.arrival_date != (0, 0, 0) else None,
+            "departure_time": _format_clock(f.departure_time),
+            "arrival_time": _format_clock(f.arrival_time),
+            "departure_date": _format_date_tuple(f.departure_date),
+            "arrival_date": _format_date_tuple(f.arrival_date),
             "duration_minutes": f.travel_time,
             "legroom": f.legroom or None,
             "co2_grams": f.co2_grams,
@@ -228,21 +266,19 @@ def _itin_to_dict(itin, index: int) -> dict:
         }
 
     return {
-        "index": index,
         "flight_summary": _flight_summary(itin),
         "price_usd": itin.price,
         "airlines": _airline_names(itin) if isinstance(_airline_names(itin), str) else str(_airline_names(itin)),
         "departure_airport_code": itin.departure_airport_code,
         "arrival_airport_code": itin.arrival_airport_code,
-        "departure_time": f"{itin.departure_time[0]:02d}:{itin.departure_time[1]:02d}",
-        "arrival_time": f"{itin.arrival_time[0]:02d}:{itin.arrival_time[1]:02d}",
+        "departure_time": _format_clock(itin.departure_time),
+        "arrival_time": _format_clock(itin.arrival_time),
         "duration_minutes": itin.travel_time,
         "stops": itin.stop_count if itin.stop_count is not None else len(itin.layovers),
         "is_budget_carrier": itin.is_budget_carrier,
         "flights": flights,
         "layovers": layovers,
         "carbon_emissions": emissions,
-        "booking_token": itin.booking_token or None,
     }
 
 
@@ -255,12 +291,13 @@ def format_search_json(
     cabin: str = "economy",
     adults: int = 1,
     return_date: Optional[str] = None,
+    legs=None,
     limit: Optional[int] = None,
 ) -> None:
     """Render search results as JSON to stdout."""
-    all_itins = [*result.best, *result.other]
+    all_options = list(result.results)
     if limit:
-        all_itins = all_itins[:limit]
+        all_options = all_options[:limit]
 
     price_range = None
     if result.price_range and result.price_range.low is not None:
@@ -275,12 +312,33 @@ def format_search_json(
             "destination": destination,
             "date": date,
             "return_date": return_date,
+            "legs": [
+                {"origin": leg_origin, "destination": leg_destination, "date": leg_date}
+                for leg_origin, leg_destination, leg_date in (legs or [])
+            ],
             "cabin": cabin,
             "adults": adults,
         },
         "price_range": price_range,
-        "total_results": len(result.best) + len(result.other),
-        "results": [_itin_to_dict(it, i + 1) for i, it in enumerate(all_itins)],
+        "total_results": len(result.results),
+        "is_complete": result.is_complete,
+        "results": [
+            {
+                "index": index + 1,
+                "selector": option.selector,
+                "price_usd": option.price,
+                "legs": [
+                    {
+                        "origin": leg.origin,
+                        "destination": leg.destination,
+                        "date": leg.date,
+                        "itinerary": _itin_to_dict(leg.itinerary) if leg.itinerary else None,
+                    }
+                    for leg in option.legs
+                ],
+            }
+            for index, option in enumerate(all_options)
+        ],
     }
     print(json.dumps(output, indent=2))
 
@@ -291,28 +349,21 @@ def format_search_csv(
     limit: Optional[int] = None,
 ) -> None:
     """Render search results as CSV to stdout."""
-    all_itins = [*result.best, *result.other]
+    all_options = list(result.results)
     if limit:
-        all_itins = all_itins[:limit]
+        all_options = all_options[:limit]
 
     writer = csv.writer(sys.stdout)
     writer.writerow([
-        "index", "flight_summary", "airlines", "departure_airport_code", "arrival_airport_code",
-        "departure_time", "arrival_time", "duration_minutes", "stops", "price_usd",
+        "index", "selector", "price_usd", "leg_count", "summary",
     ])
-    for i, itin in enumerate(all_itins, 1):
-        stops = itin.stop_count if itin.stop_count is not None else len(itin.layovers)
+    for i, option in enumerate(all_options, 1):
         writer.writerow([
             i,
-            _flight_summary(itin),
-            _airline_names(itin),
-            itin.departure_airport_code,
-            itin.arrival_airport_code,
-            f"{itin.departure_time[0]:02d}:{itin.departure_time[1]:02d}",
-            f"{itin.arrival_time[0]:02d}:{itin.arrival_time[1]:02d}",
-            itin.travel_time,
-            stops,
-            itin.price if itin.price is not None else "",
+            option.selector,
+            option.price if option.price is not None else "",
+            len(option.legs),
+            _trip_summary(option),
         ])
 
 
@@ -322,21 +373,13 @@ def format_search_brief(
     limit: Optional[int] = None,
 ) -> None:
     """Render search results in compact single-line format to stdout."""
-    all_itins = [*result.best, *result.other]
+    all_options = list(result.results)
     if limit:
-        all_itins = all_itins[:limit]
+        all_options = all_options[:limit]
 
-    for i, itin in enumerate(all_itins, 1):
-        price = f"${itin.price:,}" if itin.price is not None else "—"
-        dur = format_duration(itin.travel_time)
-        stops = itin.stop_count if itin.stop_count is not None else len(itin.layovers)
-        stop_str = "Nonstop" if stops == 0 else f"{stops} stop{'s' if stops > 1 else ''}"
-        airline = _airline_names(itin)
-        dep = format_time(itin.departure_time[0], itin.departure_time[1])
-        arr = format_time(itin.arrival_time[0], itin.arrival_time[1])
-        route = f"{itin.departure_airport_code}->{itin.arrival_airport_code}"
-        fs = _flight_summary(itin)
-        print(f"{i:<3} {fs:<14} {price:<8} {dur:<7} {stop_str:<8} {airline:<12} {route}  {dep}-{arr}")
+    for i, option in enumerate(all_options, 1):
+        price = f"${option.price:,}" if option.price is not None else "—"
+        print(f"{i:<3} {price:<8} {_trip_summary(option)}")
 
 
 # ---------------------------------------------------------------------------
@@ -381,27 +424,27 @@ def _render_resolved_legs(console, resolved_legs) -> None:
         console.print()
 
 
+def _query_trip_title(query_legs) -> str:
+    if not query_legs:
+        return "Trip"
+    return " / ".join(
+        f"{leg['origin']} -> {leg['destination']} ({format_date_display(leg['date'])})"
+        for leg in query_legs
+    )
+
+
 def format_price_table(
     result,
     *,
-    flight_number: str,
-    origin: str,
-    destination: str,
-    date: str,
-    return_date: Optional[str] = None,
+    query_legs=None,
     no_color: bool = False,
 ) -> None:
     """Render a price check result as a Rich table to stdout."""
     console = _stdout_console(no_color=no_color)
     console.print()
 
-    trip_type = "Roundtrip" if return_date else "One-way"
-    trip = f"{origin} -> {destination}"
-    if return_date:
-        trip += f" (return {format_date_display(return_date)})"
-    date_display = format_date_display(date)
-
-    console.print(f" [bold]{flight_number} · {trip} · {date_display} · {trip_type}[/bold]")
+    trip_type = f"{len(query_legs or result.resolved_legs or [])}-leg" if (query_legs or result.resolved_legs) else "Trip"
+    console.print(f" [bold]{_query_trip_title(query_legs or [])} · {trip_type}[/bold]")
     console.print()
 
     # Resolved flight details
@@ -409,8 +452,6 @@ def format_price_table(
         _render_resolved_legs(console, result.resolved_legs)
 
     console.print(f" [bold green]Price: ${result.price:,}[/bold green]")
-    if return_date:
-        console.print(" [dim](roundtrip)[/dim]")
 
     if result.fare_brand:
         console.print(f" [dim]Fare: {result.fare_brand}[/dim]")
@@ -443,20 +484,12 @@ def format_price_table(
 def format_price_json(
     result,
     *,
-    flight_number: str,
-    origin: str,
-    destination: str,
-    date: str,
-    return_date: Optional[str] = None,
+    query_legs=None,
 ) -> None:
     """Render a price check result as JSON to stdout."""
     output = {
         "query": {
-            "flight_number": flight_number,
-            "origin": origin,
-            "destination": destination,
-            "date": date,
-            "return_date": return_date,
+            "legs": list(query_legs or []),
         },
         "price_usd": result.price,
         "fare_brand": result.fare_brand,
@@ -473,7 +506,7 @@ def format_price_json(
         ] if result.booking_options else [],
     }
     if result.itinerary:
-        output["itinerary"] = _itin_to_dict(result.itinerary, 1)
+        output["itinerary"] = _itin_to_dict(result.itinerary)
     if result.resolved_legs:
         output["resolved_legs"] = [
             {
@@ -482,9 +515,9 @@ def format_price_json(
                 "destination": leg.destination,
                 "date": leg.date,
                 "selection": leg.selection,
-                "itinerary": _itin_to_dict(leg.itinerary, idx + 1) if leg.itinerary else None,
+                "itinerary": _itin_to_dict(leg.itinerary) if leg.itinerary else None,
             }
-            for idx, leg in enumerate(result.resolved_legs)
+            for leg in result.resolved_legs
         ]
     print(json.dumps(output, indent=2))
 
@@ -492,9 +525,9 @@ def format_price_json(
 def format_price_brief(
     result,
     *,
-    return_date: Optional[str] = None,
+    query_legs=None,
 ) -> None:
     """Render a price check result in compact format to stdout."""
-    trip_type = "roundtrip" if return_date else "one-way"
+    trip_type = f"{len(query_legs or result.resolved_legs or [])}-leg"
     brand = f" ({result.fare_brand})" if result.fare_brand else ""
     print(f"${result.price:,}{brand} {trip_type} [{result.rpc_calls} RPCs]")

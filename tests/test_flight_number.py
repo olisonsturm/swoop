@@ -11,15 +11,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import swoop  # noqa: E402
 from swoop._validate import parse_flight_number  # noqa: E402
+from swoop import SearchResult, TripLeg, TripOption  # noqa: E402
 from swoop.decoder import (  # noqa: E402
     Codeshare,
-    SearchResult,
     Flight,
     Itinerary,
     itinerary_matches_flight,
 )
 
-from tests.factories import make_itinerary, make_search_result  # noqa: E402
+from tests.factories import make_itinerary  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -167,46 +167,67 @@ class TestItineraryMatchesFlight:
 
 
 class TestSearchFlightNumberParam:
+    @staticmethod
+    def _trip_option(itinerary: Itinerary, selector: str) -> TripOption:
+        return TripOption(
+            selector=selector,
+            price=itinerary.price,
+            legs=[
+                TripLeg(
+                    origin="JFK",
+                    destination="LAX",
+                    date="2026-06-01",
+                    itinerary=itinerary,
+                )
+            ],
+        )
+
     def test_filters_decoded_result(self, monkeypatch):
         match = make_itinerary(Flight(airline="DL", flight_number="171"))
         no_match = make_itinerary(Flight(airline="UA", flight_number="500"))
-        result = make_search_result(best=[no_match], other=[match])
+        result = SearchResult(
+            results=[
+                self._trip_option(no_match, "selector-1"),
+                self._trip_option(match, "selector-2"),
+            ]
+        )
 
-        monkeypatch.setattr(swoop, "_search_from_legs", lambda legs, **kw: result)
+        monkeypatch.setattr(swoop, "search_trip_options", lambda legs, **kw: result)
+        monkeypatch.setattr(swoop, "correct_trip_option_prices", lambda *args, **kwargs: None)
         filtered = swoop.search("JFK", "LAX", "2026-06-01", flight_number="DL 171")
-        assert filtered is not None
-        assert filtered.best == []
-        assert filtered.other == [match]
+        assert isinstance(filtered, SearchResult)
+        assert filtered.results == [result.results[1]]
 
     def test_returns_none_when_no_match(self, monkeypatch):
         no_match = make_itinerary(Flight(airline="UA", flight_number="500"))
-        result = make_search_result(best=[no_match])
+        result = SearchResult(results=[self._trip_option(no_match, "selector-1")])
 
-        monkeypatch.setattr(swoop, "_search_from_legs", lambda legs, **kw: result)
+        monkeypatch.setattr(swoop, "search_trip_options", lambda legs, **kw: result)
         filtered = swoop.search("JFK", "LAX", "2026-06-01", flight_number="DL 171")
-        assert filtered is None
+        assert isinstance(filtered, SearchResult)
+        assert filtered.results == []
 
     def test_passes_carrier_to_airlines_filter(self, monkeypatch):
         captured = {}
 
-        def fake_rpc(legs, **kwargs):
+        def fake_search_trip_options(legs, **kwargs):
             captured["legs"] = legs
             captured.update(kwargs)
-            return None
+            return SearchResult()
 
-        monkeypatch.setattr(swoop, "_search_from_legs", fake_rpc)
+        monkeypatch.setattr(swoop, "search_trip_options", fake_search_trip_options)
         swoop.search("JFK", "LAX", "2026-06-01", flight_number="DL 171")
         assert captured["legs"][0]["airlines"] == ["DL"]
 
     def test_preserves_existing_airlines_filter(self, monkeypatch):
         captured = {}
 
-        def fake_rpc(legs, **kwargs):
+        def fake_search_trip_options(legs, **kwargs):
             captured["legs"] = legs
             captured.update(kwargs)
-            return None
+            return SearchResult()
 
-        monkeypatch.setattr(swoop, "_search_from_legs", fake_rpc)
+        monkeypatch.setattr(swoop, "search_trip_options", fake_search_trip_options)
         swoop.search("JFK", "LAX", "2026-06-01", airlines=["UA"], flight_number="DL 171")
         assert "DL" in captured["legs"][0]["airlines"]
         assert "UA" in captured["legs"][0]["airlines"]
@@ -214,19 +235,19 @@ class TestSearchFlightNumberParam:
     def test_no_duplicate_carrier_in_airlines(self, monkeypatch):
         captured = {}
 
-        def fake_rpc(legs, **kwargs):
+        def fake_search_trip_options(legs, **kwargs):
             captured["legs"] = legs
             captured.update(kwargs)
-            return None
+            return SearchResult()
 
-        monkeypatch.setattr(swoop, "_search_from_legs", fake_rpc)
+        monkeypatch.setattr(swoop, "search_trip_options", fake_search_trip_options)
         swoop.search("JFK", "LAX", "2026-06-01", airlines=["DL"], flight_number="DL 171")
         assert captured["legs"][0]["airlines"] == ["DL"]
 
     def test_without_flight_number_no_filter(self, monkeypatch):
         match = make_itinerary(Flight(airline="DL", flight_number="171"))
-        result = make_search_result(best=[match])
+        result = SearchResult(results=[self._trip_option(match, "selector-1")])
 
-        monkeypatch.setattr(swoop, "_search_from_legs", lambda legs, **kw: result)
+        monkeypatch.setattr(swoop, "search_trip_options", lambda legs, **kw: result)
         unfiltered = swoop.search("JFK", "LAX", "2026-06-01")
         assert unfiltered is result

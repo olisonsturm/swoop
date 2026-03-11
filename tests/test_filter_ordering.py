@@ -3,7 +3,8 @@
 from unittest.mock import patch
 
 import swoop
-from swoop.decoder import BookingOption, Flight, Itinerary, SearchResult
+from swoop import SearchResult, TripLeg, TripOption
+from swoop.decoder import Flight, Itinerary
 
 
 class TestFilterBeforeCorrectOrdering:
@@ -21,22 +22,36 @@ class TestFilterBeforeCorrectOrdering:
             direct_price=400,
             booking_token="other-token",
         )
-        result = SearchResult(_raw=[], best=[matching_itin], other=[other_itin])
+        result = SearchResult(
+            results=[
+                TripOption(
+                    selector="selector-1",
+                    price=other_itin.price,
+                    legs=[TripLeg(origin="JFK", destination="LAX", date="2026-06-15", itinerary=other_itin)],
+                ),
+                TripOption(
+                    selector="selector-2",
+                    price=matching_itin.price,
+                    legs=[TripLeg(origin="JFK", destination="LAX", date="2026-06-15", itinerary=matching_itin)],
+                ),
+            ],
+        )
 
-        booking_calls = []
+        corrected_selectors = []
 
-        def mock_get_booking(itin_or_token, **kwargs):
-            booking_calls.append(itin_or_token)
-            return [BookingOption(price=342, is_basic=False)]
+        def mock_correct_trip_option_prices(filtered_result, **kwargs):
+            corrected_selectors.extend(option.selector for option in filtered_result.results)
 
-        with patch("swoop._search_from_legs", return_value=result), \
-             patch("swoop.get_booking_results", side_effect=mock_get_booking):
+        with (
+            patch("swoop.search_trip_options", return_value=result) as mock_search_trip_options,
+            patch("swoop.correct_trip_option_prices", side_effect=mock_correct_trip_option_prices),
+        ):
             output = swoop.search(
                 "JFK", "LAX", "2026-06-15",
                 return_date="2026-06-22",
                 flight_number="DL2300",
             )
 
-        # Only the matching itinerary should have GetBookingResults called
-        assert len(booking_calls) == 1
-        assert booking_calls[0] is matching_itin
+        assert mock_search_trip_options.call_args.kwargs["correct_prices"] is False
+        assert [option.selector for option in output.results] == ["selector-2"]
+        assert corrected_selectors == ["selector-2"]

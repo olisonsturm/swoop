@@ -194,6 +194,10 @@ class RawSearchResult:
     price_range: Optional[PriceRange] = None  # Price range from response
 
 
+# Backward-compatible decoder alias for internal/raw callers.
+SearchResult = RawSearchResult
+
+
 @dataclass
 class BookingOption:
     """A single fare option from GetBookingResults.

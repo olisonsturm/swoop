@@ -53,6 +53,7 @@ from typing import Optional
 
 from ._selection import (
     build_request_legs_from_selected,
+    correct_trip_option_prices,
     price_selected_trip,
     price_trip_selector,
     resolve_selected_trip,
@@ -152,6 +153,7 @@ def _search_with_normalized_legs(
         adults=adults,
         sort=sort,
         include_basic_economy=include_basic_economy,
+        correct_prices=correct_roundtrip_prices,
         timeout=timeout,
         retries=retries,
     )
@@ -342,12 +344,24 @@ def search(
         adults=adults,
         sort=sort,
         include_basic_economy=include_basic_economy,
+        correct_roundtrip_prices=parsed_number is None,
         timeout=timeout,
         retries=retries,
     )
 
     if parsed_number is not None:
-        return _filter_trip_options_by_flight_number(result, parsed_carrier, parsed_number)
+        result = _filter_trip_options_by_flight_number(result, parsed_carrier, parsed_number)
+        if cabin == "economy" and not include_basic_economy and result.results:
+            correct_trip_option_prices(
+                result,
+                request_legs=request_legs,
+                include_basic_economy=include_basic_economy,
+                cabin=cabin,
+                adults=adults,
+                timeout=timeout,
+                retries=retries,
+            )
+        return result
     return result
 
 

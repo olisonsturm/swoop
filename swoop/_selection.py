@@ -270,6 +270,7 @@ def search_trip_options(
     adults: int = 1,
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
+    correct_prices: bool = True,
     timeout: int = 90,
     retries: int = 2,
 ) -> SearchResult:
@@ -371,7 +372,7 @@ def search_trip_options(
     ]
     result = SearchResult(results=options, price_range=None, is_complete=is_complete)
 
-    if cabin == "economy":
+    if cabin == "economy" and not include_basic_economy and correct_prices:
         correct_trip_option_prices(
             result,
             request_legs=request_legs,
