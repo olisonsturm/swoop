@@ -339,7 +339,7 @@ def _http_post(
 
     from primp import Client
 
-    client = Client(impersonate="chrome", verify=False)
+    client = Client(impersonate="chrome")
     headers = {"content-type": "application/x-www-form-urlencoded;charset=UTF-8"}
 
     for attempt in range(1 + retries):
