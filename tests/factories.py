@@ -42,7 +42,7 @@ def make_flight_segment(
 ):
     """Build a flight segment nested list matching Google Flights structure."""
     # Indices: [0]=?, [1]=?, [2]=operator, [3]=dep_airport, [4]=dep_name,
-    # [5]=arr_airport, [6]=arr_name, [7]=?, [8]=dep_time, [9]=premium_ife,
+    # [5]=arr_name, [6]=arr_airport, [7]=?, [8]=dep_time, [9]=premium_ife,
     # [10]=arr_time, [11]=travel_time, [12]=amenities, [13]=seat_type,
     # [14]=seat_pitch, [15]=codeshares, [16]=?, [17]=aircraft, [18]=?,
     # [19]=overnight, [20]=dep_date, [21]=arr_date,
@@ -52,8 +52,8 @@ def make_flight_segment(
     segment[2] = f"Operated by {airline_name}"
     segment[3] = dep_airport
     segment[4] = dep_name
-    segment[5] = arr_airport
-    segment[6] = arr_name
+    segment[5] = arr_name
+    segment[6] = arr_airport
     segment[8] = list(dep_time)
     segment[9] = premium_ife
     segment[10] = list(arr_time)

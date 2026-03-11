@@ -16,8 +16,8 @@
               "Operated by Delta Air Lines",
               "JFK",
               "John F. Kennedy International Airport",
-              "LAX",
               "Los Angeles International Airport",
+              "LAX",
               null,
               [
                 8,
@@ -158,8 +158,8 @@
               "Operated by American Airlines",
               "SFO",
               "San Francisco International Airport",
-              "ORD",
               "O'Hare International Airport",
+              "ORD",
               null,
               [
                 6,
@@ -212,8 +212,8 @@
               "Operated by American Airlines",
               "ORD",
               "O'Hare International Airport",
-              "MIA",
               "Miami International Airport",
+              "MIA",
               null,
               [
                 13,
@@ -362,8 +362,8 @@
               "Operated by United Airlines",
               "EWR",
               "Newark Liberty International Airport",
-              "SFO",
               "San Francisco International Airport",
+              "SFO",
               null,
               [
                 10,
@@ -486,8 +486,8 @@
               "Operated by JetBlue Airways",
               "BOS",
               "Boston Logan International Airport",
-              "LAX",
               "Los Angeles International Airport",
+              "LAX",
               null,
               [
                 7,

@@ -16,8 +16,8 @@
               "Operated by Delta Air Lines",
               "JFK",
               "John F. Kennedy International Airport",
-              "LHR",
               "London Heathrow Airport",
+              "LHR",
               null,
               [
                 19,
@@ -144,8 +144,8 @@
               "Operated by British Airways",
               "LHR",
               "London Heathrow Airport",
-              "JFK",
               "John F. Kennedy International Airport",
+              "JFK",
               null,
               [
                 11,

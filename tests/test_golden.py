@@ -108,8 +108,10 @@ class TestGoldenOneWay:
         assert aa.arrival_airport == "MIA"
         assert aa.flights[0].departure_airport == "SFO"
         assert aa.flights[0].arrival_airport == "ORD"
+        assert aa.flights[0].arrival_airport_name == "O'Hare International Airport"
         assert aa.flights[1].departure_airport == "ORD"
         assert aa.flights[1].arrival_airport == "MIA"
+        assert aa.flights[1].arrival_airport_name == "Miami International Airport"
 
     def test_codeshare_details(self):
         """Codeshare on DL flight should have correct airline info."""
