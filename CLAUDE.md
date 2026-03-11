@@ -1,6 +1,6 @@
 # Swoop — Google Flights Price Scraper
 
-Python library for searching Google Flights programmatically via the same RPC endpoints the web app uses. Supports one-way, roundtrip, multi-city searches with booking option parsing.
+Python library for searching Google Flights programmatically via the same RPC endpoints the web app uses. Supports one-way and roundtrip searches plus explicit leg-based APIs; 3+ leg multi-city search/pricing is not yet exposed publicly.
 
 ## Quick Commands
 

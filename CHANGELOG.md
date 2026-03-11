@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SearchLeg`, `SelectedLeg`, `ResolvedLeg` exports
 - `flight_summary` in search output (table, JSON, CSV, brief formats)
 - `--price N` option on `swoop search` to drill down into search results
-- `--leg` syntax for multi-leg pricing: `swoop price --leg JFK LAX 2026-06-15 DL2300`
+- `--leg` syntax for explicit leg pricing (1 or 2 legs): `swoop price --leg JFK LAX 2026-06-15 DL2300`
 - Resolved flight details (aircraft, legroom, times) in price table output
 - `resolved_legs` array in price JSON output
 - `swoop price` CLI command with positional args: `swoop price DL2300 JFK LAX 2026-06-15`
@@ -43,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `price` CLI command uses positional args (`FLIGHT ORIGIN DEST DATE`) instead of flags
 - `search()` signature unchanged; `check_price()` now populates `resolved_legs`
+- 3+ leg multi-city search/pricing remains intentionally unexposed until end-to-end validation is complete
 - Narrow `except Exception` to specific swoop error types
 - Rename `departure_airport`/`arrival_airport` fields to `_code` suffix for consistency
 - Deduplicate internal `_safe_get` helper

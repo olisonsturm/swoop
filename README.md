@@ -67,7 +67,7 @@ swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0].price_usd'
 # Roundtrip price check
 swoop price DL2300 JFK LAX 2026-06-15 -r 2026-06-22 --return-flight DL2301
 
-# Multi-leg pricing
+# Explicit leg pricing (up to 2 legs)
 swoop price --leg JFK LAX 2026-06-15 DL2300 --leg LAX JFK 2026-06-22 DL2301
 
 # CSV for spreadsheets
@@ -139,6 +139,9 @@ result = price_legs([
     SelectedLeg(flight_number="DL2300", origin="JFK", destination="LAX", date="2026-06-15"),
     SelectedLeg(flight_number="DL2301", origin="LAX", destination="JFK", date="2026-06-22"),
 ])
+
+# 3+ legs are not yet exposed publicly
+# price_legs([...]) -> raises ValueError
 ```
 
 ### Roundtrip search
@@ -236,7 +239,7 @@ Look up the current price for a specific flight. Optimized for the "what does fl
 | `timeout` | `int` | `90` | HTTP timeout in seconds |
 | `retries` | `int` | `2` | Retries on HTTP 429 |
 
-Returns `PriceResult | None`. `PriceResult` has `price`, `fare_brand`, `is_basic_economy`, `booking_options`, `itinerary`, `rpc_calls`.
+Returns `PriceResult | None`. `PriceResult` has `price`, `fare_brand`, `is_basic_economy`, `booking_options`, `itinerary`, `resolved_legs`, `rpc_calls`.
 
 ### `get_booking_results(itinerary_or_token, **kwargs)`
 
