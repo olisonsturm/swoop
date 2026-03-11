@@ -187,7 +187,7 @@ class PriceRange:
 
 
 @dataclass
-class SearchResult:
+class RawSearchResult:
     _raw: list
     best: List[Itinerary]
     other: List[Itinerary]
@@ -512,7 +512,7 @@ def itinerary_matches_flight(
     return False
 
 
-def decode_result(data: list) -> SearchResult:
+def decode_result(data: list) -> RawSearchResult:
     """Decode the full Google Flights response data.
 
     Extracts best and other flight itineraries from the nested list structure.
@@ -542,4 +542,4 @@ def decode_result(data: list) -> SearchResult:
     # Price range at [7, 0]
     price_range = _decode_price_range(data)
 
-    return SearchResult(_raw=data, best=best, other=other, price_range=price_range)
+    return RawSearchResult(_raw=data, best=best, other=other, price_range=price_range)
