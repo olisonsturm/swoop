@@ -494,7 +494,7 @@ def check_price(
         adults=adults,
         sort=SORT_DEPARTURE_TIME,
         max_stops=max_stops,
-        airlines=airlines,
+        airlines=None,
         return_date=return_date,
         selected_outbound_legs=selected_outbound_legs,
         timeout=timeout,

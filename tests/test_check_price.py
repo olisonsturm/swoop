@@ -171,6 +171,52 @@ class TestCheckPriceRoundtrip:
         assert result.rpc_calls == 3
         assert len(result.booking_options) == 2
 
+    def test_roundtrip_return_expansion_has_no_airline_filter(self):
+        """Return expansion search_raw call must not filter by outbound airline."""
+        outbound_itin = Itinerary(
+            flights=[Flight(
+                airline="DL", flight_number="2300",
+                departure_airport_code="JFK", arrival_airport_code="LAX",
+                departure_date=(2026, 6, 15), departure_time=(8, 30),
+                arrival_date=(2026, 6, 15), arrival_time=(11, 45),
+            )],
+            direct_price=342,
+            booking_token="outbound-token",
+        )
+        return_itin = Itinerary(
+            flights=[Flight(
+                airline="UA", flight_number="456",
+                departure_airport_code="LAX", arrival_airport_code="JFK",
+                departure_date=(2026, 6, 22), departure_time=(14, 0),
+                arrival_date=(2026, 6, 22), arrival_time=(22, 15),
+            )],
+            direct_price=700,
+            booking_token="return-token",
+        )
+        outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
+        return_result = SearchResult(_raw=[], best=[return_itin], other=[])
+
+        search_raw_calls = []
+
+        def mock_search_raw(*args, **kwargs):
+            search_raw_calls.append(kwargs)
+            if kwargs.get("selected_outbound_legs") is not None:
+                return return_result
+            return outbound_result
+
+        with patch("swoop.search_raw", side_effect=mock_search_raw), \
+             patch("swoop.get_booking_results", return_value=[
+                 BookingOption(price=700, brand_label="Main Cabin", is_basic=False),
+             ]):
+            check_price(
+                "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
+                return_flight_number="UA456", return_date="2026-06-22",
+            )
+
+        # The return expansion call (second search_raw) must have airlines=None
+        assert len(search_raw_calls) == 2
+        assert search_raw_calls[1]["airlines"] is None
+
     def test_roundtrip_returns_none_when_outbound_not_found(self):
         """Returns None if outbound flight not found."""
         empty_result = SearchResult(_raw=[], best=[], other=[])
