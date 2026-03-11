@@ -29,8 +29,8 @@ def _make_flight(**overrides) -> Flight:
         airline="DL",
         airline_name="Delta Air Lines",
         flight_number="2300",
-        departure_airport="JFK",
-        arrival_airport="LAX",
+        departure_airport_code="JFK",
+        arrival_airport_code="LAX",
         departure_time=(8, 30),
         arrival_time=(11, 45),
         departure_date=(2026, 6, 15),
@@ -51,8 +51,8 @@ def _make_itinerary(**overrides) -> Itinerary:
         flights=[flight],
         layovers=[],
         travel_time=315,
-        departure_airport="JFK",
-        arrival_airport="LAX",
+        departure_airport_code="JFK",
+        arrival_airport_code="LAX",
         departure_date=(2026, 6, 15),
         arrival_date=(2026, 6, 15),
         departure_time=(8, 30),
@@ -68,18 +68,18 @@ def _make_itinerary(**overrides) -> Itinerary:
 def _make_connecting_itinerary() -> Itinerary:
     f1 = _make_flight(
         airline="UA", airline_name="United Airlines", flight_number="1234",
-        departure_airport="JFK", arrival_airport="ORD",
+        departure_airport_code="JFK", arrival_airport_code="ORD",
         departure_time=(10, 15), arrival_time=(12, 20),
         travel_time=125,
     )
     f2 = _make_flight(
         airline="UA", airline_name="United Airlines", flight_number="5678",
-        departure_airport="ORD", arrival_airport="LAX",
+        departure_airport_code="ORD", arrival_airport_code="LAX",
         departure_time=(14, 20), arrival_time=(15, 20),
         travel_time=180,
     )
     lay = Layover(
-        minutes=120, departure_airport="ORD",
+        minutes=120, departure_airport_code="ORD",
         departure_airport_name="O'Hare International Airport",
     )
     return Itinerary(
@@ -88,8 +88,8 @@ def _make_connecting_itinerary() -> Itinerary:
         flights=[f1, f2],
         layovers=[lay],
         travel_time=485,
-        departure_airport="JFK",
-        arrival_airport="LAX",
+        departure_airport_code="JFK",
+        arrival_airport_code="LAX",
         departure_date=(2026, 6, 15),
         arrival_date=(2026, 6, 15),
         departure_time=(10, 15),

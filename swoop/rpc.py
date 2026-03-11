@@ -446,9 +446,9 @@ def _build_selected_legs(itinerary: Itinerary) -> list[list[Any]]:
         if not year or not month or not day:
             continue
         selected.append([
-            flight.departure_airport,
+            flight.departure_airport_code,
             f"{year:04d}-{month:02d}-{day:02d}",
-            flight.arrival_airport,
+            flight.arrival_airport_code,
             None,
             flight.airline,
             str(flight.flight_number or ""),
@@ -497,9 +497,9 @@ def get_booking_results(
         itin = itinerary_or_token
         booking_token = itin.booking_token
         if not origin:
-            origin = itin.departure_airport
+            origin = itin.departure_airport_code
         if not destination:
-            destination = itin.arrival_airport
+            destination = itin.arrival_airport_code
         if not date:
             dep = itin.departure_date
             if dep and dep != (0, 0, 0):

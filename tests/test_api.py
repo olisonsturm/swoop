@@ -161,14 +161,14 @@ def test_booking_option_getitem_raises_on_missing():
 def test_get_booking_results_with_itinerary(monkeypatch):
     """get_booking_results accepts an Itinerary object."""
     itin = Itinerary(
-        departure_airport="JFK",
-        arrival_airport="LAX",
+        departure_airport_code="JFK",
+        arrival_airport_code="LAX",
         departure_date=(2026, 6, 15),
         booking_token="test-token",
         flights=[
             Flight(
-                departure_airport="JFK",
-                arrival_airport="LAX",
+                departure_airport_code="JFK",
+                arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15),
                 airline="DL",
                 flight_number="123",
@@ -204,15 +204,15 @@ def test_build_selected_legs():
     itin = Itinerary(
         flights=[
             Flight(
-                departure_airport="JFK",
-                arrival_airport="ORD",
+                departure_airport_code="JFK",
+                arrival_airport_code="ORD",
                 departure_date=(2026, 6, 15),
                 airline="AA",
                 flight_number="100",
             ),
             Flight(
-                departure_airport="ORD",
-                arrival_airport="LAX",
+                departure_airport_code="ORD",
+                arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15),
                 airline="AA",
                 flight_number="200",
@@ -228,7 +228,7 @@ def test_build_selected_legs():
 def test_build_selected_legs_skips_bad_dates():
     itin = Itinerary(
         flights=[
-            Flight(departure_airport="JFK", arrival_airport="LAX", departure_date=(0, 0, 0)),
+            Flight(departure_airport_code="JFK", arrival_airport_code="LAX", departure_date=(0, 0, 0)),
         ],
     )
     assert rpc._build_selected_legs(itin) == []

@@ -94,7 +94,7 @@ results = search("SFO", "JFK", "2026-06-15")
 # results.other — remaining flights
 for flight in results.best:
     print(f"${flight.price}")
-    print(f"  {flight.departure_airport} → {flight.arrival_airport}")
+    print(f"  {flight.departure_airport_code} → {flight.arrival_airport_code}")
     print(f"  {flight.airline_names}, {flight.stop_count} stops")
     print(f"  {flight.travel_time} min total")
 ```

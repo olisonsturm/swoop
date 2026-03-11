@@ -34,16 +34,16 @@ class TestShoppingContract:
             assert isinstance(itin, Itinerary)
             assert itin.airline_code != ""
             assert len(itin.flights) >= 1
-            assert itin.departure_airport != ""
-            assert itin.arrival_airport != ""
+            assert itin.departure_airport_code != ""
+            assert itin.arrival_airport_code != ""
             assert itin.travel_time > 0
 
             for flight in itin.flights:
                 assert isinstance(flight, Flight)
                 assert flight.airline != ""
                 assert flight.flight_number != ""
-                assert flight.departure_airport != ""
-                assert flight.arrival_airport != ""
+                assert flight.departure_airport_code != ""
+                assert flight.arrival_airport_code != ""
 
 
 class TestBookingContract:

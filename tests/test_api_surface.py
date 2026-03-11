@@ -101,8 +101,8 @@ class TestFrozenDataclassFields:
         expected = {
             "airline", "airline_name", "flight_number", "operator",
             "codeshares", "aircraft",
-            "departure_airport", "departure_airport_name",
-            "arrival_airport", "arrival_airport_name",
+            "departure_airport_code", "departure_airport_name",
+            "arrival_airport_code", "arrival_airport_name",
             "departure_date", "arrival_date",
             "departure_time", "arrival_time",
             "travel_time", "seat_pitch_short", "legroom", "co2_grams",
@@ -113,7 +113,7 @@ class TestFrozenDataclassFields:
     def test_itinerary_fields(self):
         expected = {
             "airline_code", "airline_names", "flights", "layovers",
-            "travel_time", "departure_airport", "arrival_airport",
+            "travel_time", "departure_airport_code", "arrival_airport_code",
             "departure_date", "arrival_date", "departure_time", "arrival_time",
             "price_info", "direct_price", "booking_token", "carbon_emissions",
             "stop_count", "is_budget_carrier", "quality_signals",
@@ -145,8 +145,8 @@ class TestFrozenDataclassFields:
 
     def test_layover_fields(self):
         expected = {
-            "minutes", "departure_airport", "departure_airport_name",
-            "departure_airport_city", "arrival_airport",
+            "minutes", "departure_airport_code", "departure_airport_name",
+            "departure_airport_city", "arrival_airport_code",
             "arrival_airport_name", "arrival_airport_city", "is_overnight",
         }
         assert self._field_names(Layover) == expected

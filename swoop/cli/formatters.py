@@ -40,7 +40,7 @@ def _stops_text(itin) -> Text:
     for lay in itin.layovers:
         h, m = divmod(lay.minutes, 60)
         dur = f"{h}h" if not m else f"{h}h{m:02d}m" if h else f"{m}m"
-        airport = lay.departure_airport or lay.arrival_airport
+        airport = lay.departure_airport_code or lay.arrival_airport_code
         text.append(f"\n{dur} {airport}", style="dim")
     return text
 
@@ -167,8 +167,8 @@ def _itin_to_dict(itin, index: int) -> dict:
             "airline_name": f.airline_name,
             "flight_number": f.flight_number,
             "aircraft": f.aircraft,
-            "departure_airport": f.departure_airport,
-            "arrival_airport": f.arrival_airport,
+            "departure_airport_code": f.departure_airport_code,
+            "arrival_airport_code": f.arrival_airport_code,
             "departure_time": f"{f.departure_time[0]:02d}:{f.departure_time[1]:02d}",
             "arrival_time": f"{f.arrival_time[0]:02d}:{f.arrival_time[1]:02d}",
             "departure_date": f"{f.departure_date[0]:04d}-{f.departure_date[1]:02d}-{f.departure_date[2]:02d}" if f.departure_date != (0, 0, 0) else None,
@@ -183,7 +183,7 @@ def _itin_to_dict(itin, index: int) -> dict:
     for lay in itin.layovers:
         layovers.append({
             "minutes": lay.minutes,
-            "airport": lay.departure_airport or lay.arrival_airport,
+            "airport": lay.departure_airport_code or lay.arrival_airport_code,
             "is_overnight": lay.is_overnight,
         })
 
@@ -200,8 +200,8 @@ def _itin_to_dict(itin, index: int) -> dict:
         "index": index,
         "price_usd": itin.price,
         "airlines": _airline_names(itin) if isinstance(_airline_names(itin), str) else str(_airline_names(itin)),
-        "departure_airport": itin.departure_airport,
-        "arrival_airport": itin.arrival_airport,
+        "departure_airport_code": itin.departure_airport_code,
+        "arrival_airport_code": itin.arrival_airport_code,
         "departure_time": f"{itin.departure_time[0]:02d}:{itin.departure_time[1]:02d}",
         "arrival_time": f"{itin.arrival_time[0]:02d}:{itin.arrival_time[1]:02d}",
         "duration_minutes": itin.travel_time,
@@ -265,7 +265,7 @@ def format_search_csv(
 
     writer = csv.writer(sys.stdout)
     writer.writerow([
-        "index", "airlines", "departure_airport", "arrival_airport",
+        "index", "airlines", "departure_airport_code", "arrival_airport_code",
         "departure_time", "arrival_time", "duration_minutes", "stops", "price_usd",
     ])
     for i, itin in enumerate(all_itins, 1):
@@ -273,8 +273,8 @@ def format_search_csv(
         writer.writerow([
             i,
             _airline_names(itin),
-            itin.departure_airport,
-            itin.arrival_airport,
+            itin.departure_airport_code,
+            itin.arrival_airport_code,
             f"{itin.departure_time[0]:02d}:{itin.departure_time[1]:02d}",
             f"{itin.arrival_time[0]:02d}:{itin.arrival_time[1]:02d}",
             itin.travel_time,
@@ -301,7 +301,7 @@ def format_search_brief(
         airline = _airline_names(itin)
         dep = format_time(itin.departure_time[0], itin.departure_time[1])
         arr = format_time(itin.arrival_time[0], itin.arrival_time[1])
-        route = f"{itin.departure_airport}->{itin.arrival_airport}"
+        route = f"{itin.departure_airport_code}->{itin.arrival_airport_code}"
         print(f"{i:<3} {price:<8} {dur:<7} {stop_str:<8} {airline:<12} {route}  {dep}-{arr}")
 
 
@@ -330,7 +330,7 @@ def format_flight_detail(
         dur = format_duration(f.travel_time)
         flight_id = f"{f.airline} {f.flight_number}" if f.airline and f.flight_number else ""
 
-        console.print(f"   [bold]{flight_id}[/bold]  {f.departure_airport} -> {f.arrival_airport}")
+        console.print(f"   [bold]{flight_id}[/bold]  {f.departure_airport_code} -> {f.arrival_airport_code}")
         console.print(f"   Depart: {dep}   Arrive: {arr}   Duration: {dur}")
         if f.aircraft:
             console.print(f"   Aircraft: {f.aircraft}")
@@ -343,7 +343,7 @@ def format_flight_detail(
     for lay in itin.layovers:
         h, m = divmod(lay.minutes, 60)
         dur = f"{h}h {m:02d}m" if m else f"{h}h"
-        airport = lay.departure_airport or lay.arrival_airport
+        airport = lay.departure_airport_code or lay.arrival_airport_code
         console.print(f"   [dim]Layover: {dur} at {airport}[/dim]")
         console.print()
 

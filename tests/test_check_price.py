@@ -118,7 +118,7 @@ class TestCheckPriceRoundtrip:
         outbound_itin = Itinerary(
             flights=[Flight(
                 airline="DL", flight_number="2300",
-                departure_airport="JFK", arrival_airport="LAX",
+                departure_airport_code="JFK", arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15), departure_time=(8, 30),
                 arrival_date=(2026, 6, 15), arrival_time=(11, 45),
             )],
@@ -128,7 +128,7 @@ class TestCheckPriceRoundtrip:
         return_itin = Itinerary(
             flights=[Flight(
                 airline="DL", flight_number="2301",
-                departure_airport="LAX", arrival_airport="JFK",
+                departure_airport_code="LAX", arrival_airport_code="JFK",
                 departure_date=(2026, 6, 22), departure_time=(14, 0),
                 arrival_date=(2026, 6, 22), arrival_time=(22, 15),
             )],
@@ -188,7 +188,7 @@ class TestCheckPriceRoundtrip:
         outbound_itin = Itinerary(
             flights=[Flight(
                 airline="DL", flight_number="2300",
-                departure_airport="JFK", arrival_airport="LAX",
+                departure_airport_code="JFK", arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15), departure_time=(8, 30),
                 arrival_date=(2026, 6, 15), arrival_time=(11, 45),
             )],
@@ -198,7 +198,7 @@ class TestCheckPriceRoundtrip:
         return_itin = Itinerary(
             flights=[Flight(
                 airline="DL", flight_number="2301",
-                departure_airport="LAX", arrival_airport="JFK",
+                departure_airport_code="LAX", arrival_airport_code="JFK",
                 departure_date=(2026, 6, 22), departure_time=(14, 0),
                 arrival_date=(2026, 6, 22), arrival_time=(22, 15),
             )],
