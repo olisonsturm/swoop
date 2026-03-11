@@ -62,15 +62,16 @@ def test_search_accepts_valid_cabins(fake_primp):
         assert result is None  # null inner data -> None
 
 
-def test_search_delegates_to_search_raw(monkeypatch):
-    """search() should pass through all args to search_raw correctly."""
+def test_search_delegates_to_leg_search_core(monkeypatch):
+    """search() should normalize request legs and pass filters through."""
     captured = {}
 
-    def fake_search_raw(**kwargs):
+    def fake_search_from_legs(legs, **kwargs):
+        captured["legs"] = legs
         captured.update(kwargs)
         return None
 
-    monkeypatch.setattr(swoop, "search_raw", fake_search_raw)
+    monkeypatch.setattr(swoop, "_search_from_legs", fake_search_from_legs)
 
     swoop.search(
         "SFO", "NRT", "2026-07-01",
@@ -86,19 +87,74 @@ def test_search_delegates_to_search_raw(monkeypatch):
         retries=3,
     )
 
-    assert captured["origin"] == "SFO"
-    assert captured["destination"] == "NRT"
-    assert captured["date"] == "2026-07-01"
-    assert captured["return_date"] == "2026-07-15"
+    assert captured["legs"][0]["origin"] == "SFO"
+    assert captured["legs"][0]["destination"] == "NRT"
+    assert captured["legs"][0]["date"] == "2026-07-01"
+    assert captured["legs"][0]["max_stops"] == 1
+    assert captured["legs"][0]["airlines"] == ["NH"]
+    assert captured["legs"][0]["earliest_departure"] == 8
+    assert captured["legs"][0]["latest_departure"] == 16
+    assert captured["legs"][1]["origin"] == "NRT"
+    assert captured["legs"][1]["destination"] == "SFO"
+    assert captured["legs"][1]["date"] == "2026-07-15"
     assert captured["cabin"] == "business"
     assert captured["adults"] == 2
     assert captured["sort"] == swoop.SORT_CHEAPEST
-    assert captured["max_stops"] == 1
-    assert captured["airlines"] == ["NH"]
-    assert captured["earliest_departure"] == 8
-    assert captured["latest_departure"] == 16
     assert captured["timeout"] == 60
     assert captured["retries"] == 3
+
+
+def test_search_legs_uses_per_leg_filters(monkeypatch):
+    captured = {}
+
+    def fake_search_from_legs(legs, **kwargs):
+        captured["legs"] = legs
+        captured.update(kwargs)
+        return None
+
+    monkeypatch.setattr(swoop, "_search_from_legs", fake_search_from_legs)
+
+    swoop.search_legs([
+        swoop.SearchLeg(
+            date="2026-07-01",
+            from_airport="SFO",
+            to_airport="NRT",
+            max_stops=0,
+            airlines=["NH"],
+        ),
+        swoop.SearchLeg(
+            date="2026-07-15",
+            from_airport="NRT",
+            to_airport="SFO",
+            max_stops=1,
+            airlines=["JL"],
+        ),
+    ], cabin="business", adults=2)
+
+    assert captured["legs"][0]["origin"] == "SFO"
+    assert captured["legs"][0]["max_stops"] == 0
+    assert captured["legs"][0]["airlines"] == ["NH"]
+    assert captured["legs"][1]["origin"] == "NRT"
+    assert captured["legs"][1]["max_stops"] == 1
+    assert captured["legs"][1]["airlines"] == ["JL"]
+
+
+def test_search_legs_rejects_more_than_two_legs():
+    with pytest.raises(ValueError, match="multi-city search is not yet supported"):
+        swoop.search_legs([
+            swoop.SearchLeg(date="2026-07-01", from_airport="JFK", to_airport="LAX"),
+            swoop.SearchLeg(date="2026-07-03", from_airport="LAX", to_airport="SFO"),
+            swoop.SearchLeg(date="2026-07-07", from_airport="SFO", to_airport="JFK"),
+        ])
+
+
+def test_price_legs_rejects_more_than_two_legs():
+    with pytest.raises(ValueError, match="multi-city pricing is not yet supported"):
+        swoop.price_legs([
+            swoop.SelectedLeg(flight_number="DL2300", origin="JFK", destination="LAX", date="2026-07-01"),
+            swoop.SelectedLeg(flight_number="UA500", origin="LAX", destination="SFO", date="2026-07-03"),
+            swoop.SelectedLeg(flight_number="DL2301", origin="SFO", destination="JFK", date="2026-07-07"),
+        ])
 
 
 def test_search_raw_rate_limit_raises_specific_error(fake_primp):

@@ -65,6 +65,151 @@ STOPS_ONE_OR_FEWER = 2
 STOPS_TWO_OR_FEWER = 3
 
 
+def _normalize_rpc_leg(
+    origin: str,
+    destination: str,
+    date: str,
+    *,
+    max_stops: Optional[int] = None,
+    airlines: Optional[list[str]] = None,
+    earliest_departure: Optional[int] = None,
+    latest_departure: Optional[int] = None,
+    earliest_arrival: Optional[int] = None,
+    latest_arrival: Optional[int] = None,
+    selected_legs: Optional[list[list[Any]]] = None,
+) -> dict[str, Any]:
+    """Normalize a single search leg for generic request building."""
+    return {
+        "origin": origin,
+        "destination": destination,
+        "date": date,
+        "max_stops": max_stops,
+        "airlines": sorted(airlines) if airlines else None,
+        "earliest_departure": earliest_departure,
+        "latest_departure": latest_departure,
+        "earliest_arrival": earliest_arrival,
+        "latest_arrival": latest_arrival,
+        "selected_legs": selected_legs,
+    }
+
+
+def _build_time_restrictions(
+    earliest_departure: Optional[int],
+    latest_departure: Optional[int],
+    earliest_arrival: Optional[int],
+    latest_arrival: Optional[int],
+) -> Optional[list[Any]]:
+    """Build the RPC time restrictions payload for a single leg."""
+    if any(v is not None for v in [
+        earliest_departure,
+        latest_departure,
+        earliest_arrival,
+        latest_arrival,
+    ]):
+        return [
+            earliest_departure,
+            latest_departure,
+            earliest_arrival,
+            latest_arrival,
+        ]
+    return None
+
+
+def _trip_type_from_legs(legs: list[dict[str, Any]]) -> int:
+    """Map a normalized leg list to Google Flights' trip type value."""
+    if len(legs) <= 1:
+        return 2  # one-way
+    if len(legs) == 2:
+        return 1  # roundtrip/open-jaw
+    return 3  # multi-city
+
+
+def _build_segment_from_leg(leg: dict[str, Any]) -> list[Any]:
+    """Build a single RPC segment entry from a normalized leg."""
+    max_stops = leg.get("max_stops")
+    if max_stops is None:
+        stops_val = STOPS_ANY
+    else:
+        stops_val = max_stops + 1
+
+    return [
+        [[[leg["origin"], 0]]],       # departure airport
+        [[[leg["destination"], 0]]],  # arrival airport
+        _build_time_restrictions(
+            leg.get("earliest_departure"),
+            leg.get("latest_departure"),
+            leg.get("earliest_arrival"),
+            leg.get("latest_arrival"),
+        ),
+        stops_val,                    # max stops
+        leg.get("airlines"),          # airlines filter
+        None,                         # placeholder
+        leg["date"],                  # travel date (YYYY-MM-DD)
+        None,                         # max duration
+        leg.get("selected_legs"),     # selected flight for expansion
+        None,                         # layover airports
+        None,                         # placeholder
+        None,                         # placeholder
+        None,                         # layover duration
+        None,                         # emissions
+        3,                            # constant
+    ]
+
+
+def _build_filters_from_legs(
+    legs: list[dict[str, Any]],
+    *,
+    cabin: str = "economy",
+    adults: int = 1,
+    sort: int = SORT_TOP,
+    exclude_basic_economy: bool = False,
+) -> list[Any]:
+    """Build the shopping filters payload from normalized leg definitions."""
+    seat_type = CABIN_CLASS_MAP.get(cabin, 1)
+    segments = [_build_segment_from_leg(leg) for leg in legs]
+    trip_type = _trip_type_from_legs(legs)
+
+    filters = [
+        [],                                          # empty array
+        [
+            None,                                    # [0] placeholder
+            None,                                    # [1] placeholder
+            trip_type,                               # [2] trip type
+            None,                                    # [3] placeholder
+            [],                                      # [4] empty array
+            seat_type,                               # [5] seat type
+            [adults, 0, 0, 0],                       # [6] passengers
+            None,                                    # [7] price limit
+            None,                                    # [8-12] placeholders
+            None,
+            None,
+            None,
+            None,
+            segments,                                # [13] flight segments
+            None,                                    # [14-16] placeholders
+            None,
+            None,
+            1,                                       # [17] constant
+            None,                                    # [18-27] placeholders
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            1 if exclude_basic_economy else None,    # [28] exclude basic economy
+        ],
+        sort,                                        # sort order
+        0,                                           # constant
+        0,                                           # constant
+        2,                                           # constant
+    ]
+    return filters
+
+
 def _build_filters(
     origin: str,
     destination: str,
@@ -105,127 +250,40 @@ def _build_filters(
         selected_outbound_legs: Pre-selected outbound legs for roundtrip expansion.
             Each leg must be [dep_airport, dep_date, arr_airport, None, airline_code, flight_number].
     """
-    seat_type = CABIN_CLASS_MAP.get(cabin, 1)
-
-    # Map max_stops: our API uses None=any, 0=nonstop, 1=one, 2=two
-    # RPC uses 0=any, 1=nonstop, 2=one, 3=two
-    if max_stops is None:
-        stops_val = STOPS_ANY
-    else:
-        stops_val = max_stops + 1
-
-    # Time restrictions for outbound
-    time_restrictions = None
-    if any(v is not None for v in [earliest_departure, latest_departure, earliest_arrival, latest_arrival]):
-        time_restrictions = [
-            earliest_departure,
-            latest_departure,
-            earliest_arrival,
-            latest_arrival,
-        ]
-
-    # Airlines filter
-    airlines_filter = None
-    if airlines:
-        airlines_filter = sorted(airlines)
-
-    is_roundtrip = return_date is not None
-    # Trip type: 1 = roundtrip, 2 = one-way
-    trip_type = 1 if is_roundtrip else 2
-
-    # Build outbound segment
-    # Airport nesting MUST be exactly 3 levels: [[[code, 0]]]
-    # Using 4 levels [[[["JFK", 0]]]] silently returns zero results.
-    outbound_segment = [
-        [[[origin, 0]]],          # departure airport
-        [[[destination, 0]]],      # arrival airport
-        time_restrictions,        # time restrictions [earliest_dep, latest_dep, earliest_arr, latest_arr]
-        stops_val,                # max stops
-        airlines_filter,          # airlines filter
-        None,                     # placeholder
-        date,                     # travel date (YYYY-MM-DD)
-        None,                     # max duration
-        selected_outbound_legs if is_roundtrip else None,  # selected outbound flight for return expansion
-        None,                     # layover airports
-        None,                     # placeholder
-        None,                     # placeholder
-        None,                     # layover duration
-        None,                     # emissions
-        3,                        # constant
+    legs = [
+        _normalize_rpc_leg(
+            origin,
+            destination,
+            date,
+            max_stops=max_stops,
+            airlines=airlines,
+            earliest_departure=earliest_departure,
+            latest_departure=latest_departure,
+            earliest_arrival=earliest_arrival,
+            latest_arrival=latest_arrival,
+            selected_legs=selected_outbound_legs if return_date is not None else None,
+        )
     ]
+    if return_date is not None:
+        legs.append(
+            _normalize_rpc_leg(
+                destination,
+                origin,
+                return_date,
+                max_stops=max_stops,
+                airlines=airlines,
+                earliest_departure=return_earliest_departure,
+                latest_departure=return_latest_departure,
+            )
+        )
 
-    segments = [outbound_segment]
-
-    # Build return segment for roundtrip searches
-    if is_roundtrip:
-        return_time_restrictions = None
-        if return_earliest_departure is not None or return_latest_departure is not None:
-            return_time_restrictions = [
-                return_earliest_departure,
-                return_latest_departure,
-                None,  # earliest arrival
-                None,  # latest arrival
-            ]
-
-        return_segment = [
-            [[[destination, 0]]],      # departure airport (reversed)
-            [[[origin, 0]]],           # arrival airport (reversed)
-            return_time_restrictions,  # time restrictions
-            stops_val,                 # max stops (same as outbound)
-            airlines_filter,           # airlines filter (same as outbound)
-            None,                      # placeholder
-            return_date,               # return travel date
-            None,                      # max duration
-            None,                      # selected flight
-            None,                      # layover airports
-            None,                      # placeholder
-            None,                      # placeholder
-            None,                      # layover duration
-            None,                      # emissions
-            3,                         # constant
-        ]
-        segments.append(return_segment)
-
-    # Main filters structure
-    filters = [
-        [],                                          # empty array
-        [
-            None,                                    # [0] placeholder
-            None,                                    # [1] placeholder
-            trip_type,                               # [2] trip type (1=roundtrip, 2=one-way)
-            None,                                    # [3] placeholder
-            [],                                      # [4] empty array
-            seat_type,                               # [5] seat type
-            [adults, 0, 0, 0],                       # [6] passengers [adults, children, infants_on_lap, infants_in_seat]
-            None,                                    # [7] price limit
-            None,                                    # [8-12] placeholders
-            None,
-            None,
-            None,
-            None,
-            segments,                                # [13] flight segments
-            None,                                    # [14-16] placeholders
-            None,
-            None,
-            1,                                       # [17] constant
-            None,                                    # [18-27] placeholders
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            1 if exclude_basic_economy else None,    # [28] exclude basic economy (1=exclude, None/0=include)
-        ],
-        sort,                                        # sort order
-        0,                                           # constant
-        0,                                           # constant
-        2,                                           # constant
-    ]
-    return filters
+    return _build_filters_from_legs(
+        legs,
+        cabin=cabin,
+        adults=adults,
+        sort=sort,
+        exclude_basic_economy=exclude_basic_economy,
+    )
 
 
 def _encode_f_req_payload(payload: list[Any]) -> str:
@@ -278,6 +336,43 @@ def _build_f_req(
     # The double-JSON pattern (stringify, then wrap in array and stringify again)
     # mirrors how the Google Flights web app encodes its RPC requests.
     return _encode_f_req_payload(filters)
+
+
+def _search_from_legs(
+    legs: list[dict[str, Any]],
+    *,
+    cabin: str = "economy",
+    adults: int = 1,
+    sort: int = SORT_DEPARTURE_TIME,
+    timeout: int = 90,
+    retries: int = 2,
+    exclude_basic_economy: bool = False,
+) -> Optional[SearchResult]:
+    """Search Google Flights from normalized leg definitions."""
+    encoded_body = _encode_f_req_payload(
+        _build_filters_from_legs(
+            legs,
+            cabin=cabin,
+            adults=adults,
+            sort=sort,
+            exclude_basic_economy=exclude_basic_economy,
+        )
+    )
+
+    res = _http_post(
+        SHOPPING_RPC_URL,
+        content=f"f.req={encoded_body}".encode(),
+        timeout=timeout,
+        retries=retries,
+    )
+
+    result = _parse_rpc_response(res.text)
+    if result is not None and hasattr(result, "best"):
+        logger.info(
+            "_search_from_legs found %d best + %d other itineraries",
+            len(result.best), len(result.other),
+        )
+    return result
 
 
 def _build_booking_f_req(

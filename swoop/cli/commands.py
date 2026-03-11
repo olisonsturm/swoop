@@ -58,6 +58,41 @@ def _run_search(
     )
 
 
+def _price_search_result(
+    itinerary,
+    *,
+    origin,
+    destination,
+    date,
+    return_date,
+    cabin,
+    passengers,
+    nonstop,
+    max_stops,
+    include_basic,
+    timeout,
+    retries,
+):
+    """Price an already-selected itinerary exactly."""
+    import swoop
+
+    stops = 0 if nonstop else max_stops
+    return swoop._price_from_outbound_itinerary(
+        itinerary,
+        origin=origin,
+        destination=destination,
+        date=date,
+        return_date=return_date,
+        cabin=cabin,
+        adults=passengers,
+        max_stops=stops,
+        include_basic_economy=include_basic,
+        timeout=timeout,
+        retries=retries,
+        outbound_selection="explicit",
+    )
+
+
 # Shared search options decorator
 def _search_options(f):
     """Apply common search filter options to a command."""
@@ -223,8 +258,6 @@ def search_cmd(
 
     # If --price is set, drill down into that result
     if price_index is not None:
-        import swoop
-
         from .formatters import format_price_brief, format_price_json, format_price_table
 
         all_itins = [*result.best, *result.other]
@@ -237,40 +270,40 @@ def search_cmd(
             return
 
         itin = all_itins[price_index - 1]
-        # Extract first flight info for check_price
-        first_flight = itin.flights[0] if itin.flights else None
-        if first_flight is None:
+        if not itin.flights:
             err.print("[red]Error: selected itinerary has no flight info.[/red]")
             ctx.exit(2)
             return
 
-        flight_num = f"{first_flight.airline}{first_flight.flight_number}" if first_flight.airline else str(first_flight.flight_number or "")
-
         try:
             if not quiet and output_format == "table":
                 with err.status("[bold]Checking price...[/bold]"):
-                    price_result = swoop.check_price(
-                        flight_num,
+                    price_result = _price_search_result(
+                        itin,
                         origin=origin,
                         destination=destination,
                         date=date,
                         return_date=return_date,
                         cabin=cabin,
-                        adults=passengers,
-                        include_basic_economy=include_basic,
+                        passengers=passengers,
+                        nonstop=nonstop,
+                        max_stops=max_stops,
+                        include_basic=include_basic,
                         timeout=timeout,
                         retries=retries,
                     )
             else:
-                price_result = swoop.check_price(
-                    flight_num,
+                price_result = _price_search_result(
+                    itin,
                     origin=origin,
                     destination=destination,
                     date=date,
                     return_date=return_date,
                     cabin=cabin,
-                    adults=passengers,
-                    include_basic_economy=include_basic,
+                    passengers=passengers,
+                    nonstop=nonstop,
+                    max_stops=max_stops,
+                    include_basic=include_basic,
                     timeout=timeout,
                     retries=retries,
                 )
@@ -284,13 +317,19 @@ def search_cmd(
             ctx.exit(1)
             return
 
+        flight_label = (
+            price_result.resolved_legs[0].flight_summary
+            if price_result.resolved_legs
+            else f"{itin.flights[0].airline}{itin.flights[0].flight_number}"
+        )
+
         if output_format == "json":
-            format_price_json(price_result, flight_number=flight_num, origin=origin,
+            format_price_json(price_result, flight_number=flight_label, origin=origin,
                               destination=destination, date=date, return_date=return_date)
         elif output_format == "brief":
             format_price_brief(price_result, return_date=return_date)
         else:
-            format_price_table(price_result, flight_number=flight_num, origin=origin,
+            format_price_table(price_result, flight_number=flight_label, origin=origin,
                                destination=destination, date=date, return_date=return_date,
                                no_color=no_color)
         return
@@ -358,6 +397,11 @@ def price_cmd(
         ctx.exit(2)
         return
 
+    if has_leg and (return_date is not None or return_flight is not None):
+        err.print("[red]Error: --leg cannot be combined with --return-date or --return-flight.[/red]")
+        ctx.exit(2)
+        return
+
     if has_leg:
         # --leg syntax: each tuple is (origin, dest, date, flight_number)
         if len(leg) == 1:
@@ -385,6 +429,10 @@ def price_cmd(
         return
     elif origin is None or destination is None or date is None:
         err.print("[red]Error: FLIGHT_NUMBER ORIGIN DESTINATION DATE are all required.[/red]")
+        ctx.exit(2)
+        return
+    elif return_flight is not None and return_date is None:
+        err.print("[red]Error: --return-flight requires --return-date.[/red]")
         ctx.exit(2)
         return
 
@@ -456,5 +504,4 @@ def price_cmd(
         format_price_table(result, flight_number=flight_number, origin=origin,
                            destination=destination, date=date, return_date=return_date,
                            no_color=no_color)
-
 

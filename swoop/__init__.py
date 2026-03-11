@@ -51,8 +51,16 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
-from ._validate import parse_flight_number, validate_search_params
-from .rpc import _build_selected_legs
+from ._validate import (
+    parse_flight_number,
+    validate_adults,
+    validate_cabin,
+    validate_date,
+    validate_iata_code,
+    validate_search_params,
+    validate_time_range,
+)
+from .rpc import _build_selected_legs, _normalize_rpc_leg, _search_from_legs
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +124,80 @@ def _filter_by_flight_number(
     return SearchResult(_raw=result._raw, best=best, other=other, price_range=result.price_range)
 
 
+def _validate_leg_search_inputs(
+    legs: list[SearchLeg],
+    *,
+    cabin: str,
+    adults: int,
+    leg_time_windows: Optional[list[dict[str, Optional[int]]]] = None,
+) -> None:
+    """Validate a list of explicit search legs."""
+    if not legs:
+        raise ValueError("at least one leg is required")
+    if len(legs) > 2:
+        raise ValueError("multi-city search is not yet supported")
+
+    validate_cabin(cabin)
+    validate_adults(adults)
+
+    for idx, leg in enumerate(legs):
+        validate_iata_code(leg.from_airport, f"legs[{idx}].from_airport")
+        validate_iata_code(leg.to_airport, f"legs[{idx}].to_airport")
+        validate_date(leg.date, f"legs[{idx}].date")
+
+    if leg_time_windows:
+        for idx, window in enumerate(leg_time_windows):
+            validate_time_range(window.get("earliest_departure"), f"legs[{idx}].earliest_departure", 0, 23)
+            validate_time_range(window.get("latest_departure"), f"legs[{idx}].latest_departure", 1, 24)
+            validate_time_range(window.get("earliest_arrival"), f"legs[{idx}].earliest_arrival", 0, 23)
+            validate_time_range(window.get("latest_arrival"), f"legs[{idx}].latest_arrival", 1, 24)
+
+
+def _search_with_normalized_legs(
+    request_legs: list[dict[str, object]],
+    *,
+    cabin: str = "economy",
+    adults: int = 1,
+    sort: int = SORT_DEPARTURE_TIME,
+    include_basic_economy: bool = False,
+    timeout: int = 90,
+    retries: int = 2,
+    correct_roundtrip_prices: bool = True,
+) -> Optional[SearchResult]:
+    """Execute a search from normalized leg definitions."""
+    is_roundtrip = len(request_legs) == 2
+    exclude_basic = (
+        cabin == "economy"
+        and not is_roundtrip
+        and not include_basic_economy
+    )
+
+    result = _search_from_legs(
+        request_legs,
+        cabin=cabin,
+        adults=adults,
+        sort=sort,
+        timeout=timeout,
+        retries=retries,
+        exclude_basic_economy=exclude_basic,
+    )
+
+    if (
+        result is not None
+        and is_roundtrip
+        and cabin == "economy"
+        and correct_roundtrip_prices
+    ):
+        _correct_roundtrip_economy_prices(
+            result,
+            include_basic_economy=include_basic_economy,
+            timeout=timeout,
+            retries=retries,
+        )
+
+    return result
+
+
 def search_legs(
     legs: list[SearchLeg],
     *,
@@ -146,45 +228,28 @@ def search_legs(
     Raises:
         ValueError: If more than 2 legs provided.
     """
-    if len(legs) > 2:
-        raise ValueError("multi-city search is not yet supported")
-    if len(legs) == 0:
-        raise ValueError("at least one leg is required")
+    _validate_leg_search_inputs(legs, cabin=cabin, adults=adults)
 
-    first = legs[0]
-    return_date = legs[1].date if len(legs) == 2 else None
-    is_roundtrip = return_date is not None
+    request_legs = [
+        _normalize_rpc_leg(
+            leg.from_airport,
+            leg.to_airport,
+            leg.date,
+            max_stops=leg.max_stops,
+            airlines=list(leg.airlines) if leg.airlines else None,
+        )
+        for leg in legs
+    ]
 
-    exclude_basic = (
-        cabin == "economy"
-        and not is_roundtrip
-        and not include_basic_economy
-    )
-
-    result = search_raw(
-        origin=first.from_airport,
-        destination=first.to_airport,
-        date=first.date,
+    return _search_with_normalized_legs(
+        request_legs,
         cabin=cabin,
         adults=adults,
         sort=sort,
-        max_stops=first.max_stops,
-        airlines=first.airlines,
-        return_date=return_date,
+        include_basic_economy=include_basic_economy,
         timeout=timeout,
         retries=retries,
-        exclude_basic_economy=exclude_basic,
     )
-
-    if result is not None and is_roundtrip and cabin == "economy":
-        _correct_roundtrip_economy_prices(
-            result,
-            include_basic_economy=include_basic_economy,
-            timeout=timeout,
-            retries=retries,
-        )
-
-    return result
 
 
 def search(
@@ -288,34 +353,41 @@ def search(
         return_earliest_departure=return_earliest_departure,
         return_latest_departure=return_latest_departure,
     )
-    # For one-way economy, exclude basic economy at the RPC level unless the
-    # caller opted into basic fares.  This flag inflates roundtrip expansion
-    # prices, so we only set it for one-way.
-    exclude_basic = (
-        cabin == "economy"
-        and return_date is None
-        and not include_basic_economy
-    )
+    request_legs = [
+        _normalize_rpc_leg(
+            origin,
+            destination,
+            date,
+            max_stops=max_stops,
+            airlines=airlines,
+            earliest_departure=earliest_departure,
+            latest_departure=latest_departure,
+            earliest_arrival=earliest_arrival,
+            latest_arrival=latest_arrival,
+        )
+    ]
+    if return_date is not None:
+        request_legs.append(
+            _normalize_rpc_leg(
+                destination,
+                origin,
+                return_date,
+                max_stops=max_stops,
+                airlines=airlines,
+                earliest_departure=return_earliest_departure,
+                latest_departure=return_latest_departure,
+            )
+        )
 
-    result = search_raw(
-        origin=origin,
-        destination=destination,
-        date=date,
+    result = _search_with_normalized_legs(
+        request_legs,
         cabin=cabin,
         adults=adults,
         sort=sort,
-        max_stops=max_stops,
-        airlines=airlines,
-        earliest_departure=earliest_departure,
-        latest_departure=latest_departure,
-        earliest_arrival=earliest_arrival,
-        latest_arrival=latest_arrival,
-        return_date=return_date,
-        return_earliest_departure=return_earliest_departure,
-        return_latest_departure=return_latest_departure,
+        include_basic_economy=include_basic_economy,
         timeout=timeout,
         retries=retries,
-        exclude_basic_economy=exclude_basic,
+        correct_roundtrip_prices=parsed_number is None,
     )
 
     # When a flight_number filter is provided, filter BEFORE correcting
@@ -323,16 +395,13 @@ def search(
     # itinerary only to discard most of them — turning N+1 RPCs into 2.
     if parsed_number is not None:
         result = _filter_by_flight_number(result, parsed_carrier, parsed_number)
-
-    # For roundtrip economy, correct inflated expansion prices by fetching
-    # actual bookable fares via GetBookingResults.
-    if result is not None and return_date is not None and cabin == "economy":
-        _correct_roundtrip_economy_prices(
-            result,
-            include_basic_economy=include_basic_economy,
-            timeout=timeout,
-            retries=retries,
-        )
+        if result is not None and return_date is not None and cabin == "economy":
+            _correct_roundtrip_economy_prices(
+                result,
+                include_basic_economy=include_basic_economy,
+                timeout=timeout,
+                retries=retries,
+            )
 
     return result
 
@@ -390,6 +459,157 @@ def _flight_summary_from_itin(itin: Optional[Itinerary]) -> str:
         return ""
     first = itin.flights[0]
     return f"{first.airline} {first.flight_number}" if first.airline else str(first.flight_number or "")
+
+
+def _resolved_leg_from_itinerary(
+    itinerary: Itinerary,
+    *,
+    origin: str,
+    destination: str,
+    date: str,
+    selection: str,
+) -> ResolvedLeg:
+    """Create a resolved-leg record from an itinerary."""
+    return ResolvedLeg(
+        flight_summary=_flight_summary_from_itin(itinerary),
+        origin=origin,
+        destination=destination,
+        date=date,
+        itinerary=itinerary,
+        selection=selection,
+    )
+
+
+def _price_from_outbound_itinerary(
+    outbound: Itinerary,
+    *,
+    origin: str,
+    destination: str,
+    date: str,
+    return_date: Optional[str] = None,
+    return_flight_number: Optional[str] = None,
+    cabin: str = "economy",
+    adults: int = 1,
+    max_stops: Optional[int] = None,
+    include_basic_economy: bool = False,
+    timeout: int = 90,
+    retries: int = 2,
+    rpc_calls: int = 0,
+    outbound_selection: str = "explicit",
+) -> Optional[PriceResult]:
+    """Resolve pricing once the outbound itinerary is already known exactly."""
+    outbound_leg = _resolved_leg_from_itinerary(
+        outbound,
+        origin=origin,
+        destination=destination,
+        date=date,
+        selection=outbound_selection,
+    )
+
+    if return_date is None:
+        price = outbound.price
+        if price is None or price <= 0:
+            return None
+        return PriceResult(
+            price=price,
+            itinerary=outbound,
+            resolved_legs=[outbound_leg],
+            rpc_calls=rpc_calls,
+        )
+
+    selected_outbound_legs = _build_selected_legs(outbound)
+    if not selected_outbound_legs:
+        return None
+
+    return_result = search_raw(
+        origin=origin,
+        destination=destination,
+        date=date,
+        cabin=cabin,
+        adults=adults,
+        sort=SORT_DEPARTURE_TIME,
+        max_stops=max_stops,
+        airlines=None,
+        return_date=return_date,
+        selected_outbound_legs=selected_outbound_legs,
+        timeout=timeout,
+        retries=retries,
+    )
+    rpc_calls += 1
+
+    if return_result is None:
+        return None
+
+    return_selection = "auto"
+    if return_flight_number is not None:
+        ret_carrier, ret_number = parse_flight_number(return_flight_number)
+        return_result = _filter_by_flight_number(return_result, ret_carrier, ret_number)
+        if return_result is None:
+            return None
+        return_selection = "explicit"
+
+    return_itin = (
+        return_result.best[0] if return_result.best
+        else (return_result.other[0] if return_result.other else None)
+    )
+    if return_itin is None:
+        return None
+
+    return_leg = _resolved_leg_from_itinerary(
+        return_itin,
+        origin=destination,
+        destination=origin,
+        date=return_date,
+        selection=return_selection,
+    )
+    resolved = [outbound_leg, return_leg]
+
+    try:
+        options = get_booking_results(
+            return_itin,
+            timeout=timeout,
+            retries=retries,
+        )
+        rpc_calls += 1
+    except (SwoopHTTPError, SwoopParseError) as exc:
+        logger.debug("GetBookingResults failed for roundtrip: %s", exc)
+        price = return_itin.price
+        if price is None or price <= 0:
+            return None
+        return PriceResult(
+            price=price,
+            itinerary=return_itin,
+            resolved_legs=resolved,
+            rpc_calls=rpc_calls,
+        )
+
+    if include_basic_economy:
+        eligible = [o for o in options if o.price > 0]
+    else:
+        eligible = [o for o in options if not o.is_basic and o.price > 0]
+
+    if not eligible:
+        price = return_itin.price
+        if price is None or price <= 0:
+            return None
+        return PriceResult(
+            price=price,
+            itinerary=return_itin,
+            booking_options=options,
+            resolved_legs=resolved,
+            rpc_calls=rpc_calls,
+        )
+
+    best_option = min(eligible, key=lambda o: o.price)
+    return PriceResult(
+        price=best_option.price,
+        fare_brand=best_option.brand_label or best_option.brand_code or None,
+        is_basic_economy=best_option.is_basic,
+        booking_options=options,
+        itinerary=return_itin,
+        resolved_legs=resolved,
+        rpc_calls=rpc_calls,
+    )
 
 
 def price_legs(
@@ -563,130 +783,21 @@ def check_price(
     if outbound is None:
         return None
 
-    # Build outbound resolved leg
-    outbound_leg = ResolvedLeg(
-        flight_summary=_flight_summary_from_itin(outbound),
+    return _price_from_outbound_itinerary(
+        outbound,
         origin=origin,
         destination=destination,
         date=date,
-        itinerary=outbound,
-        selection="explicit",
-    )
-
-    # --- One-way path ---
-    if not is_roundtrip:
-        price = outbound.price
-        if price is None or price <= 0:
-            return None
-        return PriceResult(
-            price=price,
-            itinerary=outbound,
-            resolved_legs=[outbound_leg],
-            rpc_calls=rpc_calls,
-        )
-
-    # --- Roundtrip path ---
-    # Step 2b: Build selected outbound legs for return expansion
-    selected_outbound_legs = _build_selected_legs(outbound)
-    if not selected_outbound_legs:
-        return None
-
-    # Step 3: Search for return flights with selected outbound
-    return_result = search_raw(
-        origin=origin,
-        destination=destination,
-        date=date,
+        return_date=return_date,
+        return_flight_number=return_flight_number,
         cabin=cabin,
         adults=adults,
-        sort=SORT_DEPARTURE_TIME,
         max_stops=max_stops,
-        airlines=None,
-        return_date=return_date,
-        selected_outbound_legs=selected_outbound_legs,
+        include_basic_economy=include_basic_economy,
         timeout=timeout,
         retries=retries,
-    )
-    rpc_calls += 1
-
-    if return_result is None:
-        return None
-
-    # Filter return results by return flight number if provided
-    return_selection = "auto"
-    if return_flight_number is not None:
-        ret_carrier, ret_number = parse_flight_number(return_flight_number)
-        return_result = _filter_by_flight_number(return_result, ret_carrier, ret_number)
-        if return_result is None:
-            return None
-        return_selection = "explicit"
-
-    return_itin = (
-        return_result.best[0] if return_result.best
-        else (return_result.other[0] if return_result.other else None)
-    )
-    if return_itin is None:
-        return None
-
-    # Build return resolved leg
-    return_leg = ResolvedLeg(
-        flight_summary=_flight_summary_from_itin(return_itin),
-        origin=destination,
-        destination=origin,
-        date=return_date,
-        itinerary=return_itin,
-        selection=return_selection,
-    )
-    resolved = [outbound_leg, return_leg]
-
-    # Step 4: Get booking results for the return itinerary (roundtrip total)
-    try:
-        options = get_booking_results(
-            return_itin,
-            timeout=timeout,
-            retries=retries,
-        )
-        rpc_calls += 1
-    except (SwoopHTTPError, SwoopParseError) as exc:
-        logger.debug("GetBookingResults failed for roundtrip: %s", exc)
-        # Fall back to direct_price from return expansion
-        price = return_itin.price
-        if price is None or price <= 0:
-            return None
-        return PriceResult(
-            price=price,
-            itinerary=return_itin,
-            resolved_legs=resolved,
-            rpc_calls=rpc_calls,
-        )
-
-    # Select the best non-basic option (or any option if include_basic)
-    if include_basic_economy:
-        eligible = [o for o in options if o.price > 0]
-    else:
-        eligible = [o for o in options if not o.is_basic and o.price > 0]
-
-    if not eligible:
-        # Fall back to direct_price
-        price = return_itin.price
-        if price is None or price <= 0:
-            return None
-        return PriceResult(
-            price=price,
-            itinerary=return_itin,
-            booking_options=options,
-            resolved_legs=resolved,
-            rpc_calls=rpc_calls,
-        )
-
-    best_option = min(eligible, key=lambda o: o.price)
-    return PriceResult(
-        price=best_option.price,
-        fare_brand=best_option.brand_label or best_option.brand_code or None,
-        is_basic_economy=best_option.is_basic,
-        booking_options=options,
-        itinerary=return_itin,
-        resolved_legs=resolved,
         rpc_calls=rpc_calls,
+        outbound_selection="explicit",
     )
 
 

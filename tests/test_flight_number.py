@@ -172,7 +172,7 @@ class TestSearchFlightNumberParam:
         no_match = make_itinerary(Flight(airline="UA", flight_number="500"))
         result = make_search_result(best=[no_match], other=[match])
 
-        monkeypatch.setattr(swoop, "search_raw", lambda **kw: result)
+        monkeypatch.setattr(swoop, "_search_from_legs", lambda legs, **kw: result)
         filtered = swoop.search("JFK", "LAX", "2026-06-01", flight_number="DL 171")
         assert filtered is not None
         assert filtered.best == []
@@ -182,48 +182,51 @@ class TestSearchFlightNumberParam:
         no_match = make_itinerary(Flight(airline="UA", flight_number="500"))
         result = make_search_result(best=[no_match])
 
-        monkeypatch.setattr(swoop, "search_raw", lambda **kw: result)
+        monkeypatch.setattr(swoop, "_search_from_legs", lambda legs, **kw: result)
         filtered = swoop.search("JFK", "LAX", "2026-06-01", flight_number="DL 171")
         assert filtered is None
 
     def test_passes_carrier_to_airlines_filter(self, monkeypatch):
         captured = {}
 
-        def fake_rpc(**kwargs):
+        def fake_rpc(legs, **kwargs):
+            captured["legs"] = legs
             captured.update(kwargs)
             return None
 
-        monkeypatch.setattr(swoop, "search_raw", fake_rpc)
+        monkeypatch.setattr(swoop, "_search_from_legs", fake_rpc)
         swoop.search("JFK", "LAX", "2026-06-01", flight_number="DL 171")
-        assert captured["airlines"] == ["DL"]
+        assert captured["legs"][0]["airlines"] == ["DL"]
 
     def test_preserves_existing_airlines_filter(self, monkeypatch):
         captured = {}
 
-        def fake_rpc(**kwargs):
+        def fake_rpc(legs, **kwargs):
+            captured["legs"] = legs
             captured.update(kwargs)
             return None
 
-        monkeypatch.setattr(swoop, "search_raw", fake_rpc)
+        monkeypatch.setattr(swoop, "_search_from_legs", fake_rpc)
         swoop.search("JFK", "LAX", "2026-06-01", airlines=["UA"], flight_number="DL 171")
-        assert "DL" in captured["airlines"]
-        assert "UA" in captured["airlines"]
+        assert "DL" in captured["legs"][0]["airlines"]
+        assert "UA" in captured["legs"][0]["airlines"]
 
     def test_no_duplicate_carrier_in_airlines(self, monkeypatch):
         captured = {}
 
-        def fake_rpc(**kwargs):
+        def fake_rpc(legs, **kwargs):
+            captured["legs"] = legs
             captured.update(kwargs)
             return None
 
-        monkeypatch.setattr(swoop, "search_raw", fake_rpc)
+        monkeypatch.setattr(swoop, "_search_from_legs", fake_rpc)
         swoop.search("JFK", "LAX", "2026-06-01", airlines=["DL"], flight_number="DL 171")
-        assert captured["airlines"] == ["DL"]
+        assert captured["legs"][0]["airlines"] == ["DL"]
 
     def test_without_flight_number_no_filter(self, monkeypatch):
         match = make_itinerary(Flight(airline="DL", flight_number="171"))
         result = make_search_result(best=[match])
 
-        monkeypatch.setattr(swoop, "search_raw", lambda **kw: result)
+        monkeypatch.setattr(swoop, "_search_from_legs", lambda legs, **kw: result)
         unfiltered = swoop.search("JFK", "LAX", "2026-06-01")
         assert unfiltered is result
