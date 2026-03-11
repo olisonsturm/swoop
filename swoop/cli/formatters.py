@@ -344,6 +344,43 @@ def format_search_brief(
 # ---------------------------------------------------------------------------
 
 
+def _render_resolved_legs(console, resolved_legs) -> None:
+    """Render resolved flight details for each leg."""
+    leg_labels = ["Outbound", "Return"]
+    for idx, leg in enumerate(resolved_legs):
+        label = leg_labels[idx] if idx < len(leg_labels) else f"Leg {idx + 1}"
+        console.print(f"  [bold]{label}[/bold] · {leg.selection}")
+
+        itin = leg.itinerary
+        if itin and itin.flights:
+            for fi, flight in enumerate(itin.flights):
+                fid = f"{flight.airline} {flight.flight_number}" if flight.airline else str(flight.flight_number or "")
+                dep = format_time(flight.departure_time[0], flight.departure_time[1])
+                arr = format_time(flight.arrival_time[0], flight.arrival_time[1])
+                dur = format_duration(flight.travel_time) if flight.travel_time else ""
+                route = f"{flight.departure_airport_code} -> {flight.arrival_airport_code}"
+                console.print(f"  {fid}  {route}")
+                console.print(f"  Depart: {dep}   Arrive: {arr}   Duration: {dur}")
+                details = []
+                if flight.aircraft:
+                    details.append(f"Aircraft: {flight.aircraft}")
+                if flight.legroom:
+                    details.append(f"Legroom: {flight.legroom}")
+                if details:
+                    console.print(f"  [dim]{' · '.join(details)}[/dim]")
+
+                # Show layover after this segment (if not last segment)
+                if fi < len(itin.layovers):
+                    lay = itin.layovers[fi]
+                    h, m = divmod(lay.minutes, 60)
+                    lay_dur = f"{h}h {m:02d}m" if h and m else (f"{h}h" if h else f"{m}m")
+                    airport = lay.departure_airport_code or lay.arrival_airport_code or ""
+                    console.print(f"  [dim]  Layover: {lay_dur} {airport}[/dim]")
+        else:
+            console.print(f"  {leg.flight_summary}  {leg.origin} -> {leg.destination}")
+        console.print()
+
+
 def format_price_table(
     result,
     *,
@@ -366,7 +403,14 @@ def format_price_table(
 
     console.print(f" [bold]{flight_number} · {trip} · {date_display} · {trip_type}[/bold]")
     console.print()
+
+    # Resolved flight details
+    if result.resolved_legs:
+        _render_resolved_legs(console, result.resolved_legs)
+
     console.print(f" [bold green]Price: ${result.price:,}[/bold green]")
+    if return_date:
+        console.print(" [dim](roundtrip)[/dim]")
 
     if result.fare_brand:
         console.print(f" [dim]Fare: {result.fare_brand}[/dim]")
@@ -430,6 +474,18 @@ def format_price_json(
     }
     if result.itinerary:
         output["itinerary"] = _itin_to_dict(result.itinerary, 1)
+    if result.resolved_legs:
+        output["resolved_legs"] = [
+            {
+                "flight_summary": leg.flight_summary,
+                "origin": leg.origin,
+                "destination": leg.destination,
+                "date": leg.date,
+                "selection": leg.selection,
+                "itinerary": _itin_to_dict(leg.itinerary, idx + 1) if leg.itinerary else None,
+            }
+            for idx, leg in enumerate(result.resolved_legs)
+        ]
     print(json.dumps(output, indent=2))
 
 

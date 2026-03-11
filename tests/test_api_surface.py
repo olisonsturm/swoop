@@ -10,7 +10,7 @@ from dataclasses import fields
 import pytest
 
 import swoop
-from swoop import PriceResult
+from swoop import PriceResult, ResolvedLeg, SelectedLeg, SearchLeg
 from swoop.decoder import (
     BookingOption,
     CarbonEmissions,
@@ -37,7 +37,9 @@ class TestFrozenExports:
     EXPECTED_ALL = {
         # Functions
         "search",
+        "search_legs",
         "check_price",
+        "price_legs",
         "get_booking_results",
         "search_raw",
         "parse_flight_number",
@@ -45,6 +47,9 @@ class TestFrozenExports:
         # Types
         "PriceResult",
         "SearchResult",
+        "SearchLeg",
+        "SelectedLeg",
+        "ResolvedLeg",
         "Itinerary",
         "Flight",
         "BookingOption",
@@ -174,8 +179,16 @@ class TestFrozenDataclassFields:
         assert self._field_names(PriceRange) == expected
 
     def test_price_result_fields(self):
-        expected = {"price", "fare_brand", "is_basic_economy", "booking_options", "itinerary", "rpc_calls"}
+        expected = {"price", "fare_brand", "is_basic_economy", "booking_options", "itinerary", "resolved_legs", "rpc_calls"}
         assert self._field_names(PriceResult) == expected
+
+    def test_resolved_leg_fields(self):
+        expected = {"flight_summary", "origin", "destination", "date", "itinerary", "selection"}
+        assert self._field_names(ResolvedLeg) == expected
+
+    def test_selected_leg_fields(self):
+        expected = {"flight_number", "origin", "destination", "date"}
+        assert self._field_names(SelectedLeg) == expected
 
 
 class TestSearchSignature:
@@ -218,6 +231,24 @@ class TestSearchSignature:
             "return_flight_number", "return_date",
             "cabin", "adults", "max_stops", "include_basic_economy",
             "timeout", "retries",
+        ]
+        assert param_names == expected
+
+    def test_search_legs_params(self):
+        sig = inspect.signature(swoop.search_legs)
+        param_names = list(sig.parameters.keys())
+        expected = [
+            "legs", "cabin", "adults", "sort",
+            "include_basic_economy", "timeout", "retries",
+        ]
+        assert param_names == expected
+
+    def test_price_legs_params(self):
+        sig = inspect.signature(swoop.price_legs)
+        param_names = list(sig.parameters.keys())
+        expected = [
+            "legs", "cabin", "adults",
+            "include_basic_economy", "timeout", "retries",
         ]
         assert param_names == expected
 

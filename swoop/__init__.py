@@ -28,7 +28,7 @@ from .decoder import (
     itinerary_matches_flight,
 )
 from .exceptions import SwoopError, SwoopHTTPError, SwoopParseError, SwoopRateLimitError
-from .builders import ItinerarySummary
+from .builders import ItinerarySummary, SearchLeg
 from .rpc import (
     SORT_ARRIVAL_TIME,
     SORT_CHEAPEST,
@@ -114,6 +114,77 @@ def _filter_by_flight_number(
     if not best and not other:
         return None
     return SearchResult(_raw=result._raw, best=best, other=other, price_range=result.price_range)
+
+
+def search_legs(
+    legs: list[SearchLeg],
+    *,
+    cabin: str = "economy",
+    adults: int = 1,
+    sort: int = SORT_DEPARTURE_TIME,
+    include_basic_economy: bool = False,
+    timeout: int = 90,
+    retries: int = 2,
+) -> Optional[SearchResult]:
+    """Search Google Flights using explicit leg definitions.
+
+    Trip type is determined from ``len(legs)``: 1=one-way, 2=roundtrip.
+    Per-leg ``max_stops`` and ``airlines`` come from each :class:`SearchLeg`.
+
+    Args:
+        legs: List of :class:`SearchLeg` objects (1 or 2).
+        cabin: Cabin class (default ``"economy"``).
+        adults: Number of adult passengers (default 1).
+        sort: Sort order constant (default ``SORT_DEPARTURE_TIME``).
+        include_basic_economy: Include basic economy fares (default ``False``).
+        timeout: HTTP request timeout in seconds (default 90).
+        retries: Number of retries on HTTP 429 (default 2).
+
+    Returns:
+        A :class:`SearchResult` or ``None`` if no results found.
+
+    Raises:
+        ValueError: If more than 2 legs provided.
+    """
+    if len(legs) > 2:
+        raise ValueError("multi-city search is not yet supported")
+    if len(legs) == 0:
+        raise ValueError("at least one leg is required")
+
+    first = legs[0]
+    return_date = legs[1].date if len(legs) == 2 else None
+    is_roundtrip = return_date is not None
+
+    exclude_basic = (
+        cabin == "economy"
+        and not is_roundtrip
+        and not include_basic_economy
+    )
+
+    result = search_raw(
+        origin=first.from_airport,
+        destination=first.to_airport,
+        date=first.date,
+        cabin=cabin,
+        adults=adults,
+        sort=sort,
+        max_stops=first.max_stops,
+        airlines=first.airlines,
+        return_date=return_date,
+        timeout=timeout,
+        retries=retries,
+        exclude_basic_economy=exclude_basic,
+    )
+
+    if result is not None and is_roundtrip and cabin == "economy":
+        _correct_roundtrip_economy_prices(
+            result,
+            include_basic_economy=include_basic_economy,
+            timeout=timeout,
+            retries=retries,
+        )
+
+    return result
 
 
 def search(
@@ -272,6 +343,26 @@ def search(
 
 
 @dataclass
+class SelectedLeg:
+    """A leg with a specific flight selection for pricing."""
+    flight_number: str
+    origin: str
+    destination: str
+    date: str
+
+
+@dataclass
+class ResolvedLeg:
+    """A resolved leg in a price check result."""
+    flight_summary: str           # e.g. "DL 2300"
+    origin: str                   # e.g. "JFK"
+    destination: str              # e.g. "LAX"
+    date: str                     # e.g. "2026-06-15"
+    itinerary: Optional[Itinerary] = None
+    selection: str = "explicit"   # "explicit" or "auto"
+
+
+@dataclass
 class PriceResult:
     """Result of a targeted price check for a specific flight.
 
@@ -280,7 +371,8 @@ class PriceResult:
         fare_brand: Fare brand label (e.g. ``"MAIN"``, ``"BASIC"``).
         is_basic_economy: Whether the price is for basic economy.
         booking_options: All available fare tiers from GetBookingResults.
-        itinerary: The matched flight itinerary.
+        itinerary: The matched flight itinerary (kept for backward compat).
+        resolved_legs: Resolved leg details for each leg in the price check.
         rpc_calls: Number of RPC calls made (for observability).
     """
     price: int
@@ -288,7 +380,79 @@ class PriceResult:
     is_basic_economy: bool = False
     booking_options: list[BookingOption] = field(default_factory=list)
     itinerary: Optional[Itinerary] = None
+    resolved_legs: list[ResolvedLeg] = field(default_factory=list)
     rpc_calls: int = 0
+
+
+def _flight_summary_from_itin(itin: Optional[Itinerary]) -> str:
+    """Build a compact flight summary string from an itinerary."""
+    if itin is None or not itin.flights:
+        return ""
+    first = itin.flights[0]
+    return f"{first.airline} {first.flight_number}" if first.airline else str(first.flight_number or "")
+
+
+def price_legs(
+    legs: list[SelectedLeg],
+    *,
+    cabin: str = "economy",
+    adults: int = 1,
+    include_basic_economy: bool = False,
+    timeout: int = 90,
+    retries: int = 2,
+) -> Optional[PriceResult]:
+    """Look up the current price using explicit leg definitions.
+
+    For 1 leg: equivalent to ``check_price()`` one-way.
+    For 2 legs: equivalent to ``check_price()`` roundtrip.
+
+    Args:
+        legs: List of :class:`SelectedLeg` objects (1 or 2).
+        cabin: Cabin class (default ``"economy"``).
+        adults: Number of adult passengers (default 1).
+        include_basic_economy: Include basic economy fares (default ``False``).
+        timeout: HTTP request timeout in seconds (default 90).
+        retries: Number of retries on HTTP 429 (default 2).
+
+    Returns:
+        A :class:`PriceResult` or ``None`` if the flight was not found.
+
+    Raises:
+        ValueError: If more than 2 legs provided.
+    """
+    if len(legs) > 2:
+        raise ValueError("multi-city pricing is not yet supported")
+    if len(legs) == 0:
+        raise ValueError("at least one leg is required")
+
+    first = legs[0]
+    if len(legs) == 2:
+        second = legs[1]
+        return check_price(
+            first.flight_number,
+            origin=first.origin,
+            destination=first.destination,
+            date=first.date,
+            return_flight_number=second.flight_number,
+            return_date=second.date,
+            cabin=cabin,
+            adults=adults,
+            include_basic_economy=include_basic_economy,
+            timeout=timeout,
+            retries=retries,
+        )
+    else:
+        return check_price(
+            first.flight_number,
+            origin=first.origin,
+            destination=first.destination,
+            date=first.date,
+            cabin=cabin,
+            adults=adults,
+            include_basic_economy=include_basic_economy,
+            timeout=timeout,
+            retries=retries,
+        )
 
 
 def check_price(
@@ -399,6 +563,16 @@ def check_price(
     if outbound is None:
         return None
 
+    # Build outbound resolved leg
+    outbound_leg = ResolvedLeg(
+        flight_summary=_flight_summary_from_itin(outbound),
+        origin=origin,
+        destination=destination,
+        date=date,
+        itinerary=outbound,
+        selection="explicit",
+    )
+
     # --- One-way path ---
     if not is_roundtrip:
         price = outbound.price
@@ -407,6 +581,7 @@ def check_price(
         return PriceResult(
             price=price,
             itinerary=outbound,
+            resolved_legs=[outbound_leg],
             rpc_calls=rpc_calls,
         )
 
@@ -437,11 +612,13 @@ def check_price(
         return None
 
     # Filter return results by return flight number if provided
+    return_selection = "auto"
     if return_flight_number is not None:
         ret_carrier, ret_number = parse_flight_number(return_flight_number)
         return_result = _filter_by_flight_number(return_result, ret_carrier, ret_number)
         if return_result is None:
             return None
+        return_selection = "explicit"
 
     return_itin = (
         return_result.best[0] if return_result.best
@@ -449,6 +626,17 @@ def check_price(
     )
     if return_itin is None:
         return None
+
+    # Build return resolved leg
+    return_leg = ResolvedLeg(
+        flight_summary=_flight_summary_from_itin(return_itin),
+        origin=destination,
+        destination=origin,
+        date=return_date,
+        itinerary=return_itin,
+        selection=return_selection,
+    )
+    resolved = [outbound_leg, return_leg]
 
     # Step 4: Get booking results for the return itinerary (roundtrip total)
     try:
@@ -467,6 +655,7 @@ def check_price(
         return PriceResult(
             price=price,
             itinerary=return_itin,
+            resolved_legs=resolved,
             rpc_calls=rpc_calls,
         )
 
@@ -485,6 +674,7 @@ def check_price(
             price=price,
             itinerary=return_itin,
             booking_options=options,
+            resolved_legs=resolved,
             rpc_calls=rpc_calls,
         )
 
@@ -495,6 +685,7 @@ def check_price(
         is_basic_economy=best_option.is_basic,
         booking_options=options,
         itinerary=return_itin,
+        resolved_legs=resolved,
         rpc_calls=rpc_calls,
     )
 
@@ -502,7 +693,9 @@ def check_price(
 __all__ = [
     # Functions
     "search",
+    "search_legs",
     "check_price",
+    "price_legs",
     "get_booking_results",
     "search_raw",
     "parse_flight_number",
@@ -510,6 +703,9 @@ __all__ = [
     # Types
     "PriceResult",
     "SearchResult",
+    "SearchLeg",
+    "SelectedLeg",
+    "ResolvedLeg",
     "Itinerary",
     "Flight",
     "BookingOption",
