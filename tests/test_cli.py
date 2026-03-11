@@ -448,6 +448,42 @@ class TestSearchCommand:
         assert result.exit_code == 0
         assert "roundtrip totals" in result.output
 
+    @patch("swoop.check_price")
+    @patch("swoop.cli.commands._run_search")
+    def test_price_drilldown(self, mock_search, mock_check):
+        """--price N runs search, picks result, calls check_price."""
+        mock_search.return_value = _make_search_result()
+        mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "--price", "1", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "$342" in result.output
+        mock_check.assert_called_once()
+        call_kwargs = mock_check.call_args
+        assert call_kwargs[0][0] == "DL2300"  # flight number from first itinerary
+
+    @patch("swoop.cli.commands._run_search")
+    def test_price_drilldown_rejects_limit(self, mock_search):
+        """--price cannot be combined with --limit."""
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "--price", "1", "-l", "5", "-q",
+        ])
+        assert result.exit_code == 2
+        assert "--price cannot be combined with --limit" in result.stderr
+
+    @patch("swoop.cli.commands._run_search")
+    def test_price_drilldown_rejects_csv(self, mock_search):
+        """--price cannot be combined with -o csv."""
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "--price", "1", "-o", "csv", "-q",
+        ])
+        assert result.exit_code == 2
+        assert "--price cannot be combined with -o csv" in result.stderr
+
     @patch("swoop.cli.commands._run_search")
     def test_connecting_flight_table(self, mock_search):
         """Table output shows layover info for connecting flights."""

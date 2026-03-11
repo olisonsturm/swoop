@@ -105,6 +105,8 @@ def _output_options(formats: list[str]):
 @click.argument("date", type=DATE)
 @_search_options
 @click.option("-l", "--limit", type=int, default=None, help="Max results to display.")
+@click.option("--price", "price_index", type=int, default=None,
+              help="Show price + fares for search result #N.")
 @_output_options(["table", "json", "csv", "brief"])
 @click.pass_context
 def search_cmd(
@@ -113,7 +115,7 @@ def search_cmd(
     airline, flight_number, include_basic,
     depart_after, depart_before, arrive_after, arrive_before,
     return_depart_after, return_depart_before,
-    timeout, retries, limit,
+    timeout, retries, limit, price_index,
     output_format, no_color, quiet,
 ):
     """Search for flights.
@@ -123,6 +125,7 @@ def search_cmd(
       swoop search JFK LAX 2026-06-15
       swoop search JFK LAX 2026-06-15 --nonstop --sort cheapest
       swoop search JFK LAX 2026-06-15 -r 2026-06-22 --cabin business
+      swoop search JFK LAX 2026-06-15 --price 1
       swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0]'
     """
     from swoop.exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
@@ -135,6 +138,15 @@ def search_cmd(
     )
 
     err = _err_console(no_color)
+
+    # Validate --price incompatibilities
+    if price_index is not None:
+        if limit is not None:
+            err.print("[red]Error: --price cannot be combined with --limit.[/red]")
+            ctx.exit(2)
+        if output_format == "csv":
+            err.print("[red]Error: --price cannot be combined with -o csv.[/red]")
+            ctx.exit(2)
 
     # Past date warning
     warning = check_past_date(date)
@@ -208,6 +220,80 @@ def search_cmd(
         cabin=cabin, adults=passengers, return_date=return_date,
         limit=limit,
     )
+
+    # If --price is set, drill down into that result
+    if price_index is not None:
+        import swoop
+
+        from .formatters import format_price_brief, format_price_json, format_price_table
+
+        all_itins = [*result.best, *result.other]
+        if price_index < 1 or price_index > len(all_itins):
+            err.print(
+                f"[red]Error: --price {price_index} out of range. "
+                f"Only {len(all_itins)} results available.[/red]"
+            )
+            ctx.exit(2)
+            return
+
+        itin = all_itins[price_index - 1]
+        # Extract first flight info for check_price
+        first_flight = itin.flights[0] if itin.flights else None
+        if first_flight is None:
+            err.print("[red]Error: selected itinerary has no flight info.[/red]")
+            ctx.exit(2)
+            return
+
+        flight_num = f"{first_flight.airline}{first_flight.flight_number}" if first_flight.airline else str(first_flight.flight_number or "")
+
+        try:
+            if not quiet and output_format == "table":
+                with err.status("[bold]Checking price...[/bold]"):
+                    price_result = swoop.check_price(
+                        flight_num,
+                        origin=origin,
+                        destination=destination,
+                        date=date,
+                        return_date=return_date,
+                        cabin=cabin,
+                        adults=passengers,
+                        include_basic_economy=include_basic,
+                        timeout=timeout,
+                        retries=retries,
+                    )
+            else:
+                price_result = swoop.check_price(
+                    flight_num,
+                    origin=origin,
+                    destination=destination,
+                    date=date,
+                    return_date=return_date,
+                    cabin=cabin,
+                    adults=passengers,
+                    include_basic_economy=include_basic,
+                    timeout=timeout,
+                    retries=retries,
+                )
+        except (ValueError, SwoopHTTPError, SwoopParseError, SwoopRateLimitError) as e:
+            err.print(f"[red]Error checking price: {e}[/red]")
+            ctx.exit(3)
+            return
+
+        if price_result is None:
+            err.print(f"[yellow]Could not get price for result #{price_index}.[/yellow]")
+            ctx.exit(1)
+            return
+
+        if output_format == "json":
+            format_price_json(price_result, flight_number=flight_num, origin=origin,
+                              destination=destination, date=date, return_date=return_date)
+        elif output_format == "brief":
+            format_price_brief(price_result, return_date=return_date)
+        else:
+            format_price_table(price_result, flight_number=flight_num, origin=origin,
+                               destination=destination, date=date, return_date=return_date,
+                               no_color=no_color)
+        return
 
     if output_format == "table":
         format_search_table(result, no_color=no_color, **fmt_kwargs)
