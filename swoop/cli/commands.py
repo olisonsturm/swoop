@@ -555,6 +555,10 @@ def price_cmd(
         err.print("[red]Error: FLIGHT_NUMBER ORIGIN DESTINATION DATE are all required.[/red]")
         ctx.exit(2)
         return
+    elif has_positional and return_date is not None and return_flight is None:
+        err.print("[red]Error: --return-date requires --return-flight for positional roundtrip pricing.[/red]")
+        ctx.exit(2)
+        return
     elif return_flight is not None and return_date is None:
         err.print("[red]Error: --return-flight requires --return-date.[/red]")
         ctx.exit(2)

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import types
 import urllib.parse
 
@@ -599,6 +600,31 @@ def test_extract_booking_payload_and_rpc_parsers(monkeypatch) -> None:
     with pytest.raises(rpc.SwoopParseError, match="Failed to parse inner RPC response JSON"):
         rpc._parse_rpc_response(bad_inner_json)
 
+
+def test_booking_parser_logs_debug_for_partial_drops_and_warning_for_total_drop(caplog) -> None:
+    mixed_payload = [
+        make_booking_option(price=250, brand_code="DELTA MAIN CLASSIC", brand_label="Delta Main Classic"),
+        make_booking_option(price=300, brand_code=None, brand_label=None),
+    ]
+    mixed_text = encode_rpc_outer([None, [mixed_payload]])
+
+    caplog.set_level(logging.DEBUG, logger="swoop._booking")
+    parsed = rpc._parse_booking_rpc_response(mixed_text)
+    assert len(parsed) == 1
+    assert "Booking options parser dropped options" in caplog.text
+    assert not any(record.levelno >= logging.WARNING for record in caplog.records)
+
+    caplog.clear()
+
+    dropped_payload = [
+        make_booking_option(price=250, brand_code=None, brand_label=None),
+    ]
+    dropped_text = encode_rpc_outer([None, [dropped_payload]])
+    assert rpc._parse_booking_rpc_response(dropped_text) == []
+    assert any(record.levelno >= logging.WARNING for record in caplog.records)
+
+
+def test_parse_rpc_response_null_and_decode(monkeypatch) -> None:
     none_inner_data = ")]}'" + json.dumps([["wrb.fr", None, "null"]])
     assert rpc._parse_rpc_response(none_inner_data) is None
 

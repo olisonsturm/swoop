@@ -680,6 +680,14 @@ class TestPriceCommand:
         assert result.exit_code == 2
         assert "--return-flight requires --return-date" in result.stderr
 
+    def test_price_return_date_requires_return_flight_for_positional_mode(self):
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, [
+            "price", "DL2300", "JFK", "LAX", "2026-06-15", "--return-date", "2026-06-22",
+        ])
+        assert result.exit_code == 2
+        assert "--return-date requires --return-flight" in result.stderr
+
     def test_price_leg_conflicts_with_return_flags(self):
         runner = CliRunner(mix_stderr=False)
         result = runner.invoke(main, [
