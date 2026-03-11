@@ -268,6 +268,7 @@ class TestSearchCommand:
         assert data["query"]["origin"] == "JFK"
         assert len(data["results"]) == 3
         assert data["results"][0]["price_usd"] == 247
+        assert data["results"][0]["flight_summary"] == "DL 2300"
 
     @patch("swoop.cli.commands._run_search")
     def test_table_output(self, mock_search):
@@ -277,10 +278,10 @@ class TestSearchCommand:
             "search", "JFK", "LAX", "2026-06-15", "-q",
         ])
         assert result.exit_code == 0
-        assert "Delta" in result.output
-        assert "$247" in result.output
+        assert "DL 2300" in result.output  # flight_summary
         assert "Nonstop" in result.output
         assert "Tip:" in result.output
+        assert "--price 1" in result.output
 
     @patch("swoop.cli.commands._run_search")
     def test_csv_output(self, mock_search):
@@ -292,6 +293,7 @@ class TestSearchCommand:
         assert result.exit_code == 0
         lines = result.output.strip().split("\n")
         assert "index" in lines[0]  # header
+        assert "flight_summary" in lines[0]
         assert len(lines) == 4  # header + 3 results
 
     @patch("swoop.cli.commands._run_search")
@@ -305,6 +307,7 @@ class TestSearchCommand:
         lines = result.output.strip().split("\n")
         assert len(lines) == 3
         assert "$247" in lines[0]
+        assert "DL 2300" in lines[0]
 
     @patch("swoop.cli.commands._run_search")
     def test_limit(self, mock_search):
@@ -433,6 +436,17 @@ class TestSearchCommand:
         args = mock_search.call_args[0]
         assert args[0] == "JFK"
         assert args[1] == "LAX"
+
+    @patch("swoop.cli.commands._run_search")
+    def test_roundtrip_labels_prices(self, mock_search):
+        """Roundtrip search labels prices as roundtrip totals."""
+        mock_search.return_value = _make_search_result(1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-r", "2026-06-22", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "roundtrip totals" in result.output
 
     @patch("swoop.cli.commands._run_search")
     def test_connecting_flight_table(self, mock_search):
