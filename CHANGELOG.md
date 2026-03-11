@@ -13,10 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PriceResult` dataclass with `price`, `fare_brand`, `is_basic_economy`, `booking_options`, `itinerary`, `resolved_legs`, `rpc_calls`
 - `search_legs()` — leg-based search API accepting `list[SearchLeg]`
 - `price_legs()` — leg-based pricing API accepting `list[SelectedLeg]`
+- Official multi-city search and pricing for 3+ legs in both the Python API and CLI
+- Trip-level result models: `TripLeg`, `TripOption`, and `RawSearchResult`
+- Opaque itinerary selectors in search results for script-stable exact pricing
+- `swoop price --selector ...` and `swoop search --price-selector ...`
+- Repeatable `swoop search --leg ORIGIN DEST DATE` syntax for multi-city search
 - `SearchLeg`, `SelectedLeg`, `ResolvedLeg` exports
 - `flight_summary` in search output (table, JSON, CSV, brief formats)
 - `--price N` option on `swoop search` to drill down into search results
-- `--leg` syntax for explicit leg pricing (1 or 2 legs): `swoop price --leg JFK LAX 2026-06-15 DL2300`
+- `--leg` syntax for explicit leg pricing: `swoop price --leg JFK LAX 2026-06-15 DL2300`
 - Resolved flight details (aircraft, legroom, times) in price table output
 - `resolved_legs` array in price JSON output
 - `swoop price` CLI command with positional args: `swoop price DL2300 JFK LAX 2026-06-15`
@@ -42,8 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `price` CLI command uses positional args (`FLIGHT ORIGIN DEST DATE`) instead of flags
+- **Breaking:** public `SearchResult` is now trip-level with `results`, `price_range`, and `is_complete`
+- `search()` and `search_legs()` now return complete trip rows instead of single-pass raw itinerary buckets
+- `search_raw()` remains the low-level escape hatch and now returns `RawSearchResult`
+- `search_legs()` and `price_legs()` now accept 3+ legs
 - `search()` signature unchanged; `check_price()` now populates `resolved_legs`
-- 3+ leg multi-city search/pricing remains intentionally unexposed until end-to-end validation is complete
 - Narrow `except Exception` to specific swoop error types
 - Rename `departure_airport`/`arrival_airport` fields to `_code` suffix for consistency
 - Deduplicate internal `_safe_get` helper

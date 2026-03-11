@@ -11,9 +11,12 @@ Search Google Flights programmatically. Real prices, typed results, no API key.
 from swoop import search
 
 results = search("JFK", "LAX", "2026-06-15")
-for flight in results.best:
-    airline = ", ".join(flight.airline_names)
-    print(f"${flight.price} — {airline}")
+for option in results.results[:3]:
+    print(f"${option.price}")
+    for leg in option.legs:
+        itinerary = leg.itinerary
+        airline = ", ".join(itinerary.airline_names) if itinerary else "Unknown"
+        print(f"  {leg.origin} -> {leg.destination} — {airline}")
 ```
 
 > [!NOTE]
@@ -50,14 +53,18 @@ swoop search JFK LAX 2026-06-15 --nonstop --sort cheapest
 # Roundtrip, business class
 swoop search JFK LAX 2026-06-15 -r 2026-06-22 --cabin business
 
+# Official multi-city search
+swoop search --leg JFK LAX 2026-06-15 --leg LAX SFO 2026-06-18 --leg SFO SEA 2026-06-21
+
 # Quick price check for a specific flight
 swoop price DL2300 JFK LAX 2026-06-15
 
-# Drill down into search result #1 for fares
+# Human drilldown from search row #1
 swoop search JFK LAX 2026-06-15 --price 1
 
-# JSON output for piping
-swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0].price_usd'
+# Script-stable drilldown via selector
+SELECTOR=$(swoop search JFK LAX 2026-06-15 -o json -q | jq -r '.results[0].selector')
+swoop price --selector "$SELECTOR"
 ```
 
 <details>
@@ -67,11 +74,17 @@ swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0].price_usd'
 # Roundtrip price check
 swoop price DL2300 JFK LAX 2026-06-15 -r 2026-06-22 --return-flight DL2301
 
-# Explicit leg pricing (up to 2 legs)
-swoop price --leg JFK LAX 2026-06-15 DL2300 --leg LAX JFK 2026-06-22 DL2301
+# Explicit leg pricing (supports 3+ legs)
+swoop price --leg JFK LAX 2026-06-15 DL2300 --leg LAX SFO 2026-06-18 UA544 --leg SFO SEA 2026-06-21 AS331
 
 # CSV for spreadsheets
 swoop search JFK LAX 2026-06-15 -o csv -q > flights.csv
+
+# Search JSON for piping
+swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0] | {selector, price_usd, legs}'
+
+# Selector drilldown from the search command itself
+swoop search --price-selector "$SELECTOR" -q
 
 # Filter by airline and time window
 swoop search JFK LAX 2026-06-15 -a DL -a UA --depart-after 8 --depart-before 14
@@ -80,6 +93,9 @@ swoop search JFK LAX 2026-06-15 -a DL -a UA --depart-after 8 --depart-before 14
 </details>
 
 Run `swoop search --help` for all options.
+
+> [!TIP]
+> Use `--price N` when you're reading tables yourself. Use `selector` plus `swoop price --selector ...` when you're scripting, because row numbers are not stable.
 
 ## Python API
 
@@ -90,13 +106,17 @@ from swoop import search
 
 results = search("SFO", "JFK", "2026-06-15")
 
-# results.best  — top-ranked flights
-# results.other — remaining flights
-for flight in results.best:
-    print(f"${flight.price}")
-    print(f"  {flight.departure_airport_code} → {flight.arrival_airport_code}")
-    print(f"  {flight.airline_names}, {flight.stop_count} stops")
-    print(f"  {flight.travel_time} min total")
+for option in results.results[:3]:
+    print(f"${option.price}")
+    for leg in option.legs:
+        itinerary = leg.itinerary
+        if itinerary is None:
+            continue
+        print(f"  {leg.origin} -> {leg.destination}")
+        print(f"  {itinerary.airline_names}, {itinerary.stop_count} stops")
+        print(f"  {itinerary.travel_time} min")
+
+print(results.is_complete)
 ```
 
 <details>
@@ -128,27 +148,32 @@ if result:
 ```python
 from swoop import SearchLeg, SelectedLeg, search_legs, price_legs
 
-# Search with explicit legs
+# Search with explicit legs (official entrypoint for multi-city)
 results = search_legs([
     SearchLeg(date="2026-06-15", from_airport="JFK", to_airport="LAX"),
-    SearchLeg(date="2026-06-22", from_airport="LAX", to_airport="JFK"),
+    SearchLeg(date="2026-06-18", from_airport="LAX", to_airport="SFO"),
+    SearchLeg(date="2026-06-21", from_airport="SFO", to_airport="SEA"),
 ])
+
+for option in results.results:
+    print(option.selector, option.price)
+    for leg in option.legs:
+        print(f"  {leg.origin}->{leg.destination}")
 
 # Price with explicit legs
 result = price_legs([
     SelectedLeg(flight_number="DL2300", origin="JFK", destination="LAX", date="2026-06-15"),
-    SelectedLeg(flight_number="DL2301", origin="LAX", destination="JFK", date="2026-06-22"),
+    SelectedLeg(flight_number="UA544", origin="LAX", destination="SFO", date="2026-06-18"),
+    SelectedLeg(flight_number="AS331", origin="SFO", destination="SEA", date="2026-06-21"),
 ])
-
-# 3+ legs are not yet exposed publicly
-# price_legs([...]) -> raises ValueError
 ```
 
 ### Roundtrip search
 
 ```python
 results = search("SFO", "JFK", "2026-06-15", return_date="2026-06-22")
-# Price in results is the roundtrip total
+for option in results.results:
+    print(option.price)  # roundtrip total
 ```
 
 ### Cabin class and filters
@@ -173,7 +198,8 @@ results = search(
 from swoop import search, get_booking_results
 
 results = search("JFK", "LAX", "2026-06-15")
-itinerary = results.best[0]
+option = results.results[0]
+itinerary = option.legs[0].itinerary
 
 # Get fare tiers — just pass the itinerary
 options = get_booking_results(itinerary)
@@ -216,11 +242,24 @@ Search Google Flights and return a `SearchResult`.
 | `max_stops` | `int \| None` | `None` | `None`=any, `0`=nonstop, `1`=1 stop, `2`=2 stops |
 | `sort` | `int` | `SORT_DEPARTURE_TIME` | Sort order constant |
 | `airlines` | `list[str] \| None` | `None` | Filter by airline codes |
+| `flight_number` | `str \| None` | `None` | Filter to a specific flight number; carrier is also added to the first-leg airline filter |
 | `include_basic_economy` | `bool` | `False` | Include basic economy fares (excluded by default so prices reflect Main Cabin) |
 | `timeout` | `int` | `90` | HTTP timeout in seconds |
 | `retries` | `int` | `2` | Retries on HTTP 429 with exponential backoff + jitter |
 
-Returns `SearchResult | None`. `None` means no results found.
+Returns `SearchResult`. Empty results mean no matches were found.
+
+### `search_legs(legs, **kwargs)`
+
+Search one or more explicit legs and return a trip-level `SearchResult`. This is the public multi-city entrypoint.
+
+### `price_legs(legs, **kwargs)`
+
+Price one or more exact legs and return `PriceResult | None`.
+
+### `search_raw(origin, destination, date, **kwargs)`
+
+Low-level single-pass search escape hatch. Returns `RawSearchResult` with raw `best` and `other` itinerary buckets from one RPC pass.
 
 ### `check_price(flight_number, *, origin, destination, date, **kwargs)`
 
@@ -251,7 +290,10 @@ Get fare options for a specific itinerary. Pass an `Itinerary` object directly, 
 - **`ResolvedLeg`** — `flight_summary: str`, `origin: str`, `destination: str`, `date: str`, `itinerary: Itinerary | None`, `selection: str`
 - **`SelectedLeg`** — `flight_number: str`, `origin: str`, `destination: str`, `date: str`
 - **`SearchLeg`** — `date: str`, `from_airport: str`, `to_airport: str`, `max_stops: int | None`, `airlines: list[str] | None`
-- **`SearchResult`** — `best: list[Itinerary]`, `other: list[Itinerary]`, `price_range: PriceRange | None`
+- **`SearchResult`** — `results: list[TripOption]`, `price_range: PriceRange | None`, `is_complete: bool`
+- **`TripOption`** — `selector: str`, `price: int | None`, `legs: list[TripLeg]`
+- **`TripLeg`** — `origin: str`, `destination: str`, `date: str`, `itinerary: Itinerary | None`
+- **`RawSearchResult`** — low-level `best: list[Itinerary]`, `other: list[Itinerary]`, `price_range: PriceRange | None`
 - **`Itinerary`** — Full itinerary with `price`, `flights`, `layovers`, `travel_time`, `booking_token`, `carbon_emissions`
 - **`Flight`** — Segment details: `airline`, `flight_number`, `aircraft`, `legroom`, `co2_grams`, `amenities`
 - **`Layover`** — Stop info: `minutes`, airports, `is_overnight`

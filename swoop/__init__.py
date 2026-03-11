@@ -8,8 +8,11 @@ Basic usage::
     from swoop import search
 
     results = search("JFK", "LAX", "2026-06-01")
-    for flight in results.best:
-        print(f"${flight.price} — {flight.airline_names}")
+    for option in results.results:
+        print(f"${option.price}")
+        for leg in option.legs:
+            if leg.itinerary is not None:
+                print(f"  {leg.origin}->{leg.destination} — {leg.itinerary.airline_names}")
 """
 
 __version__ = "0.3.0"
