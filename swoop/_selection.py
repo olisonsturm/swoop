@@ -76,6 +76,7 @@ def encode_trip_selector(
     cabin: str,
     adults: int,
     include_basic_economy: bool,
+    sort: int = SORT_DEPARTURE_TIME,
 ) -> str:
     payload = {
         "v": 1,
@@ -84,6 +85,7 @@ def encode_trip_selector(
         "cabin": cabin,
         "adults": adults,
         "include_basic_economy": include_basic_economy,
+        "sort": sort,
         "booking_token_hint": itineraries[-1].booking_token or None,
     }
     return f"{SELECTOR_PREFIX}{_encode_payload(payload)}"
@@ -155,6 +157,7 @@ def _build_trip_option(
     cabin: str,
     adults: int,
     include_basic_economy: bool,
+    sort: int = SORT_DEPARTURE_TIME,
 ) -> TripOption:
     return TripOption(
         selector=encode_trip_selector(
@@ -163,6 +166,7 @@ def _build_trip_option(
             cabin=cabin,
             adults=adults,
             include_basic_economy=include_basic_economy,
+            sort=sort,
         ),
         price=itineraries[-1].price,
         legs=_trip_legs_from_itineraries(request_legs, itineraries),
@@ -304,6 +308,7 @@ def search_trip_options(
                     cabin=cabin,
                     adults=adults,
                     include_basic_economy=include_basic_economy,
+                    sort=sort,
                 )
                 for itinerary in first_candidates
             ],
@@ -367,6 +372,7 @@ def search_trip_options(
             cabin=cabin,
             adults=adults,
             include_basic_economy=include_basic_economy,
+            sort=sort,
         )
         for prefix in prefixes[:TARGET_RESULTS]
     ]
@@ -408,16 +414,23 @@ def resolve_trip_selector(
     resolved: list[Itinerary] = []
     rpc_calls = 0
 
+    replay_sort = payload.get("sort", SORT_DEPARTURE_TIME)
+    exclude_basic = (
+        payload["cabin"] == "economy"
+        and len(request_legs) == 1
+        and not payload["include_basic_economy"]
+    )
+
     for index in range(len(request_legs)):
         staged_legs = _with_selected_prefix(request_legs, selected_legs[:index])
         stage_result = _search_from_legs(
             staged_legs,
             cabin=payload["cabin"],
             adults=payload["adults"],
-            sort=SORT_DEPARTURE_TIME,
+            sort=replay_sort,
             timeout=timeout,
             retries=retries,
-            exclude_basic_economy=False,
+            exclude_basic_economy=exclude_basic if index == 0 else False,
         )
         rpc_calls += 1
         candidates = _iter_raw_itineraries(stage_result)
@@ -569,11 +582,14 @@ def price_trip_selector(
     timeout: int = 90,
     retries: int = 2,
 ) -> Optional[PriceResult]:
-    payload, request_legs, itineraries, rpc_calls = resolve_trip_selector(
-        selector,
-        timeout=timeout,
-        retries=retries,
-    )
+    try:
+        payload, request_legs, itineraries, rpc_calls = resolve_trip_selector(
+            selector,
+            timeout=timeout,
+            retries=retries,
+        )
+    except ValueError:
+        return None
     return price_selected_trip(
         request_legs,
         itineraries,
