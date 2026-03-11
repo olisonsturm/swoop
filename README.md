@@ -51,13 +51,13 @@ swoop search JFK LAX 2026-06-15 --nonstop --sort cheapest
 swoop search JFK LAX 2026-06-15 -r 2026-06-22 --cabin business
 
 # Quick price check for a specific flight
-swoop price DL2300 -f JFK -t LAX -d 2026-06-15
+swoop price DL2300 JFK LAX 2026-06-15
+
+# Drill down into search result #1 for fares
+swoop search JFK LAX 2026-06-15 --price 1
 
 # JSON output for piping
 swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0].price_usd'
-
-# See fare tiers for search result #1
-swoop book 1 JFK LAX 2026-06-15
 ```
 
 <details>
@@ -65,7 +65,10 @@ swoop book 1 JFK LAX 2026-06-15
 
 ```bash
 # Roundtrip price check
-swoop price DL2300 -f JFK -t LAX -d 2026-06-15 -r 2026-06-22 --return-flight DL2301
+swoop price DL2300 JFK LAX 2026-06-15 -r 2026-06-22 --return-flight DL2301
+
+# Multi-leg pricing
+swoop price --leg JFK LAX 2026-06-15 DL2300 --leg LAX JFK 2026-06-22 DL2301
 
 # CSV for spreadsheets
 swoop search JFK LAX 2026-06-15 -o csv -q > flights.csv
@@ -116,6 +119,26 @@ result = check_price(
 )
 if result:
     print(f"${result.price} roundtrip — {result.fare_brand}")
+    for leg in result.resolved_legs:
+        print(f"  {leg.flight_summary} {leg.origin}->{leg.destination} ({leg.selection})")
+```
+
+### Leg-based search and pricing
+
+```python
+from swoop import SearchLeg, SelectedLeg, search_legs, price_legs
+
+# Search with explicit legs
+results = search_legs([
+    SearchLeg(date="2026-06-15", from_airport="JFK", to_airport="LAX"),
+    SearchLeg(date="2026-06-22", from_airport="LAX", to_airport="JFK"),
+])
+
+# Price with explicit legs
+result = price_legs([
+    SelectedLeg(flight_number="DL2300", origin="JFK", destination="LAX", date="2026-06-15"),
+    SelectedLeg(flight_number="DL2301", origin="LAX", destination="JFK", date="2026-06-22"),
+])
 ```
 
 ### Roundtrip search
@@ -221,7 +244,10 @@ Get fare options for a specific itinerary. Pass an `Itinerary` object directly, 
 
 ### Result types
 
-- **`PriceResult`** — `price: int`, `fare_brand: str | None`, `is_basic_economy: bool`, `booking_options: list[BookingOption]`, `itinerary: Itinerary | None`, `rpc_calls: int`
+- **`PriceResult`** — `price: int`, `fare_brand: str | None`, `is_basic_economy: bool`, `booking_options: list[BookingOption]`, `itinerary: Itinerary | None`, `resolved_legs: list[ResolvedLeg]`, `rpc_calls: int`
+- **`ResolvedLeg`** — `flight_summary: str`, `origin: str`, `destination: str`, `date: str`, `itinerary: Itinerary | None`, `selection: str`
+- **`SelectedLeg`** — `flight_number: str`, `origin: str`, `destination: str`, `date: str`
+- **`SearchLeg`** — `date: str`, `from_airport: str`, `to_airport: str`, `max_stops: int | None`, `airlines: list[str] | None`
 - **`SearchResult`** — `best: list[Itinerary]`, `other: list[Itinerary]`, `price_range: PriceRange | None`
 - **`Itinerary`** — Full itinerary with `price`, `flights`, `layovers`, `travel_time`, `booking_token`, `carbon_emissions`
 - **`Flight`** — Segment details: `airline`, `flight_number`, `aircraft`, `legroom`, `co2_grams`, `amenities`

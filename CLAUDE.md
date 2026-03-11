@@ -54,10 +54,10 @@ One commit per task/phase — not one giant commit at the end. Format: `<type>: 
 
 ```
 swoop/
-├── __init__.py       # Public API: search(), search_raw(), dataclasses, version
+├── __init__.py       # Public API: search(), search_legs(), check_price(), price_legs(), dataclasses, version
 ├── __main__.py       # `python -m swoop` entry point
 ├── rpc.py            # HTTP client — builds requests, calls Google Flights RPC
-├── builders.py       # Protobuf request builders (filters, segments)
+├── builders.py       # Protobuf request builders (filters, segments, SearchLeg)
 ├── decoder.py        # Response decoder — nested lists → dataclasses
 ├── _booking.py       # Booking option parsing (GetBookingResults)
 ├── _validate.py      # IATA code validation (optional airportsdata)
@@ -66,7 +66,7 @@ swoop/
 ├── flights_pb2.py    # Generated protobuf code
 └── cli/
     ├── __init__.py   # Click group, main() entry point
-    ├── commands.py   # search, flight, book command definitions
+    ├── commands.py   # search_cmd, price_cmd definitions
     ├── formatters.py # Table/JSON/CSV/brief output renderers
     └── utils.py      # Custom Click types, time/date helpers
 ```
@@ -74,6 +74,8 @@ swoop/
 **Data flow:** `search()` → `rpc.search_raw()` → Google RPC → `decoder.decode()` → `SearchResult`
 
 **CLI flow:** `swoop search` → `commands.search_cmd()` → `swoop.search()` → `formatters.format_search_table()`
+
+**Price flow:** `swoop price` → `commands.price_cmd()` → `swoop.check_price()` → `formatters.format_price_table()`
 
 ## File Map
 
@@ -85,9 +87,9 @@ swoop/
 | `_booking.py` | `parse_booking_payload()` — booking option extraction |
 | `_validate.py` | `validate_iata()` with optional airportsdata |
 | `exceptions.py` | `SwoopError`, `SwoopRPCError`, `SwoopValidationError` |
-| `__init__.py` | Public re-exports: `search`, `search_raw`, `SearchLeg`, `SearchResult`, etc. |
+| `__init__.py` | Public re-exports: `search`, `search_legs`, `check_price`, `price_legs`, `SearchLeg`, `SelectedLeg`, `ResolvedLeg`, `SearchResult`, etc. |
 | `cli/__init__.py` | Click group + `main()` entry point |
-| `cli/commands.py` | `search_cmd`, `flight_cmd`, `book_cmd` |
+| `cli/commands.py` | `search_cmd`, `price_cmd` |
 | `cli/formatters.py` | Rich table, JSON, CSV, brief formatters |
 | `cli/utils.py` | `IATACodeType`, `DateType`, `format_time()`, `format_duration()` |
 | `__main__.py` | `python -m swoop` with graceful ImportError |
