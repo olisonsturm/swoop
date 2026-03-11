@@ -26,11 +26,10 @@ from ._booking import (
     _normalize_attribute_vector,
     _parse_booking_rpc_response,
     _read_varint,
-    _safe_get,
     _skip_wire_value,
     parse_booking_payload,
 )
-from .decoder import BookingOption, SearchResult, Itinerary, decode_result
+from .decoder import BookingOption, SearchResult, Itinerary, decode_result, _safe_get
 from .exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
 
 logger = logging.getLogger(__name__)
@@ -315,7 +314,7 @@ def _http_post(
     content: bytes,
     *,
     timeout: int = 90,
-    retries: int = 0,
+    retries: int = 2,
 ) -> Any:
     """POST with optional retry on 429 and timeout.
 
@@ -323,8 +322,9 @@ def _http_post(
         url: The URL to POST to.
         content: Request body bytes.
         timeout: Request timeout in seconds.
-        retries: Number of retries on HTTP 429. Uses exponential backoff
-            (1s, 2s, 4s, ...). Non-429 errors are never retried.
+        retries: Number of retries on HTTP 429 with exponential backoff
+            and jitter (2^attempt + random 0–1s). Non-429 errors are
+            never retried.
 
     Returns:
         The response object from primp.
@@ -333,11 +333,12 @@ def _http_post(
         SwoopRateLimitError: If 429 persists after all retries.
         SwoopHTTPError: If a non-200/non-429 response is received.
     """
+    import random
     import time
 
     from primp import Client
 
-    client = Client(impersonate="chrome", verify=False)
+    client = Client(impersonate="chrome")
     headers = {"content-type": "application/x-www-form-urlencoded;charset=UTF-8"}
 
     for attempt in range(1 + retries):
@@ -346,8 +347,8 @@ def _http_post(
             logger.debug("HTTP 200 from %s (%d bytes)", url.split("/")[-1], len(res.text))
             return res
         if res.status_code == 429 and attempt < retries:
-            delay = 2 ** attempt  # 1s, 2s, 4s, ...
-            logger.info("HTTP 429 from %s, retrying in %ds (attempt %d/%d)", url.split("/")[-1], delay, attempt + 1, retries)
+            delay = (2 ** attempt) + random.uniform(0, 1)
+            logger.info("HTTP 429 from %s, retrying in %.1fs (attempt %d/%d)", url.split("/")[-1], delay, attempt + 1, retries)
             time.sleep(delay)
             continue
         if res.status_code == 429:
@@ -373,7 +374,7 @@ def search_raw(
     return_latest_departure: Optional[int] = None,
     selected_outbound_legs: Optional[list[list[Any]]] = None,
     timeout: int = 90,
-    retries: int = 0,
+    retries: int = 2,
     exclude_basic_economy: bool = False,
 ) -> Optional[SearchResult]:
     """Search Google Flights via RPC endpoint and return decoded results.
@@ -385,7 +386,7 @@ def search_raw(
     Args:
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 with exponential backoff
-            (default 0 — no retries).
+            and jitter (default 2).
     """
     logger.debug(
         "search_raw %s->%s on %s (cabin=%s, adults=%d)",
@@ -444,9 +445,9 @@ def _build_selected_legs(itinerary: Itinerary) -> list[list[Any]]:
         if not year or not month or not day:
             continue
         selected.append([
-            flight.departure_airport,
+            flight.departure_airport_code,
             f"{year:04d}-{month:02d}-{day:02d}",
-            flight.arrival_airport,
+            flight.arrival_airport_code,
             None,
             flight.airline,
             str(flight.flight_number or ""),
@@ -472,7 +473,7 @@ def get_booking_results(
     registry_version: str | None = None,
     required_keys: tuple[str, ...] | None = None,
     timeout: int = 90,
-    retries: int = 0,
+    retries: int = 2,
 ) -> list[BookingOption]:
     """Fetch fare options (brand + price) for a specific itinerary.
 
@@ -495,9 +496,9 @@ def get_booking_results(
         itin = itinerary_or_token
         booking_token = itin.booking_token
         if not origin:
-            origin = itin.departure_airport
+            origin = itin.departure_airport_code
         if not destination:
-            destination = itin.arrival_airport
+            destination = itin.arrival_airport_code
         if not date:
             dep = itin.departure_date
             if dep and dep != (0, 0, 0):

@@ -11,19 +11,9 @@ import logging
 from typing import Any
 
 from .builders import ItinerarySummary
-from .decoder import BookingOption
+from .decoder import BookingOption, _safe_get
 
 logger = logging.getLogger(__name__)
-
-
-def _safe_get(data: Any, path: list[int], default: Any = None) -> Any:
-    """Safely traverse nested list data."""
-    cur = data
-    for index in path:
-        if not isinstance(cur, list) or index >= len(cur):
-            return default
-        cur = cur[index]
-    return cur
 
 
 def _looks_like_price_block(value: Any) -> bool:

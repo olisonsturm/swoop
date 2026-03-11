@@ -26,7 +26,7 @@ pytest tests/ -v
 
 ```
 swoop/
-├── __init__.py       # search(), search_flight(), public API
+├── __init__.py       # search(), check_price(), public API
 ├── rpc.py            # HTTP/RPC client, search_raw(), get_booking_results()
 ├── builders.py       # Protobuf payload builders (TFSData, SearchLeg)
 ├── decoder.py        # Response decoder, dataclass definitions

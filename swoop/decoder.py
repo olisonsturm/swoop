@@ -109,9 +109,9 @@ class Flight:
     operator: str = ""
     codeshares: List[Codeshare] = field(default_factory=list)
     aircraft: str = ""
-    departure_airport: str = ""
+    departure_airport_code: str = ""
     departure_airport_name: str = ""
-    arrival_airport: str = ""
+    arrival_airport_code: str = ""
     arrival_airport_name: str = ""
     departure_date: Tuple[int, int, int] = (0, 0, 0)
     arrival_date: Tuple[int, int, int] = (0, 0, 0)
@@ -130,10 +130,10 @@ class Flight:
 @dataclass
 class Layover:
     minutes: int = 0
-    departure_airport: str = ""
+    departure_airport_code: str = ""
     departure_airport_name: str = ""
     departure_airport_city: str = ""
-    arrival_airport: str = ""
+    arrival_airport_code: str = ""
     arrival_airport_name: str = ""
     arrival_airport_city: str = ""
     is_overnight: bool = False  # layover[3]: [1] when layover spans overnight
@@ -155,8 +155,8 @@ class Itinerary:
     flights: List[Flight] = field(default_factory=list)
     layovers: List[Layover] = field(default_factory=list)
     travel_time: int = 0
-    departure_airport: str = ""
-    arrival_airport: str = ""
+    departure_airport_code: str = ""
+    arrival_airport_code: str = ""
     departure_date: Tuple[int, int, int] = (0, 0, 0)
     arrival_date: Tuple[int, int, int] = (0, 0, 0)
     departure_time: Tuple[int, int] = (0, 0)
@@ -294,10 +294,10 @@ def _decode_flight(el: list) -> Optional[Flight]:
 
         return Flight(
             operator=str(_safe_get(el, [2], "") or ""),
-            departure_airport=str(_safe_get(el, [3], "") or ""),
+            departure_airport_code=str(_safe_get(el, [3], "") or ""),
             departure_airport_name=str(_safe_get(el, [4], "") or ""),
-            arrival_airport=str(_safe_get(el, [5], "") or ""),
-            arrival_airport_name=str(_safe_get(el, [6], "") or ""),
+            arrival_airport_code=str(_safe_get(el, [6], "") or ""),
+            arrival_airport_name=str(_safe_get(el, [5], "") or ""),
             departure_time=_safe_tuple(_safe_get(el, [8]), 2, [0, 0]),
             arrival_time=_safe_tuple(_safe_get(el, [10]), 2, [0, 0]),
             travel_time=_safe_get(el, [11], 0) or 0,
@@ -329,8 +329,8 @@ def _decode_layover(el: list) -> Optional[Layover]:
 
         return Layover(
             minutes=_safe_get(el, [0], 0) or 0,
-            departure_airport=str(_safe_get(el, [1], "") or ""),
-            arrival_airport=str(_safe_get(el, [2], "") or ""),
+            departure_airport_code=str(_safe_get(el, [1], "") or ""),
+            arrival_airport_code=str(_safe_get(el, [2], "") or ""),
             departure_airport_name=str(_safe_get(el, [4], "") or ""),
             departure_airport_city=str(_safe_get(el, [5], "") or ""),
             arrival_airport_name=str(_safe_get(el, [6], "") or ""),
@@ -447,10 +447,10 @@ def _decode_itinerary(el: list) -> Optional[Itinerary]:
             airline_names=_safe_get(itin_data, [1], []) or [],
             flights=flights,
             layovers=layovers,
-            departure_airport=str(_safe_get(itin_data, [3], "") or ""),
+            departure_airport_code=str(_safe_get(itin_data, [3], "") or ""),
             departure_date=_safe_tuple(_safe_get(itin_data, [4]), 3, [0, 0, 0]),
             departure_time=_safe_tuple(_safe_get(itin_data, [5]), 2, [0, 0]),
-            arrival_airport=str(_safe_get(itin_data, [6], "") or ""),
+            arrival_airport_code=str(_safe_get(itin_data, [6], "") or ""),
             arrival_date=_safe_tuple(_safe_get(itin_data, [7]), 3, [0, 0, 0]),
             arrival_time=_safe_tuple(_safe_get(itin_data, [8]), 2, [0, 0]),
             travel_time=_safe_get(itin_data, [9], 0) or 0,

@@ -12,7 +12,7 @@ Basic usage::
         print(f"${flight.price} — {flight.airline_names}")
 """
 
-__version__ = "0.2.2"
+__version__ = "0.3.0"
 
 from .decoder import (
     AmenityFlags,
@@ -48,9 +48,11 @@ from .rpc import (
 # ---------------------------------------------------------------------------
 
 import logging
+from dataclasses import dataclass, field
 from typing import Optional
 
 from ._validate import parse_flight_number, validate_search_params
+from .rpc import _build_selected_legs
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +62,7 @@ def _correct_roundtrip_economy_prices(
     *,
     include_basic_economy: bool = False,
     timeout: int = 90,
-    retries: int = 0,
+    retries: int = 2,
 ) -> None:
     """Patch itinerary prices with accurate GetBookingResults fares.
 
@@ -79,7 +81,7 @@ def _correct_roundtrip_economy_prices(
             options = get_booking_results(
                 itinerary, timeout=timeout, retries=retries,
             )
-        except Exception as exc:
+        except (SwoopHTTPError, SwoopParseError) as exc:
             logger.debug("GetBookingResults failed, keeping original price: %s", exc)
             continue
 
@@ -134,7 +136,7 @@ def search(
     return_earliest_departure: Optional[int] = None,
     return_latest_departure: Optional[int] = None,
     timeout: int = 90,
-    retries: int = 0,
+    retries: int = 2,
 ) -> Optional[SearchResult]:
     """Search Google Flights and return decoded results.
 
@@ -165,7 +167,7 @@ def search(
         return_latest_departure: Latest return departure hour (1–24).
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 with exponential backoff
-            (default 0 — no retries).
+            and jitter (default 2).
 
     Returns:
         A :class:`SearchResult` with ``best`` and ``other`` itinerary
@@ -245,6 +247,12 @@ def search(
         exclude_basic_economy=exclude_basic,
     )
 
+    # When a flight_number filter is provided, filter BEFORE correcting
+    # roundtrip prices. This avoids calling GetBookingResults on every
+    # itinerary only to discard most of them — turning N+1 RPCs into 2.
+    if parsed_number is not None:
+        result = _filter_by_flight_number(result, parsed_carrier, parsed_number)
+
     # For roundtrip economy, correct inflated expansion prices by fetching
     # actual bookable fares via GetBookingResults.
     if result is not None and return_date is not None and cabin == "economy":
@@ -255,81 +263,252 @@ def search(
             retries=retries,
         )
 
-    if parsed_number is not None:
-        return _filter_by_flight_number(result, parsed_carrier, parsed_number)
     return result
 
 
-def search_flight(
+# ---------------------------------------------------------------------------
+# check_price() — targeted price lookup for a known flight.
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class PriceResult:
+    """Result of a targeted price check for a specific flight.
+
+    Attributes:
+        price: Total price in USD (integer).
+        fare_brand: Fare brand label (e.g. ``"MAIN"``, ``"BASIC"``).
+        is_basic_economy: Whether the price is for basic economy.
+        booking_options: All available fare tiers from GetBookingResults.
+        itinerary: The matched flight itinerary.
+        rpc_calls: Number of RPC calls made (for observability).
+    """
+    price: int
+    fare_brand: Optional[str] = None
+    is_basic_economy: bool = False
+    booking_options: list[BookingOption] = field(default_factory=list)
+    itinerary: Optional[Itinerary] = None
+    rpc_calls: int = 0
+
+
+def check_price(
     flight_number: str,
     *,
     origin: str,
     destination: str,
     date: str,
+    return_flight_number: Optional[str] = None,
+    return_date: Optional[str] = None,
     cabin: str = "economy",
     adults: int = 1,
     max_stops: Optional[int] = None,
+    include_basic_economy: bool = False,
     timeout: int = 90,
-    retries: int = 0,
-) -> Optional[Itinerary]:
-    """Search for a specific flight by number.
+    retries: int = 2,
+) -> Optional[PriceResult]:
+    """Look up the current price for a specific flight.
 
-    Searches Google Flights for the given route and filters to the matching
-    flight number. This is a convenience wrapper around :func:`search`.
+    Unlike :func:`search` which returns all itineraries on a route,
+    ``check_price`` is optimized for the "what does flight X cost today?"
+    use case. It uses far fewer RPC calls:
+
+    - **One-way**: 1 RPC (search with airline filter + exclude basic economy).
+    - **Roundtrip**: 3 RPCs (outbound search, return expansion, booking results).
 
     Args:
-        flight_number: Flight number (e.g. ``"DL 171"``, ``"DL171"``,
-            or ``"171"``).
+        flight_number: Outbound flight number (e.g. ``"DL2300"``).
         origin: Origin airport IATA code.
         destination: Destination airport IATA code.
         date: Departure date as ``YYYY-MM-DD``.
+        return_flight_number: Return flight number for roundtrip.
+        return_date: Return date for roundtrip.
         cabin: Cabin class (default ``"economy"``).
         adults: Number of adult passengers (default 1).
         max_stops: Maximum stops (default any).
+        include_basic_economy: Include basic economy fares (default ``False``).
         timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 0).
+        retries: Number of retries on HTTP 429 (default 2).
 
     Returns:
-        The matching :class:`Itinerary`, or ``None`` if not found.
+        A :class:`PriceResult` with the price and matched itinerary,
+        or ``None`` if the flight was not found.
 
     Example::
 
-        from swoop import search_flight
+        from swoop import check_price
 
-        itin = search_flight("DL 171", origin="JFK", destination="LAX", date="2026-06-15")
-        if itin:
-            print(f"${itin.price}")
+        # One-way
+        result = check_price("DL2300", origin="JFK", destination="LAX", date="2026-06-15")
+        if result:
+            print(f"${result.price}")
+
+        # Roundtrip
+        result = check_price(
+            "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
+            return_flight_number="DL2301", return_date="2026-06-22",
+        )
+        if result:
+            print(f"${result.price} roundtrip")
     """
-    result = search(
-        origin,
-        destination,
-        date,
-        flight_number=flight_number,
+    # Parse outbound flight number for airline filter
+    parsed_carrier, parsed_number = parse_flight_number(flight_number)
+    airlines = [parsed_carrier] if parsed_carrier else None
+
+    validate_search_params(
+        origin, destination, date,
+        return_date=return_date, cabin=cabin, adults=adults,
+    )
+
+    is_roundtrip = return_date is not None
+    rpc_calls = 0
+
+    # For one-way economy, exclude basic economy at the RPC level so
+    # GetShoppingResults returns main cabin prices directly.
+    exclude_basic = (
+        cabin == "economy"
+        and not is_roundtrip
+        and not include_basic_economy
+    )
+
+    # Step 1: Search for outbound flights
+    result = search_raw(
+        origin=origin,
+        destination=destination,
+        date=date,
         cabin=cabin,
         adults=adults,
+        sort=SORT_DEPARTURE_TIME,
         max_stops=max_stops,
+        airlines=airlines,
+        return_date=return_date if is_roundtrip else None,
+        timeout=timeout,
+        retries=retries,
+        exclude_basic_economy=exclude_basic,
+    )
+    rpc_calls += 1
+
+    if result is None:
+        return None
+
+    # Step 2: Find matching outbound itinerary
+    filtered = _filter_by_flight_number(result, parsed_carrier, parsed_number)
+    if filtered is None:
+        return None
+
+    outbound = filtered.best[0] if filtered.best else (filtered.other[0] if filtered.other else None)
+    if outbound is None:
+        return None
+
+    # --- One-way path ---
+    if not is_roundtrip:
+        price = outbound.price
+        if price is None or price <= 0:
+            return None
+        return PriceResult(
+            price=price,
+            itinerary=outbound,
+            rpc_calls=rpc_calls,
+        )
+
+    # --- Roundtrip path ---
+    # Step 2b: Build selected outbound legs for return expansion
+    selected_outbound_legs = _build_selected_legs(outbound)
+    if not selected_outbound_legs:
+        return None
+
+    # Step 3: Search for return flights with selected outbound
+    return_result = search_raw(
+        origin=origin,
+        destination=destination,
+        date=date,
+        cabin=cabin,
+        adults=adults,
+        sort=SORT_DEPARTURE_TIME,
+        max_stops=max_stops,
+        airlines=None,
+        return_date=return_date,
+        selected_outbound_legs=selected_outbound_legs,
         timeout=timeout,
         retries=retries,
     )
-    if result is None:
+    rpc_calls += 1
+
+    if return_result is None:
         return None
-    # Prefer best over other
-    if result.best:
-        return result.best[0]
-    if result.other:
-        return result.other[0]
-    return None
+
+    # Filter return results by return flight number if provided
+    if return_flight_number is not None:
+        ret_carrier, ret_number = parse_flight_number(return_flight_number)
+        return_result = _filter_by_flight_number(return_result, ret_carrier, ret_number)
+        if return_result is None:
+            return None
+
+    return_itin = (
+        return_result.best[0] if return_result.best
+        else (return_result.other[0] if return_result.other else None)
+    )
+    if return_itin is None:
+        return None
+
+    # Step 4: Get booking results for the return itinerary (roundtrip total)
+    try:
+        options = get_booking_results(
+            return_itin,
+            timeout=timeout,
+            retries=retries,
+        )
+        rpc_calls += 1
+    except (SwoopHTTPError, SwoopParseError) as exc:
+        logger.debug("GetBookingResults failed for roundtrip: %s", exc)
+        # Fall back to direct_price from return expansion
+        price = return_itin.price
+        if price is None or price <= 0:
+            return None
+        return PriceResult(
+            price=price,
+            itinerary=return_itin,
+            rpc_calls=rpc_calls,
+        )
+
+    # Select the best non-basic option (or any option if include_basic)
+    if include_basic_economy:
+        eligible = [o for o in options if o.price > 0]
+    else:
+        eligible = [o for o in options if not o.is_basic and o.price > 0]
+
+    if not eligible:
+        # Fall back to direct_price
+        price = return_itin.price
+        if price is None or price <= 0:
+            return None
+        return PriceResult(
+            price=price,
+            itinerary=return_itin,
+            booking_options=options,
+            rpc_calls=rpc_calls,
+        )
+
+    best_option = min(eligible, key=lambda o: o.price)
+    return PriceResult(
+        price=best_option.price,
+        fare_brand=best_option.brand_label or best_option.brand_code or None,
+        is_basic_economy=best_option.is_basic,
+        booking_options=options,
+        itinerary=return_itin,
+        rpc_calls=rpc_calls,
+    )
 
 
 __all__ = [
     # Functions
     "search",
-    "search_flight",
+    "check_price",
     "get_booking_results",
     "search_raw",
     "parse_flight_number",
     "itinerary_matches_flight",
     # Types
+    "PriceResult",
     "SearchResult",
     "Itinerary",
     "Flight",
