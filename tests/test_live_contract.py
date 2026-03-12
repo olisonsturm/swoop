@@ -1,8 +1,14 @@
-"""Manual pre-release contract checks against live Google Flights responses.
+"""Live Google Flights contract canary.
 
-These tests are intentionally marked ``live`` and excluded from normal runs.
-Set ``SWOOP_UPDATE_LIVE_CORPUS=1`` to save fresh raw payloads alongside simple
-metadata under ``tests/fixtures/live_corpus`` while running the suite.
+These tests are marked ``live`` and excluded from normal PR runs. They serve
+two purposes:
+
+1. Manual pre-release verification against the real Google Flights RPCs.
+2. Scheduled canary coverage in GitHub Actions with artifact capture.
+
+Set ``SWOOP_LIVE_ARTIFACT_DIR`` to write raw responses plus decoded summaries
+outside the repo. Set ``SWOOP_UPDATE_LIVE_CORPUS=1`` to also save the same
+artifacts under ``tests/fixtures/live_corpus`` for manual corpus promotion.
 """
 
 from __future__ import annotations
@@ -11,157 +17,335 @@ from datetime import date, timedelta
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 import swoop
 import swoop.rpc as rpc
-from swoop.decoder import Flight, Itinerary, SearchResult
+from swoop.decoder import Itinerary
 
 
 pytestmark = pytest.mark.live
 
 LIVE_FIXTURES = Path(__file__).parent / "fixtures" / "live_corpus"
+ALLOWED_CABIN_BUCKETS = {"economy", "premium-economy", "business", "first", "unknown"}
+ALLOWED_FARE_FAMILIES = {"basic", "standard", "enhanced", "premium", "unknown"}
 
 
-def _future_date(days: int = 45) -> str:
+def _future_date(days: int) -> str:
     return (date.today() + timedelta(days=days)).isoformat()
 
 
-def _maybe_save_payload(name: str, text: str, metadata: dict[str, object]) -> None:
-    if os.environ.get("SWOOP_UPDATE_LIVE_CORPUS") != "1":
-        return
-    LIVE_FIXTURES.mkdir(parents=True, exist_ok=True)
-    (LIVE_FIXTURES / f"{name}.txt").write_text(text)
-    (LIVE_FIXTURES / f"{name}.json").write_text(json.dumps(metadata, indent=2, sort_keys=True))
+def _artifact_roots() -> list[Path]:
+    roots: list[Path] = []
+    artifact_dir = os.environ.get("SWOOP_LIVE_ARTIFACT_DIR")
+    if artifact_dir:
+        roots.append(Path(artifact_dir))
+    if os.environ.get("SWOOP_UPDATE_LIVE_CORPUS") == "1":
+        roots.append(LIVE_FIXTURES)
+
+    deduped: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        key = str(root.resolve())
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(root)
+    return deduped
 
 
-def _capture_shopping_response(origin: str, destination: str, query_date: str) -> str:
-    encoded = rpc._build_f_req(origin, destination, query_date, max_stops=0)
-    res = rpc._http_post(
-        rpc.SHOPPING_RPC_URL,
-        content=f"f.req={encoded}".encode(),
-        timeout=30,
-        retries=1,
-    )
-    return res.text
+def _write_json(path: Path, payload: Any) -> None:
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True))
 
 
-def _capture_booking_response(itinerary: Itinerary) -> str:
-    selected_legs = rpc._build_selected_legs(itinerary)
-    if not itinerary.booking_token or not selected_legs:
-        return ""
-    dep = itinerary.departure_date
-    query_date = f"{dep[0]:04d}-{dep[1]:02d}-{dep[2]:02d}"
-    filters = rpc._build_filters(
-        origin=itinerary.departure_airport_code,
-        destination=itinerary.arrival_airport_code,
-        date=query_date,
-        cabin="economy",
-        adults=1,
-        sort=rpc.SORT_DEPARTURE_TIME,
-    )
-    encoded = rpc._build_booking_f_req(itinerary.booking_token, filters[1], selected_legs)
-    if not encoded:
-        return ""
-    res = rpc._http_post(
-        rpc.BOOKING_RPC_URL,
-        content=f"f.req={encoded}".encode(),
-        timeout=30,
-        retries=1,
-    )
-    return res.text
+def _record_text_artifact(name: str, text: str) -> None:
+    for root in _artifact_roots():
+        root.mkdir(parents=True, exist_ok=True)
+        (root / f"{name}.raw.txt").write_text(text)
+
+
+def _record_json_artifact(name: str, payload: Any) -> None:
+    for root in _artifact_roots():
+        root.mkdir(parents=True, exist_ok=True)
+        _write_json(root / f"{name}.json", payload)
+
+
+def _extract_inner_json(text: str) -> Any:
+    stripped = text.lstrip(")]}'")
+    outer = json.loads(stripped)
+    return json.loads(outer[0][2])
+
+
+def _capture_rpc_texts(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, str]]:
+    captured: list[dict[str, str]] = []
+    original = rpc._http_post
+
+    def wrapped(url: str, content: bytes, *, timeout: int = 90, retries: int = 2) -> Any:
+        response = original(url, content=content, timeout=timeout, retries=retries)
+        captured.append({"url": url, "text": response.text})
+        return response
+
+    monkeypatch.setattr(rpc, "_http_post", wrapped)
+    return captured
+
+
+def _assert_itinerary_fields(itinerary: Itinerary, *, expected_origin: str, expected_destination: str) -> None:
+    assert itinerary.departure_airport_code == expected_origin
+    assert itinerary.arrival_airport_code == expected_destination
+    assert itinerary.airline_code != ""
+    assert itinerary.flights
+    assert itinerary.travel_time > 0
+
+    first_flight = itinerary.flights[0]
+    assert first_flight.airline != ""
+    assert first_flight.flight_number != ""
+    assert first_flight.departure_airport_code == expected_origin
+    assert first_flight.arrival_airport_code != ""
+
+
+def _assert_trip_option(option: Any, query_legs: list[dict[str, str]]) -> None:
+    assert option.price is not None
+    assert option.selector
+    assert len(option.legs) == len(query_legs)
+
+    for leg, expected in zip(option.legs, query_legs):
+        assert leg.origin == expected["origin"]
+        assert leg.destination == expected["destination"]
+        assert leg.date == expected["date"]
+        assert leg.itinerary is not None
+        _assert_itinerary_fields(
+            leg.itinerary,
+            expected_origin=expected["origin"],
+            expected_destination=expected["destination"],
+        )
+
+
+def _trip_report(case_id: str, query_legs: list[dict[str, str]], result: Any, rpc_capture_count: int) -> dict[str, Any]:
+    first = result.results[0]
+    return {
+        "captured_at": date.today().isoformat(),
+        "case_id": case_id,
+        "query_legs": query_legs,
+        "result_count": len(result.results),
+        "rpc_capture_count": rpc_capture_count,
+        "is_complete": result.is_complete,
+        "price_range": (
+            {
+                "low": result.price_range.low,
+                "high": result.price_range.high,
+            }
+            if result.price_range is not None
+            else None
+        ),
+        "first_option": {
+            "price": first.price,
+            "selector_present": bool(first.selector),
+            "legs": [
+                {
+                    "origin": leg.origin,
+                    "destination": leg.destination,
+                    "date": leg.date,
+                    "selection": getattr(leg, "selection", None),
+                    "flight_number": (
+                        leg.itinerary.flights[0].flight_number
+                        if leg.itinerary and leg.itinerary.flights
+                        else None
+                    ),
+                    "airline_code": leg.itinerary.airline_code if leg.itinerary else None,
+                }
+                for leg in first.legs
+            ],
+        },
+    }
+
+
+def _booking_report(case_id: str, itinerary: Itinerary, options: list[Any], rpc_capture_count: int) -> dict[str, Any]:
+    query_date = f"{itinerary.departure_date[0]:04d}-{itinerary.departure_date[1]:02d}-{itinerary.departure_date[2]:02d}"
+    return {
+        "captured_at": date.today().isoformat(),
+        "case_id": case_id,
+        "origin": itinerary.departure_airport_code,
+        "destination": itinerary.arrival_airport_code,
+        "date": query_date,
+        "rpc_capture_count": rpc_capture_count,
+        "option_count": len(options),
+        "options": [
+            {
+                "price": option.price,
+                "brand_label": option.brand_label,
+                "brand_code": option.brand_code,
+                "fare_family": option.fare_family,
+                "cabin_bucket": option._cabin_bucket,
+            }
+            for option in options
+        ],
+    }
+
+
+def _record_shopping_artifacts(case_id: str, rpc_captures: list[dict[str, str]], report: dict[str, Any]) -> None:
+    _record_json_artifact(f"{case_id}.report", report)
+    for index, capture in enumerate(rpc_captures, start=1):
+        prefix = f"{case_id}.rpc{index}"
+        _record_text_artifact(prefix, capture["text"])
+        _record_json_artifact(
+            f"{prefix}.meta",
+            {
+                "url": capture["url"],
+                "request_index": index,
+                "response_bytes": len(capture["text"]),
+            },
+        )
+        if capture["url"] == rpc.SHOPPING_RPC_URL:
+            _record_json_artifact(f"{prefix}.decoded", _extract_inner_json(capture["text"]))
+
+
+def _record_booking_artifacts(case_id: str, rpc_captures: list[dict[str, str]], report: dict[str, Any]) -> None:
+    _record_json_artifact(f"{case_id}.report", report)
+    for index, capture in enumerate(rpc_captures, start=1):
+        prefix = f"{case_id}.rpc{index}"
+        _record_text_artifact(prefix, capture["text"])
+        _record_json_artifact(
+            f"{prefix}.meta",
+            {
+                "url": capture["url"],
+                "request_index": index,
+                "response_bytes": len(capture["text"]),
+            },
+        )
+        if capture["url"] == rpc.BOOKING_RPC_URL:
+            options = rpc._parse_booking_rpc_response(
+                capture["text"],
+                registry_version=date.today().isoformat(),
+            )
+            _record_json_artifact(
+                f"{prefix}.parsed",
+                [
+                    {
+                        "price": option.price,
+                        "brand_label": option.brand_label,
+                        "brand_code": option.brand_code,
+                        "fare_family": option.fare_family,
+                        "cabin_bucket": option._cabin_bucket,
+                    }
+                    for option in options
+                ],
+            )
+
+
+def _find_bookable_itinerary(search_result: Any) -> Itinerary:
+    for option in search_result.results:
+        for leg in option.legs:
+            itinerary = leg.itinerary
+            if itinerary is None:
+                continue
+            if itinerary.booking_token and rpc._build_selected_legs(itinerary):
+                return itinerary
+    raise AssertionError("Expected at least one itinerary with booking token and selected legs")
 
 
 class TestShoppingContract:
-    """Verify raw shopping responses still parse into expected decoded data."""
+    def test_oneway_shopping_canary_has_expected_fields_and_artifacts(self, monkeypatch: pytest.MonkeyPatch):
+        query_legs = [
+            {"origin": "JFK", "destination": "LAX", "date": _future_date(50)},
+        ]
+        rpc_captures = _capture_rpc_texts(monkeypatch)
 
-    def test_raw_shopping_response_decodes_and_can_be_saved(self):
-        query_date = _future_date()
-        text = _capture_shopping_response("JFK", "LAX", query_date)
-        _maybe_save_payload(
-            "shopping_jfk_lax",
-            text,
-            {
-                "captured_at": date.today().isoformat(),
-                "origin": "JFK",
-                "destination": "LAX",
-                "date": query_date,
-                "kind": "shopping",
-            },
+        result = swoop.search(
+            "JFK",
+            "LAX",
+            query_legs[0]["date"],
+            max_stops=0,
+            timeout=30,
+            retries=1,
         )
 
-        result = rpc._parse_rpc_response(text)
-        assert result is not None
-        assert isinstance(result, SearchResult)
-        assert len(result.best) + len(result.other) > 0
+        assert result.results, "Expected at least one live one-way result"
+        assert rpc_captures, "Expected at least one live RPC capture"
+        _assert_trip_option(result.results[0], query_legs)
 
-    def test_oneway_itineraries_have_expected_fields(self):
-        query_date = _future_date()
-        result = swoop.search("JFK", "LAX", query_date, max_stops=0)
-        if result is None:
-            pytest.skip("No results returned")
+        report = _trip_report("shopping_oneway_jfk_lax", query_legs, result, len(rpc_captures))
+        _record_shopping_artifacts("shopping_oneway_jfk_lax", rpc_captures, report)
 
-        all_itins = result.best + result.other
-        assert len(all_itins) > 0, "Expected at least one itinerary"
+    def test_roundtrip_shopping_canary_has_expected_fields_and_artifacts(self, monkeypatch: pytest.MonkeyPatch):
+        outbound = _future_date(50)
+        inbound = _future_date(57)
+        query_legs = [
+            {"origin": "JFK", "destination": "LAX", "date": outbound},
+            {"origin": "LAX", "destination": "JFK", "date": inbound},
+        ]
+        rpc_captures = _capture_rpc_texts(monkeypatch)
 
-        for itin in all_itins[:3]:
-            assert isinstance(itin, Itinerary)
-            assert itin.airline_code != ""
-            assert len(itin.flights) >= 1
-            assert itin.departure_airport_code != ""
-            assert itin.arrival_airport_code != ""
-            assert itin.travel_time > 0
-            assert itin.price is not None
+        result = swoop.search(
+            "JFK",
+            "LAX",
+            outbound,
+            return_date=inbound,
+            max_stops=0,
+            timeout=30,
+            retries=1,
+        )
 
-            for flight in itin.flights:
-                assert isinstance(flight, Flight)
-                assert flight.airline != ""
-                assert flight.flight_number != ""
-                assert flight.departure_airport_code != ""
-                assert flight.arrival_airport_code != ""
+        assert result.results, "Expected at least one live roundtrip result"
+        assert rpc_captures, "Expected at least one live RPC capture"
+        _assert_trip_option(result.results[0], query_legs)
+
+        report = _trip_report("shopping_roundtrip_jfk_lax", query_legs, result, len(rpc_captures))
+        _record_shopping_artifacts("shopping_roundtrip_jfk_lax", rpc_captures, report)
+
+    def test_multileg_shopping_canary_has_expected_fields_and_artifacts(self, monkeypatch: pytest.MonkeyPatch):
+        query_legs = [
+            {"origin": "JFK", "destination": "LAX", "date": _future_date(50)},
+            {"origin": "LAX", "destination": "SFO", "date": _future_date(53)},
+        ]
+        rpc_captures = _capture_rpc_texts(monkeypatch)
+
+        result = swoop.search_legs(
+            [
+                swoop.SearchLeg(
+                    date=leg["date"],
+                    from_airport=leg["origin"],
+                    to_airport=leg["destination"],
+                    max_stops=0,
+                )
+                for leg in query_legs
+            ],
+            timeout=30,
+            retries=1,
+        )
+
+        assert result.results, "Expected at least one live multi-leg result"
+        assert len(rpc_captures) >= 2, "Expected staged multi-leg shopping to make multiple RPC calls"
+        _assert_trip_option(result.results[0], query_legs)
+
+        report = _trip_report("shopping_multileg_jfk_lax_sfo", query_legs, result, len(rpc_captures))
+        _record_shopping_artifacts("shopping_multileg_jfk_lax_sfo", rpc_captures, report)
 
 
 class TestBookingContract:
-    """Verify raw booking responses still parse into usable fare options."""
+    def test_booking_results_parseable_and_artifacted(self, monkeypatch: pytest.MonkeyPatch):
+        query_date = _future_date(50)
+        search_result = swoop.search("JFK", "LAX", query_date, max_stops=0, timeout=30, retries=1)
+        assert search_result.results, "Expected at least one itinerary before live booking lookup"
 
-    def test_booking_results_parseable_and_can_be_saved(self):
-        query_date = _future_date()
-        result = swoop.search("JFK", "LAX", query_date, max_stops=0)
-        if result is None:
-            pytest.skip("No results returned")
-
-        all_itins = result.best + result.other
-        if not all_itins:
-            pytest.skip("No itineraries to check")
-
-        itinerary = next((itin for itin in all_itins if itin.booking_token and rpc._build_selected_legs(itin)), None)
-        if itinerary is None:
-            pytest.skip("No itinerary with booking token + selected legs")
-
-        text = _capture_booking_response(itinerary)
-        if not text:
-            pytest.skip("Could not capture booking response")
-
-        _maybe_save_payload(
-            "booking_jfk_lax",
-            text,
-            {
-                "captured_at": date.today().isoformat(),
-                "origin": itinerary.departure_airport_code,
-                "destination": itinerary.arrival_airport_code,
-                "date": query_date,
-                "kind": "booking",
-            },
+        itinerary = _find_bookable_itinerary(search_result)
+        rpc_captures = _capture_rpc_texts(monkeypatch)
+        options = rpc.get_booking_results(
+            itinerary,
+            registry_version=date.today().isoformat(),
+            timeout=30,
+            retries=1,
         )
 
-        options = rpc._parse_booking_rpc_response(text)
-        assert isinstance(options, list)
-        if not options:
-            pytest.skip("No booking options returned")
+        assert rpc_captures, "Expected a live booking RPC capture"
+        assert options, "Expected at least one booking option from live booking lookup"
 
-        for option in options[:3]:
+        for option in options[:5]:
             assert option.price > 0
             assert option.brand_label or option.brand_code
-            assert option.fare_family in {"basic", "standard", "enhanced", "premium", "unknown"}
-            assert option._cabin_bucket in {"economy", "premium-economy", "business", "first", "unknown"}
+            assert option.fare_family in ALLOWED_FARE_FAMILIES
+            assert option._cabin_bucket in ALLOWED_CABIN_BUCKETS
+
+        report = _booking_report("booking_jfk_lax", itinerary, options, len(rpc_captures))
+        _record_booking_artifacts("booking_jfk_lax", rpc_captures, report)

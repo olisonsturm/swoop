@@ -1,0 +1,30 @@
+{
+  "version": "2026-03-12",
+  "incidents": [
+    {
+      "id": "pricing_business_downshift",
+      "category": "pricing-cabin",
+      "summary": "Exact pricing could return a cheaper economy fare for a business request.",
+      "test_ref": "tests/test_check_price.py::TestCheckPriceRoundtrip::test_roundtrip_business_does_not_downshift_to_economy",
+      "fixture_path": "tests/fixtures/corpus/booking_delta_mixed_response.txt"
+    },
+    {
+      "id": "selector_replay_missing_itinerary",
+      "category": "selector-replay",
+      "summary": "Selector replay must fail cleanly when a previously selected itinerary disappears.",
+      "test_ref": "tests/test_selection.py::TestSelectorReplay::test_resolve_trip_selector_raises_when_itinerary_disappears"
+    },
+    {
+      "id": "booking_parser_partial_drop",
+      "category": "booking-parser",
+      "summary": "Booking parsing should surface partial drops and preserve surviving options.",
+      "test_ref": "tests/test_rpc.py::test_booking_parser_logs_debug_for_partial_drops_and_warning_for_total_drop"
+    },
+    {
+      "id": "decoder_malformed_field_degradation",
+      "category": "decoder-degradation",
+      "summary": "Malformed nested response fields should degrade safely instead of crashing or returning invalid shapes.",
+      "test_ref": "tests/test_chaos.py::TestCorruptLayover::test_various_malformed_layovers[data0]"
+    }
+  ]
+}

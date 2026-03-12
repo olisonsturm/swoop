@@ -2,21 +2,45 @@
   "version": "2026-03-12",
   "shopping": [
     {
-      "id": "shopping_oneway_v1",
+      "id": "shopping_domestic_oneway_v1",
       "path": "responses/shopping_oneway.json",
       "expected": {
         "best_count": 2,
         "other_count": 2,
-        "first_airline_code": "DL"
+        "first_section": "best",
+        "first_airline_code": "DL",
+        "first_origin": "JFK",
+        "first_destination": "LAX",
+        "first_price": 35000,
+        "first_flights": 1
       }
     },
     {
-      "id": "shopping_roundtrip_v1",
-      "path": "responses/shopping_roundtrip.json",
+      "id": "shopping_domestic_roundtrip_v1",
+      "path": "responses/shopping_roundtrip_domestic.json",
       "expected": {
-        "best_count": 1,
-        "other_count": 1,
-        "first_airline_code": "DL"
+        "best_count": 3,
+        "other_count": 26,
+        "first_section": "best",
+        "first_airline_code": "B6",
+        "first_origin": "JFK",
+        "first_destination": "LAX",
+        "first_price": 317,
+        "first_flights": 1
+      }
+    },
+    {
+      "id": "shopping_multileg_stage_v1",
+      "path": "responses/shopping_multileg.json",
+      "expected": {
+        "best_count": 0,
+        "other_count": 9,
+        "first_section": "other",
+        "first_airline_code": "DL",
+        "first_origin": "JFK",
+        "first_destination": "LAX",
+        "first_price": 307,
+        "first_flights": 1
       }
     }
   ],
@@ -28,7 +52,19 @@
       "expected": {
         "prices": [249, 319, 689],
         "brands": ["Delta Main Basic", "Premium Select", "Delta One"],
-        "cabin_buckets": ["economy", "premium-economy", "business"]
+        "cabin_buckets": ["economy", "premium-economy", "business"],
+        "fare_families": ["basic", "premium", "unknown"]
+      }
+    },
+    {
+      "id": "booking_jfk_lax_blue_v1",
+      "path": "corpus/booking_jfk_lax_blue_response.txt",
+      "registry_version": "2026-03-12",
+      "expected": {
+        "prices": [159, 204, 239, 383],
+        "brands": ["Blue Basic", "Blue", "Blue Extra", "Even More"],
+        "cabin_buckets": ["economy", "unknown", "unknown", "unknown"],
+        "fare_families": ["basic", "unknown", "unknown", "unknown"]
       }
     }
   ]
