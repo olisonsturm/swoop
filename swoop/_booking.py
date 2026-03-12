@@ -288,7 +288,11 @@ def _classify_fare_family(brand_code: str, brand_label: str, *, is_basic: bool) 
 
 
 def _classify_cabin_bucket(brand_code: str, brand_label: str) -> str:
-    """Classify the requested cabin represented by a booking-option brand."""
+    """Classify the requested cabin represented by a booking-option brand.
+
+    Checks run highest-cabin-first so that e.g. "ECONOMY PLUS" matches
+    premium-economy before the broader "ECONOMY" rule in the economy tier.
+    """
     haystack = f"{brand_code} {brand_label}".upper().strip()
     if not haystack:
         return "unknown"

@@ -78,7 +78,11 @@ def _safe_tuple(val: Any, length: int, defaults: list) -> tuple:
 
 
 def _safe_int(value: Any, default: int = 0) -> int:
-    """Convert malformed scalar-like values to a safe integer."""
+    """Convert malformed scalar-like values to a safe non-negative integer.
+
+    Negative values are treated as corrupt and silently replaced with *default*
+    so that downstream fields like ``travel_time`` and ``minutes`` stay >= 0.
+    """
     if isinstance(value, bool):
         return default
     try:
