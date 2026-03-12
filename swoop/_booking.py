@@ -308,16 +308,23 @@ def _classify_cabin_bucket(brand_code: str, brand_label: str) -> str:
             "PREMIUM SELECT",
             "PREMIUM PLUS",
             "PREM ECON",
-            "ECONOMY PLUS",
-            "COMFORT+",
-            "COMFORT PLUS",
-            "MAIN CABIN EXTRA",
         )
     ):
         return "premium-economy"
     if any(
         token in haystack
-        for token in ("BASIC", "MAIN CABIN", "MAIN CLASSIC", "ECONOMY", "COACH", "STANDARD")
+        for token in (
+            "BASIC",
+            "MAIN CABIN",
+            "MAIN CLASSIC",
+            "MAIN CABIN EXTRA",
+            "ECONOMY",
+            "ECONOMY PLUS",
+            "COMFORT+",
+            "COMFORT PLUS",
+            "COACH",
+            "STANDARD",
+        )
     ):
         return "economy"
     return "unknown"

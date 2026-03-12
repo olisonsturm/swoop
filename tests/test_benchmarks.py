@@ -1,12 +1,15 @@
 """Performance benchmarks for critical swoop functions.
 
 Run with: pytest tests/test_benchmarks.py --benchmark-only
-Skip in normal test runs: pytest addopts passes --benchmark-skip by default.
+Normal test runs skip this module unless --run-benchmarks is supplied.
 """
 
 import json
 
 import pytest
+
+pytest.importorskip("pytest_benchmark")
+pytestmark = pytest.mark.benchmark
 
 from swoop.decoder import _decode_flight, _decode_itinerary, decode_result
 from swoop.rpc import _build_f_req

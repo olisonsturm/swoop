@@ -336,6 +336,7 @@ Issues and pull requests welcome at [github.com/saraswatayu/swoop](https://githu
 Testing notes:
 
 - Push and PR CI runs the deterministic offline suite only: `python -m pytest tests/ -v -m 'not live'`
+- Benchmarks are opt-in and stay skipped in normal runs unless you pass `--run-benchmarks` (or use `--benchmark-only`).
 - Live Google canaries run separately in the `live-canary` workflow on a weekly schedule or by manual dispatch.
 - Mutation testing is available by manual dispatch in the `mutation` workflow and is scoped to `_selection`, `_booking`, `decoder`, and `rpc`.
 - Real-world bugs should be added to the incident regression bank in [`tests/incidents/manifest.json`](tests/incidents/manifest.json) with a linked regression test or sanitized fixture.

@@ -580,3 +580,43 @@ class TestExactPricing:
         assert result.price == 1199
         assert result.fare_brand is None
         assert result.booking_options == options
+
+    def test_price_selected_trip_does_not_treat_extra_legroom_economy_as_premium(self, monkeypatch):
+        request_legs = [
+            {"origin": "JFK", "destination": "LAX", "date": "2026-04-15"},
+            {"origin": "LAX", "destination": "JFK", "date": "2026-04-20"},
+        ]
+        itineraries = [
+            _make_itinerary(
+                origin="JFK",
+                destination="LAX",
+                date="2026-04-15",
+                airline="DL",
+                flight_number="2300",
+                price=449,
+                booking_token="token-out",
+            ),
+            _make_itinerary(
+                origin="LAX",
+                destination="JFK",
+                date="2026-04-20",
+                airline="DL",
+                flight_number="2301",
+                price=1199,
+                booking_token="token-return",
+            ),
+        ]
+        options = [_booking_option(319, "Economy Plus", "economy")]
+        monkeypatch.setattr(selection, "fetch_trip_booking_options", lambda *_args, **_kwargs: options)
+
+        result = selection.price_selected_trip(
+            request_legs,
+            itineraries,
+            cabin="premium-economy",
+            include_basic_economy=False,
+        )
+
+        assert result is not None
+        assert result.price == 1199
+        assert result.fare_brand is None
+        assert result.booking_options == options
