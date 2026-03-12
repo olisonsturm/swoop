@@ -555,6 +555,7 @@ def test_attribute_and_fare_classification_helpers() -> None:
     assert rpc._classify_fare_family("ECONOMY", "Economy", is_basic=False) == "standard"
     assert rpc._classify_fare_family("ECONOMY PLUS", "Economy Plus", is_basic=False) == "enhanced"
     assert rpc._classify_fare_family("MYSTERY", "Mystery", is_basic=False) == "unknown"
+    assert rpc._classify_cabin_bucket("", "") == "unknown"
     assert rpc._classify_cabin_bucket("DELTA MAIN BASIC", "Delta Main Basic") == "economy"
     assert rpc._classify_cabin_bucket("PREMIUM SELECT", "Premium Select") == "premium-economy"
     assert rpc._classify_cabin_bucket("DELTA ONE", "Delta One") == "business"

@@ -575,6 +575,8 @@ class TestExactPricing:
         )
 
         assert result is not None
+        # No business-cabin booking option exists, so the function falls back
+        # to the last itinerary's direct_price rather than a booking option price.
         assert result.price == 1199
         assert result.fare_brand is None
         assert result.booking_options == options
