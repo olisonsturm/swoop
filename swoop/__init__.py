@@ -20,7 +20,7 @@ Basic usage::
         print(bookable.price)
 """
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 from .decoder import (
     AmenityFlags,
