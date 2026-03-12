@@ -238,23 +238,23 @@ def _eligible_booking_options(
             return [
                 option
                 for option in priced
-                if getattr(option, "_cabin_bucket", "") in ("", "economy", "unknown")
+                if option._cabin_bucket in ("", "economy", "unknown")
             ]
         return [
             option
             for option in priced
             if not option.is_basic
-            and getattr(option, "_cabin_bucket", "") in ("", "economy", "unknown")
+            and option._cabin_bucket in ("", "economy", "unknown")
         ]
 
     exact_bucket = [
-        option for option in priced if getattr(option, "_cabin_bucket", "") == cabin
+        option for option in priced if option._cabin_bucket == cabin
     ]
     if exact_bucket:
         return exact_bucket
 
     return [
-        option for option in priced if getattr(option, "_cabin_bucket", "") == "unknown"
+        option for option in priced if option._cabin_bucket == "unknown"
     ]
 
 
