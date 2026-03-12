@@ -9,6 +9,26 @@ import pytest
 from tests.factories import FakeHTTPResponse
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--run-benchmarks",
+        action="store_true",
+        default=False,
+        help="run tests marked as benchmark",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    benchmark_only = bool(getattr(config.option, "benchmark_only", False))
+    if config.getoption("--run-benchmarks") or benchmark_only:
+        return
+
+    skip_benchmark = pytest.mark.skip(reason="use --run-benchmarks to run benchmark tests")
+    for item in items:
+        if "benchmark" in item.keywords:
+            item.add_marker(skip_benchmark)
+
+
 @pytest.fixture
 def fake_primp(monkeypatch):
     """Patch primp.Client to return canned responses.

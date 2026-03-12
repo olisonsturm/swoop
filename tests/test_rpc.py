@@ -355,6 +355,7 @@ class TestBookingRequestHelpers:
         assert options[0]["_context_carrier_code"] == "DL"
         assert options[0]["_context_flight_number"] == "4938"
         assert options[0]["_context_aircraft_code"] == "CR9"
+        assert options[0]["_cabin_bucket"] == "economy"
         assert options[0]["fare_family"] == "basic"
         assert options[0]["rebookability_signal"] == "restricted"
         assert options[0]["_registry_version"] == "2026-02-21"
@@ -364,6 +365,7 @@ class TestBookingRequestHelpers:
         assert options[1]["brand_code"] == "DELTA MAIN CLASSIC"
         assert options[1]["is_basic"] is False
         assert options[1]["_option_index"] == 1
+        assert options[1]["_cabin_bucket"] == "economy"
         assert options[1]["fare_family"] == "standard"
         assert options[1]["rebookability_signal"] == "standard_rebookable"
 
@@ -553,6 +555,15 @@ def test_attribute_and_fare_classification_helpers() -> None:
     assert rpc._classify_fare_family("ECONOMY", "Economy", is_basic=False) == "standard"
     assert rpc._classify_fare_family("ECONOMY PLUS", "Economy Plus", is_basic=False) == "enhanced"
     assert rpc._classify_fare_family("MYSTERY", "Mystery", is_basic=False) == "unknown"
+    assert _booking._classify_cabin_bucket("", "") == "unknown"
+    assert _booking._classify_cabin_bucket("DELTA MAIN BASIC", "Delta Main Basic") == "economy"
+    assert _booking._classify_cabin_bucket("ECONOMY PLUS", "Economy Plus") == "economy"
+    assert _booking._classify_cabin_bucket("COMFORT+", "Comfort+") == "economy"
+    assert _booking._classify_cabin_bucket("MAIN CABIN EXTRA", "Main Cabin Extra") == "economy"
+    assert _booking._classify_cabin_bucket("PREMIUM SELECT", "Premium Select") == "premium-economy"
+    assert _booking._classify_cabin_bucket("DELTA ONE", "Delta One") == "business"
+    assert _booking._classify_cabin_bucket("FIRST", "First") == "first"
+    assert _booking._classify_cabin_bucket("MYSTERY", "Mystery") == "unknown"
 
     assert rpc._infer_rebookability_signal("basic", is_basic=True) == "restricted"
     assert rpc._infer_rebookability_signal("standard", is_basic=False) == "standard_rebookable"

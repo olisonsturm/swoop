@@ -226,10 +226,36 @@ def fetch_trip_booking_options(
     )
 
 
-def _eligible_booking_options(options: list, include_basic_economy: bool) -> list:
-    if include_basic_economy:
-        return [option for option in options if option.price > 0]
-    return [option for option in options if not option.is_basic and option.price > 0]
+def _eligible_booking_options(
+    options: list,
+    include_basic_economy: bool,
+    *,
+    cabin: str,
+) -> list:
+    priced = [option for option in options if option.price > 0]
+    if cabin == "economy":
+        if include_basic_economy:
+            return [
+                option
+                for option in priced
+                if option._cabin_bucket in ("", "economy", "unknown")
+            ]
+        return [
+            option
+            for option in priced
+            if not option.is_basic
+            and option._cabin_bucket in ("", "economy", "unknown")
+        ]
+
+    exact_bucket = [
+        option for option in priced if option._cabin_bucket == cabin
+    ]
+    if exact_bucket:
+        return exact_bucket
+
+    return [
+        option for option in priced if option._cabin_bucket == "unknown"
+    ]
 
 
 def correct_trip_option_prices(
@@ -261,7 +287,11 @@ def correct_trip_option_prices(
         except (SwoopHTTPError, SwoopParseError) as exc:
             logger.debug("Trip booking correction failed: %s", exc)
             continue
-        eligible = _eligible_booking_options(booking_options, include_basic_economy)
+        eligible = _eligible_booking_options(
+            booking_options,
+            include_basic_economy,
+            cabin=cabin,
+        )
         if not eligible:
             continue
         option.price = min(eligible, key=lambda booking_option: booking_option.price).price
@@ -498,7 +528,11 @@ def price_selected_trip(
         booking_options = []
 
     if booking_options:
-        eligible = _eligible_booking_options(booking_options, include_basic_economy)
+        eligible = _eligible_booking_options(
+            booking_options,
+            include_basic_economy,
+            cabin=cabin,
+        )
         if eligible:
             best_option = min(eligible, key=lambda option: option.price)
             return PriceResult(

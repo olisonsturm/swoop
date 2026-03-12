@@ -12,6 +12,9 @@ from swoop.decoder import (
     _decode_itinerary,
     _decode_layover,
     _safe_get,
+    Flight,
+    Itinerary,
+    Layover,
     decode_result,
     SearchResult,
 )
@@ -40,6 +43,16 @@ nested_lists = st.recursive(
 
 # Generates arbitrary paths for _safe_get
 paths = st.lists(st.integers(0, 20), max_size=5)
+missing_paths = st.lists(st.integers(50, 100), min_size=1, max_size=5)
+
+
+def _reference_safe_get(data, path, default=None):
+    value = data
+    for index in path:
+        if not isinstance(value, list) or index >= len(value):
+            return default
+        value = value[index]
+    return value
 
 
 class TestSafeGetProperty:
@@ -48,19 +61,12 @@ class TestSafeGetProperty:
     @given(data=nested_lists, path=paths)
     @settings(max_examples=200, suppress_health_check=[HealthCheck.too_slow])
     def test_never_raises(self, data, path):
-        # Must never raise — always returns a value or None
-        result = _safe_get(data, path)
-        # Result is either the value or the default (None)
-        assert result is not None or result is None  # Always true, verifies no exception
+        assert _safe_get(data, path) == _reference_safe_get(data, path)
 
-    @given(data=nested_lists, path=paths, default=st.text())
+    @given(data=nested_lists, path=missing_paths, default=st.text())
     @settings(max_examples=100)
     def test_default_returned_on_miss(self, data, path, default):
-        result = _safe_get(data, path, default)
-        # When we can't traverse, we get the default
-        if result is not default:
-            # We successfully traversed — result is from data
-            pass
+        assert _safe_get(data, path, default) == default
 
 
 class TestDecodeFlightProperty:
@@ -70,10 +76,14 @@ class TestDecodeFlightProperty:
     @settings(max_examples=200, suppress_health_check=[HealthCheck.too_slow])
     def test_never_crashes(self, data):
         result = _decode_flight(data)
-        # Must return a Flight or None, never raise
         if result is not None:
-            assert hasattr(result, "airline")
-            assert hasattr(result, "flight_number")
+            assert isinstance(result, Flight)
+            assert isinstance(result.codeshares, list)
+            assert len(result.departure_date) == 3
+            assert len(result.arrival_date) == 3
+            assert len(result.departure_time) == 2
+            assert len(result.arrival_time) == 2
+            assert result.travel_time >= 0
 
 
 class TestDecodeItineraryProperty:
@@ -83,10 +93,12 @@ class TestDecodeItineraryProperty:
     @settings(max_examples=200, suppress_health_check=[HealthCheck.too_slow])
     def test_never_crashes(self, data):
         result = _decode_itinerary(data)
-        # Must return an Itinerary or None
         if result is not None:
-            assert hasattr(result, "flights")
-            assert hasattr(result, "airline_code")
+            assert isinstance(result, Itinerary)
+            assert isinstance(result.flights, list)
+            assert isinstance(result.layovers, list)
+            assert result.travel_time >= 0
+            assert result.price is None or isinstance(result.price, int)
 
 
 class TestDecodeLayoverProperty:
@@ -101,7 +113,8 @@ class TestDecodeLayoverProperty:
     def test_never_crashes(self, data):
         result = _decode_layover(data)
         if result is not None:
-            assert hasattr(result, "minutes")
+            assert isinstance(result, Layover)
+            assert result.minutes >= 0
 
 
 class TestDecodeResultProperty:
@@ -114,6 +127,7 @@ class TestDecodeResultProperty:
         assert isinstance(result, SearchResult)
         assert isinstance(result.best, list)
         assert isinstance(result.other, list)
+        assert all(isinstance(itinerary, Itinerary) for itinerary in result.best + result.other)
 
 
 class TestValidatorProperties:

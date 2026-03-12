@@ -342,7 +342,7 @@ class TestSearchCommand:
     @patch("swoop.cli.commands._run_search")
     def test_no_results(self, mock_search):
         mock_search.return_value = SearchResult(results=[])
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "search", "JFK", "LAX", "2026-06-15", "-q",
         ])
@@ -350,7 +350,7 @@ class TestSearchCommand:
         assert "No flights found" in result.stderr
 
     def test_bad_iata(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "search", "XY", "LAX", "2026-06-15", "-q",
         ])
@@ -358,7 +358,7 @@ class TestSearchCommand:
         assert "not a valid IATA" in result.stderr
 
     def test_bad_date(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "search", "JFK", "LAX", "2026-13-45", "-q",
         ])
@@ -392,7 +392,7 @@ class TestSearchCommand:
     def test_rate_limit_error(self, mock_search):
         from swoop.exceptions import SwoopRateLimitError
         mock_search.side_effect = SwoopRateLimitError()
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "search", "JFK", "LAX", "2026-06-15", "-q",
         ])
@@ -403,7 +403,7 @@ class TestSearchCommand:
     def test_http_error(self, mock_search):
         from swoop.exceptions import SwoopHTTPError
         mock_search.side_effect = SwoopHTTPError(500)
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "search", "JFK", "LAX", "2026-06-15", "-q",
         ])
@@ -414,7 +414,7 @@ class TestSearchCommand:
     def test_parse_error(self, mock_search):
         from swoop.exceptions import SwoopParseError
         mock_search.side_effect = SwoopParseError("bad")
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "search", "JFK", "LAX", "2026-06-15", "-q",
         ])
@@ -424,7 +424,7 @@ class TestSearchCommand:
     @patch("swoop.cli.commands._run_search")
     def test_validation_error(self, mock_search):
         mock_search.side_effect = ValueError("origin must be valid")
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "search", "JFK", "LAX", "2026-06-15", "-q",
         ])
@@ -501,7 +501,7 @@ class TestSearchCommand:
         assert "2. swoop price --selector 'selector-2'" not in result.output
 
     def test_show_price_commands_rejects_json(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "search", "JFK", "LAX", "2026-06-15", "--show-price-commands", "-o", "json", "-q",
         ])
@@ -509,7 +509,7 @@ class TestSearchCommand:
         assert "--show-price-commands is only supported with table or brief output" in result.stderr
 
     def test_show_price_commands_rejects_csv(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "search", "JFK", "LAX", "2026-06-15", "--show-price-commands", "-o", "csv", "-q",
         ])
@@ -621,14 +621,14 @@ class TestPriceCommand:
     @patch("swoop.check_price")
     def test_price_not_found(self, mock_check):
         mock_check.return_value = None
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300", "-q",
         ])
         assert result.exit_code == 1
 
     def test_price_missing_depart(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, ["price", "JFK", "LAX"])
         assert result.exit_code == 2
         assert "--depart is required" in result.stderr
@@ -678,7 +678,7 @@ class TestPriceCommand:
 
     def test_price_shorthand_and_leg_error(self):
         """Shorthand + --leg is an error."""
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300",
             "--leg", "JFK", "LAX", "2026-06-15", "DL2300",
@@ -687,7 +687,7 @@ class TestPriceCommand:
         assert "mutually exclusive" in result.stderr
 
     def test_price_return_requires_depart(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "price", "JFK", "LAX", "--return", "2026-06-22", "DL2301",
         ])
@@ -695,7 +695,7 @@ class TestPriceCommand:
         assert "--return requires --depart" in result.stderr
 
     def test_price_depart_requires_route_args(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "price", "--depart", "2026-06-15", "DL2300",
         ])
@@ -703,7 +703,7 @@ class TestPriceCommand:
         assert "ORIGIN DESTINATION are required" in result.stderr
 
     def test_price_legacy_positional_fails_cleanly(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "price", "DL2300", "JFK", "LAX", "2026-06-15",
         ])
@@ -711,7 +711,7 @@ class TestPriceCommand:
         assert "not a valid iata airport code" in result.stderr.lower()
 
     def test_price_legacy_return_flag_fails_cleanly(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, [
             "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300", "--return-date", "2026-06-22",
         ])

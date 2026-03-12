@@ -1,0 +1,28 @@
+name: mutation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  mutmut:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: pip install -e ".[validation,cli]" && pip install pytest hypothesis pytest-benchmark mutmut
+      - name: Run targeted mutation testing
+        continue-on-error: true
+        run: mutmut run
+      - name: Export mutation results
+        if: always()
+        run: mutmut results > mutmut-results.txt || true
+      - name: Upload mutation results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutmut-results
+          path: mutmut-results.txt
+          if-no-files-found: warn
