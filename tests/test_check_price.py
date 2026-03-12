@@ -263,6 +263,52 @@ class TestCheckPriceRoundtrip:
         assert result.price == 580
         assert result.is_basic_economy is True
 
+    def test_roundtrip_business_does_not_downshift_to_economy(self):
+        """Business pricing should ignore cheaper lower-cabin booking options."""
+        outbound_itin = Itinerary(
+            flights=[Flight(
+                airline="DL", flight_number="2300",
+                departure_airport_code="JFK", arrival_airport_code="LAX",
+                departure_date=(2026, 6, 15), departure_time=(8, 30),
+                arrival_date=(2026, 6, 15), arrival_time=(11, 45),
+            )],
+            direct_price=900,
+            booking_token="outbound-token",
+        )
+        return_itin = Itinerary(
+            flights=[Flight(
+                airline="DL", flight_number="2301",
+                departure_airport_code="LAX", arrival_airport_code="JFK",
+                departure_date=(2026, 6, 22), departure_time=(14, 0),
+                arrival_date=(2026, 6, 22), arrival_time=(22, 15),
+            )],
+            direct_price=1400,
+            booking_token="return-token",
+        )
+        outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
+        return_result = SearchResult(_raw=[], best=[return_itin], other=[])
+        booking_options = [
+            BookingOption(price=520, brand_label="Main Cabin", is_basic=False, _cabin_bucket="economy"),
+            BookingOption(price=1450, brand_label="Delta One", is_basic=False, _cabin_bucket="business"),
+        ]
+
+        def mock_search_from_legs(legs, **kwargs):
+            if legs[0].get("selected_legs") is not None:
+                return return_result
+            return outbound_result
+
+        with patch("swoop._selection._search_from_legs", side_effect=mock_search_from_legs), \
+             patch("swoop._selection.fetch_trip_booking_options", return_value=booking_options):
+            result = check_price(
+                "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
+                return_flight_number="DL2301", return_date="2026-06-22",
+                cabin="business",
+            )
+
+        assert result is not None
+        assert result.price == 1450
+        assert result.fare_brand == "Delta One"
+
     def test_roundtrip_returns_none_when_outbound_not_found(self):
         """Returns None if outbound flight not found."""
         empty_result = SearchResult(_raw=[], best=[], other=[])

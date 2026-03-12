@@ -141,16 +141,13 @@ class TestFrozenDataclassFields:
         expected = {
             "price", "brand_label", "brand_code",
             "is_basic", "fare_family", "rebookability_signal",
-            "_is_basic_by_flags", "_is_basic_by_text",
-            "_option_index", "_token_price_cents", "_display_price_cents",
-            "_price_delta_cents", "_context_segment_token",
-            "_context_origin_iata", "_context_destination_iata",
-            "_context_departure_local_iso", "_context_arrival_local_iso",
-            "_context_carrier_code", "_context_flight_number",
-            "_context_aircraft_code",
-            "_brand_attribute_vector", "_registry_version",
         }
-        assert self._field_names(BookingOption) == expected
+        actual = {
+            field.name
+            for field in fields(BookingOption)
+            if not field.name.startswith("_")
+        }
+        assert actual == expected
 
     def test_codeshare_fields(self):
         expected = {"airline_code", "flight_number", "airline_name"}

@@ -287,6 +287,38 @@ def _classify_fare_family(brand_code: str, brand_label: str, *, is_basic: bool) 
     return "unknown"
 
 
+def _classify_cabin_bucket(brand_code: str, brand_label: str) -> str:
+    """Classify the requested cabin represented by a booking-option brand."""
+    haystack = f"{brand_code} {brand_label}".upper().strip()
+    if not haystack:
+        return "unknown"
+
+    if any(token in haystack for token in ("FIRST", "LA PREMIERE", "SUITE")):
+        return "first"
+    if any(token in haystack for token in ("BUSINESS", "DELTA ONE", "POLARIS", "UPPER CLASS", "MINT")):
+        return "business"
+    if any(
+        token in haystack
+        for token in (
+            "PREMIUM ECONOMY",
+            "PREMIUM SELECT",
+            "PREMIUM PLUS",
+            "PREM ECON",
+            "ECONOMY PLUS",
+            "COMFORT+",
+            "COMFORT PLUS",
+            "MAIN CABIN EXTRA",
+        )
+    ):
+        return "premium-economy"
+    if any(
+        token in haystack
+        for token in ("BASIC", "MAIN CABIN", "MAIN CLASSIC", "ECONOMY", "COACH", "STANDARD")
+    ):
+        return "economy"
+    return "unknown"
+
+
 def _infer_rebookability_signal(fare_family: str, *, is_basic: bool) -> str:
     """Infer user-facing rebookability signal for observability."""
     if is_basic or fare_family == "basic":
@@ -392,6 +424,7 @@ def _parse_booking_rpc_response(
         is_basic_by_text = "BASIC" in f"{brand_label} {brand_code}".upper()
         is_basic = is_basic_by_flags or is_basic_by_text
         fare_family = _classify_fare_family(brand_code, brand_label, is_basic=is_basic)
+        cabin_bucket = _classify_cabin_bucket(brand_code, brand_label)
         rebookability_signal = _infer_rebookability_signal(fare_family, is_basic=is_basic)
         attribute_vector = _normalize_attribute_vector(_safe_get(brand_block, [1], []))
 
@@ -416,6 +449,7 @@ def _parse_booking_rpc_response(
             _context_carrier_code=segment_identity.get("context_carrier_code"),
             _context_flight_number=segment_identity.get("context_flight_number"),
             _context_aircraft_code=segment_identity.get("context_aircraft_code"),
+            _cabin_bucket=cabin_bucket,
             _brand_attribute_vector=attribute_vector,
             _registry_version=registry_version,
         )

@@ -13,6 +13,7 @@ import urllib.parse
 from typing import Any, Optional
 
 from ._booking import (
+    _classify_cabin_bucket,
     _classify_fare_family,
     _extract_brand_block,
     _extract_context_tokens,

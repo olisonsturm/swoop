@@ -30,9 +30,11 @@ class TestCorruptFlightSegment:
         corrupted = copy.deepcopy(valid_segment)
         corrupted[index] = None
         result = _decode_flight(corrupted)
-        # Must not crash — returns Flight or None
         if result is not None:
-            assert hasattr(result, "airline")
+            assert isinstance(result.codeshares, list)
+            assert len(result.departure_date) == 3
+            assert len(result.arrival_time) == 2
+            assert result.travel_time >= 0
 
     @pytest.mark.parametrize("index", range(33))
     def test_corrupt_with_string(self, valid_segment, index):
@@ -40,7 +42,8 @@ class TestCorruptFlightSegment:
         corrupted[index] = "corrupted"
         result = _decode_flight(corrupted)
         if result is not None:
-            assert hasattr(result, "airline")
+            assert isinstance(result.codeshares, list)
+            assert result.travel_time >= 0
 
     @pytest.mark.parametrize("index", range(33))
     def test_corrupt_with_empty_list(self, valid_segment, index):
@@ -48,7 +51,8 @@ class TestCorruptFlightSegment:
         corrupted[index] = []
         result = _decode_flight(corrupted)
         if result is not None:
-            assert hasattr(result, "airline")
+            assert isinstance(result.codeshares, list)
+            assert result.travel_time >= 0
 
 
 class TestCorruptItinerary:
@@ -64,13 +68,19 @@ class TestCorruptItinerary:
         corrupted = copy.deepcopy(valid_element)
         corrupted[index] = None
         result = _decode_itinerary(corrupted)
-        # Must not crash
+        if result is not None:
+            assert isinstance(result.flights, list)
+            assert isinstance(result.layovers, list)
+            assert result.price is None or isinstance(result.price, int)
 
     @pytest.mark.parametrize("index", range(11))
     def test_corrupt_root_with_string(self, valid_element, index):
         corrupted = copy.deepcopy(valid_element)
         corrupted[index] = "bad"
         result = _decode_itinerary(corrupted)
+        if result is not None:
+            assert isinstance(result.flights, list)
+            assert isinstance(result.layovers, list)
 
     def test_itin_data_is_string(self, valid_element):
         corrupted = copy.deepcopy(valid_element)
@@ -158,6 +168,5 @@ class TestCorruptLayover:
     ])
     def test_various_malformed_layovers(self, data):
         result = _decode_layover(data)
-        # Must not crash
         if result is not None:
-            assert hasattr(result, "minutes")
+            assert result.minutes >= 0

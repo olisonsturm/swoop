@@ -229,9 +229,9 @@ def test_price_legs_accepts_more_than_two_legs(monkeypatch):
 def test_search_raw_rate_limit_raises_specific_error(fake_primp):
     """429 should raise SwoopRateLimitError, not generic SwoopHTTPError."""
     fake_primp(429, "")
-
-    with pytest.raises(SwoopRateLimitError) as exc_info:
-        swoop.search("JFK", "LAX", "2026-06-01")
+    with patch("time.sleep", lambda _: None):
+        with pytest.raises(SwoopRateLimitError) as exc_info:
+            swoop.search("JFK", "LAX", "2026-06-01")
 
     assert exc_info.value.status_code == 429
     assert isinstance(exc_info.value, SwoopHTTPError)  # subclass check

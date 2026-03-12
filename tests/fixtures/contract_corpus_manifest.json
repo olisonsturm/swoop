@@ -1,0 +1,35 @@
+{
+  "version": "2026-03-12",
+  "shopping": [
+    {
+      "id": "shopping_oneway_v1",
+      "path": "responses/shopping_oneway.json",
+      "expected": {
+        "best_count": 2,
+        "other_count": 2,
+        "first_airline_code": "DL"
+      }
+    },
+    {
+      "id": "shopping_roundtrip_v1",
+      "path": "responses/shopping_roundtrip.json",
+      "expected": {
+        "best_count": 1,
+        "other_count": 1,
+        "first_airline_code": "DL"
+      }
+    }
+  ],
+  "booking": [
+    {
+      "id": "booking_delta_mixed_v1",
+      "path": "corpus/booking_delta_mixed_response.txt",
+      "registry_version": "2026-03-12",
+      "expected": {
+        "prices": [249, 319, 689],
+        "brands": ["Delta Main Basic", "Premium Select", "Delta One"],
+        "cabin_buckets": ["economy", "premium-economy", "business"]
+      }
+    }
+  ]
+}

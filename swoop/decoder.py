@@ -77,6 +77,19 @@ def _safe_tuple(val: Any, length: int, defaults: list) -> tuple:
     return tuple(defaults[:length])
 
 
+def _safe_int(value: Any, default: int = 0) -> int:
+    """Convert malformed scalar-like values to a safe integer."""
+    if isinstance(value, bool):
+        return default
+    try:
+        if isinstance(value, (int, float, str)):
+            coerced = int(value)
+            return coerced if coerced >= 0 else default
+    except (OverflowError, TypeError, ValueError):
+        return default
+    return default
+
+
 @dataclass
 class Codeshare:
     airline_code: str = ""
@@ -226,6 +239,7 @@ class BookingOption:
     _context_carrier_code: Optional[str] = None
     _context_flight_number: Optional[str] = None
     _context_aircraft_code: Optional[str] = None
+    _cabin_bucket: str = ""
     _brand_attribute_vector: List = field(default_factory=list)
     _registry_version: Optional[str] = None
 
@@ -304,7 +318,7 @@ def _decode_flight(el: list) -> Optional[Flight]:
             arrival_airport_name=str(_safe_get(el, [5], "") or ""),
             departure_time=_safe_tuple(_safe_get(el, [8]), 2, [0, 0]),
             arrival_time=_safe_tuple(_safe_get(el, [10]), 2, [0, 0]),
-            travel_time=_safe_get(el, [11], 0) or 0,
+            travel_time=_safe_int(_safe_get(el, [11], 0), 0),
             seat_pitch_short=str(_safe_get(el, [14], "") or ""),
             aircraft=str(_safe_get(el, [17], "") or ""),
             departure_date=_safe_tuple(_safe_get(el, [20]), 3, [0, 0, 0]),
@@ -332,7 +346,7 @@ def _decode_layover(el: list) -> Optional[Layover]:
         is_overnight = _safe_get(el, [3, 0]) == 1
 
         return Layover(
-            minutes=_safe_get(el, [0], 0) or 0,
+            minutes=_safe_int(_safe_get(el, [0], 0), 0),
             departure_airport_code=str(_safe_get(el, [1], "") or ""),
             arrival_airport_code=str(_safe_get(el, [2], "") or ""),
             departure_airport_name=str(_safe_get(el, [4], "") or ""),
@@ -457,7 +471,7 @@ def _decode_itinerary(el: list) -> Optional[Itinerary]:
             arrival_airport_code=str(_safe_get(itin_data, [6], "") or ""),
             arrival_date=_safe_tuple(_safe_get(itin_data, [7]), 3, [0, 0, 0]),
             arrival_time=_safe_tuple(_safe_get(itin_data, [8]), 2, [0, 0]),
-            travel_time=_safe_get(itin_data, [9], 0) or 0,
+            travel_time=_safe_int(_safe_get(itin_data, [9], 0), 0),
             price_info=summary,
             direct_price=direct_price,
             booking_token=booking_token,

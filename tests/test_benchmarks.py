@@ -1,7 +1,7 @@
 """Performance benchmarks for critical swoop functions.
 
 Run with: pytest tests/test_benchmarks.py --benchmark-only
-Skip in normal test runs: these are deselected unless --benchmark-only is used.
+Skip in normal test runs: pytest addopts passes --benchmark-skip by default.
 """
 
 import json
