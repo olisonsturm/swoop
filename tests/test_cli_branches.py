@@ -125,7 +125,7 @@ class TestSearchCommandBranches:
         assert command == "swoop price --selector 'sel'\"'\"'ector with space'"
 
     def test_rejects_positional_and_leg_together(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             main,
             [
@@ -143,13 +143,13 @@ class TestSearchCommandBranches:
         assert "positional args and --leg cannot be used together" in result.stderr
 
     def test_requires_positional_triplet_or_leg_mode(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, ["search"])
         assert result.exit_code == 2
         assert "provide ORIGIN DESTINATION DATE or use --leg" in result.stderr
 
     def test_rejects_leg_with_return(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             main,
             [
@@ -166,7 +166,7 @@ class TestSearchCommandBranches:
         assert "--leg cannot be combined with --return" in result.stderr
 
     def test_rejects_leg_with_flight_filter(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             main,
             [
@@ -183,7 +183,7 @@ class TestSearchCommandBranches:
         assert "--leg cannot be combined with --flight" in result.stderr
 
     def test_rejects_leg_with_time_windows(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             main,
             [
@@ -200,7 +200,7 @@ class TestSearchCommandBranches:
         assert "time-window filters are not supported with --leg searches" in result.stderr
 
     def test_requires_complete_positional_triplet(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, ["search", "JFK", "LAX"])
         assert result.exit_code == 2
         assert "ORIGIN DESTINATION DATE are all required" in result.stderr
@@ -208,7 +208,7 @@ class TestSearchCommandBranches:
 
 class TestPriceCommandBranches:
     def test_selector_is_mutually_exclusive_with_shorthand(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             main,
             [
@@ -226,7 +226,7 @@ class TestPriceCommandBranches:
         assert "mutually exclusive" in result.stderr
 
     def test_selector_rejects_pricing_overrides(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             main,
             [
@@ -241,7 +241,7 @@ class TestPriceCommandBranches:
         assert "self-contained and cannot be combined with pricing" in result.stderr.replace("\n", " ")
 
     def test_leg_pricing_rejects_max_stops(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(
             main,
             [
@@ -259,7 +259,7 @@ class TestPriceCommandBranches:
         assert "--max-stops is not supported with explicit --leg pricing" in result.stderr
 
     def test_price_requires_selector_shorthand_or_leg(self):
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, ["price"])
         assert result.exit_code == 2
         assert "provide ORIGIN DEST with --depart, or use --leg/--selector" in result.stderr
@@ -267,7 +267,7 @@ class TestPriceCommandBranches:
     @patch("swoop.price_selector")
     def test_selector_not_found_message_is_specific(self, mock_price_selector):
         mock_price_selector.return_value = None
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         result = runner.invoke(main, ["price", "--selector", "selector-1", "-q"])
         assert result.exit_code == 1
         assert "Selected itinerary no longer exists" in result.stderr
