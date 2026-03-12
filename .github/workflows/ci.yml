@@ -3,6 +3,7 @@ name: swoop
 on:
   push:
     branches: [main]
+    tags: ['swoop-v*']
   pull_request:
     branches: [main]
 
