@@ -139,8 +139,8 @@ class TestCheckPriceRoundtrip:
         outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
         return_result = SearchResult(_raw=[], best=[return_itin], other=[])
         booking_options = [
-            BookingOption(price=684, brand_label="Main Cabin", is_basic=False),
-            BookingOption(price=580, brand_label="Basic Economy", is_basic=True),
+            BookingOption(price=684, brand_label="Main Cabin", is_basic=False, _cabin_bucket="economy"),
+            BookingOption(price=580, brand_label="Basic Economy", is_basic=True, _cabin_bucket="economy"),
         ]
 
         call_count = 0
@@ -206,7 +206,7 @@ class TestCheckPriceRoundtrip:
 
         with patch("swoop._selection._search_from_legs", side_effect=mock_search_from_legs), \
              patch("swoop._selection.fetch_trip_booking_options", return_value=[
-                 BookingOption(price=700, brand_label="Main Cabin", is_basic=False),
+                 BookingOption(price=700, brand_label="Main Cabin", is_basic=False, _cabin_bucket="economy"),
              ]):
             check_price(
                 "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
@@ -242,8 +242,8 @@ class TestCheckPriceRoundtrip:
         outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
         return_result = SearchResult(_raw=[], best=[return_itin], other=[])
         booking_options = [
-            BookingOption(price=684, brand_label="Main Cabin", is_basic=False),
-            BookingOption(price=580, brand_label="Basic Economy", is_basic=True),
+            BookingOption(price=684, brand_label="Main Cabin", is_basic=False, _cabin_bucket="economy"),
+            BookingOption(price=580, brand_label="Basic Economy", is_basic=True, _cabin_bucket="economy"),
         ]
 
         def mock_search_from_legs(legs, **kwargs):
