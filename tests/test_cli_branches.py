@@ -4,11 +4,126 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
+import swoop
 from swoop import PriceResult
 from swoop.cli import main
+from swoop.cli import commands
 
 
 class TestSearchCommandBranches:
+    def test_run_search_maps_cli_filters_to_swoop_search(self, monkeypatch):
+        captured = {}
+        sentinel = object()
+
+        def fake_search(origin, destination, date, **kwargs):
+            captured["origin"] = origin
+            captured["destination"] = destination
+            captured["date"] = date
+            captured["kwargs"] = kwargs
+            return sentinel
+
+        monkeypatch.setattr(swoop, "search", fake_search)
+
+        result = commands._run_search(
+            "JFK",
+            "LAX",
+            "2026-06-15",
+            return_date="2026-06-22",
+            cabin="business",
+            passengers=2,
+            sort="duration",
+            nonstop=True,
+            max_stops=2,
+            airline=("DL", "AF"),
+            flight_number="DL10",
+            include_basic=True,
+            depart_after=8,
+            depart_before=12,
+            arrive_after=10,
+            arrive_before=16,
+            return_depart_after=9,
+            return_depart_before=18,
+            timeout=45,
+            retries=4,
+        )
+
+        assert result is sentinel
+        assert captured["origin"] == "JFK"
+        assert captured["destination"] == "LAX"
+        assert captured["date"] == "2026-06-15"
+        assert captured["kwargs"] == {
+            "return_date": "2026-06-22",
+            "cabin": "business",
+            "adults": 2,
+            "sort": commands.SORT_MAP["duration"],
+            "max_stops": 0,
+            "airlines": ["DL", "AF"],
+            "flight_number": "DL10",
+            "include_basic_economy": True,
+            "earliest_departure": 8,
+            "latest_departure": 12,
+            "earliest_arrival": 10,
+            "latest_arrival": 16,
+            "return_earliest_departure": 9,
+            "return_latest_departure": 18,
+            "timeout": 45,
+            "retries": 4,
+        }
+
+    def test_run_search_legs_builds_search_leg_objects(self, monkeypatch):
+        captured = {}
+        sentinel = object()
+
+        def fake_search_legs(search_legs, **kwargs):
+            captured["search_legs"] = search_legs
+            captured["kwargs"] = kwargs
+            return sentinel
+
+        monkeypatch.setattr(swoop, "search_legs", fake_search_legs)
+
+        result = commands._run_search_legs(
+            [
+                ("JFK", "LAX", "2026-06-15"),
+                ("LAX", "SFO", "2026-06-18"),
+            ],
+            cabin="economy",
+            passengers=3,
+            sort="cheapest",
+            nonstop=False,
+            max_stops=1,
+            airline=("DL",),
+            include_basic=False,
+            timeout=30,
+            retries=5,
+        )
+
+        assert result is sentinel
+        assert len(captured["search_legs"]) == 2
+        first_leg, second_leg = captured["search_legs"]
+        assert first_leg.date == "2026-06-15"
+        assert first_leg.from_airport == "JFK"
+        assert first_leg.to_airport == "LAX"
+        assert first_leg.max_stops == 1
+        assert first_leg.airlines == ["DL"]
+        assert second_leg.date == "2026-06-18"
+        assert second_leg.from_airport == "LAX"
+        assert second_leg.to_airport == "SFO"
+        assert second_leg.max_stops == 1
+        assert second_leg.airlines == ["DL"]
+        assert captured["kwargs"] == {
+            "cabin": "economy",
+            "adults": 3,
+            "sort": commands.SORT_MAP["cheapest"],
+            "include_basic_economy": False,
+            "timeout": 30,
+            "retries": 5,
+        }
+
+    def test_build_price_selector_command_shell_quotes_input(self):
+        selector = "sel'ector with space"
+        command = commands._build_price_selector_command(selector)
+        assert command == "swoop price --selector 'sel'\"'\"'ector with space'"
+
     def test_rejects_positional_and_leg_together(self):
         runner = CliRunner(mix_stderr=False)
         result = runner.invoke(
@@ -26,6 +141,12 @@ class TestSearchCommandBranches:
         )
         assert result.exit_code == 2
         assert "positional args and --leg cannot be used together" in result.stderr
+
+    def test_requires_positional_triplet_or_leg_mode(self):
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, ["search"])
+        assert result.exit_code == 2
+        assert "provide ORIGIN DESTINATION DATE or use --leg" in result.stderr
 
     def test_rejects_leg_with_return(self):
         runner = CliRunner(mix_stderr=False)
@@ -136,6 +257,12 @@ class TestPriceCommandBranches:
         )
         assert result.exit_code == 2
         assert "--max-stops is not supported with explicit --leg pricing" in result.stderr
+
+    def test_price_requires_selector_shorthand_or_leg(self):
+        runner = CliRunner(mix_stderr=False)
+        result = runner.invoke(main, ["price"])
+        assert result.exit_code == 2
+        assert "provide ORIGIN DEST with --depart, or use --leg/--selector" in result.stderr
 
     @patch("swoop.price_selector")
     def test_selector_not_found_message_is_specific(self, mock_price_selector):
