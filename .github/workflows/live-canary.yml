@@ -1,0 +1,30 @@
+name: live-canary
+
+on:
+  schedule:
+    - cron: "0 14 * * 1"
+  workflow_dispatch:
+
+jobs:
+  live-canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        run: pip install -e ".[validation,cli]" && pip install pytest hypothesis pytest-benchmark
+      - name: Prepare artifact directory
+        run: mkdir -p "$RUNNER_TEMP/swoop-live-artifacts"
+      - name: Run live canary
+        env:
+          SWOOP_LIVE_ARTIFACT_DIR: ${{ runner.temp }}/swoop-live-artifacts
+        run: python -m pytest tests/test_live_contract.py -v -m live
+      - name: Upload live canary artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-canary-artifacts
+          path: ${{ runner.temp }}/swoop-live-artifacts
+          if-no-files-found: warn

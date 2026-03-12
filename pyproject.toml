@@ -62,6 +62,6 @@ markers = [
 ]
 
 [tool.mutmut]
-paths_to_mutate = "swoop/decoder.py,swoop/rpc.py,swoop/_validate.py,swoop/_booking.py"
+paths_to_mutate = "swoop/_selection.py,swoop/_booking.py,swoop/decoder.py,swoop/rpc.py"
 tests_dir = "tests/"
 runner = "python -m pytest tests/ -x -m 'not live' --benchmark-skip -q"
