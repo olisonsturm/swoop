@@ -50,6 +50,7 @@ from .rpc import (
     STOPS_TWO_OR_FEWER,
     get_booking_results,
     search_raw,
+    set_country,
 )
 
 # ---------------------------------------------------------------------------
@@ -152,6 +153,7 @@ def _search_with_normalized_legs(
     timeout: int = 90,
     retries: int = 2,
     correct_roundtrip_prices: bool = False,
+    country: Optional[str] = None,
 ) -> SearchResult:
     """Execute a staged trip search from normalized leg definitions."""
     return search_trip_options(
@@ -163,6 +165,7 @@ def _search_with_normalized_legs(
         correct_prices=correct_roundtrip_prices,
         timeout=timeout,
         retries=retries,
+        country=country,
     )
 
 
@@ -175,6 +178,7 @@ def search_legs(
     include_basic_economy: bool = False,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
 ) -> SearchResult:
     """Search Google Flights using explicit leg definitions.
 
@@ -189,6 +193,8 @@ def search_legs(
         include_basic_economy: Include basic economy fares (default ``False``).
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 (default 2).
+        country: Two-letter country code for point of sale (e.g. ``"US"``).
+            Overrides the default set via :func:`set_country`.
 
     Returns:
         A trip-level :class:`SearchResult` with shopping totals.
@@ -214,6 +220,7 @@ def search_legs(
         include_basic_economy=include_basic_economy,
         timeout=timeout,
         retries=retries,
+        country=country,
     )
 
 
@@ -238,6 +245,7 @@ def search(
     return_latest_departure: Optional[int] = None,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
 ) -> SearchResult:
     """Search Google Flights and return decoded results.
 
@@ -269,6 +277,9 @@ def search(
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 with exponential backoff
             and jitter (default 2).
+        country: Two-letter country code for point of sale (e.g. ``"US"``,
+            ``"GB"``). Controls currency and available fares. Overrides the
+            default set via :func:`set_country`.
 
     Returns:
         A trip-level :class:`SearchResult` with shopping totals.
@@ -354,6 +365,7 @@ def search(
         correct_roundtrip_prices=False,
         timeout=timeout,
         retries=retries,
+        country=country,
     )
 
     if parsed_number is not None:
@@ -374,6 +386,7 @@ def price_legs(
     include_basic_economy: bool = False,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare using explicit leg definitions.
 
@@ -414,6 +427,7 @@ def price_legs(
             and len(legs) == 1
             and not include_basic_economy
         ),
+        country=country,
     )
     if not resolved:
         return None
@@ -428,6 +442,7 @@ def price_legs(
         retries=retries,
         rpc_calls=rpc_calls,
         selections=selections,
+        country=country,
     )
 
 
@@ -436,6 +451,7 @@ def price_selector(
     *,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare for an itinerary selector.
 
@@ -451,7 +467,7 @@ def price_selector(
         A :class:`PriceResult`, or ``None`` if the selected itinerary no
         longer exists.
     """
-    return price_trip_selector(selector, timeout=timeout, retries=retries)
+    return price_trip_selector(selector, timeout=timeout, retries=retries, country=country)
 
 
 def check_price(
@@ -468,6 +484,7 @@ def check_price(
     include_basic_economy: bool = False,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare for a specific flight.
 
@@ -555,6 +572,7 @@ def check_price(
             and return_date is None
             and not include_basic_economy
         ),
+        country=country,
     )
     if not resolved:
         return None
@@ -569,6 +587,7 @@ def check_price(
         retries=retries,
         rpc_calls=rpc_calls,
         selections=selections,
+        country=country,
     )
 
 
@@ -581,6 +600,7 @@ __all__ = [
     "price_legs",
     "get_booking_results",
     "search_raw",
+    "set_country",
     "parse_flight_number",
     "itinerary_matches_flight",
     # Types

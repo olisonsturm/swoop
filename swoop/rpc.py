@@ -347,6 +347,7 @@ def _search_from_legs(
     timeout: int = 90,
     retries: int = 2,
     exclude_basic_economy: bool = False,
+    country: Optional[str] = None,
 ) -> Optional[RawSearchResult]:
     """Search Google Flights from normalized leg definitions."""
     encoded_body = _encode_f_req_payload(
@@ -364,6 +365,7 @@ def _search_from_legs(
         content=f"f.req={encoded_body}".encode(),
         timeout=timeout,
         retries=retries,
+        country=country,
     )
 
     result = _parse_rpc_response(res.text)
@@ -405,6 +407,27 @@ def _build_booking_f_req(
 
 
 _shared_client = None
+_default_country: Optional[str] = None
+
+
+def set_country(country: Optional[str]) -> None:
+    """Set the default country for all subsequent requests.
+
+    Controls the Google Flights point of sale, which determines currency
+    and available fares.  Uses the ``gl=`` query parameter (ISO 3166-1
+    alpha-2 country code).
+
+    Args:
+        country: Two-letter country code (e.g. ``"US"``, ``"GB"``,
+            ``"JP"``), or ``None`` to let Google auto-detect from IP.
+
+    Example::
+
+        import swoop
+        swoop.set_country("US")  # prices in USD
+    """
+    global _default_country
+    _default_country = country.upper() if country else None
 
 
 def _get_client():
@@ -420,12 +443,22 @@ def _get_client():
     return _shared_client
 
 
+def _apply_country(url: str, country: Optional[str]) -> str:
+    """Append ``?gl=XX`` to the URL if a country is set."""
+    effective = country if country is not None else _default_country
+    if effective:
+        sep = "&" if "?" in url else "?"
+        return f"{url}{sep}gl={effective}"
+    return url
+
+
 def _http_post(
     url: str,
     content: bytes,
     *,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
 ) -> Any:
     """POST with optional retry on 429 and timeout.
 
@@ -447,6 +480,7 @@ def _http_post(
     import random
     import time
 
+    url = _apply_country(url, country)
     client = _get_client()
     headers = {"content-type": "application/x-www-form-urlencoded;charset=UTF-8"}
 
@@ -485,6 +519,7 @@ def search_raw(
     timeout: int = 90,
     retries: int = 2,
     exclude_basic_economy: bool = False,
+    country: Optional[str] = None,
 ) -> Optional[RawSearchResult]:
     """Search Google Flights via RPC endpoint and return decoded results.
 
@@ -496,6 +531,8 @@ def search_raw(
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 with exponential backoff
             and jitter (default 2).
+        country: Two-letter country code (e.g. ``"US"``) for point of sale.
+            Overrides the module-level default set via :func:`set_country`.
     """
     logger.debug(
         "search_raw %s->%s on %s (cabin=%s, adults=%d)",
@@ -528,6 +565,7 @@ def search_raw(
         content=f"f.req={encoded_body}".encode(),
         timeout=timeout,
         retries=retries,
+        country=country,
     )
 
     result = _parse_rpc_response(res.text)
@@ -583,6 +621,7 @@ def get_booking_results(
     required_keys: tuple[str, ...] | None = None,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
 ) -> list[BookingOption]:
     """Fetch fare options (brand + price) for a specific itinerary.
 
@@ -600,6 +639,7 @@ def get_booking_results(
         required_keys: If provided, warns when any key is missing from parsed options.
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 (default 0).
+        country: Two-letter country code for point of sale.
     """
     if isinstance(itinerary_or_token, Itinerary):
         itin = itinerary_or_token
@@ -649,6 +689,7 @@ def get_booking_results(
         content=f"f.req={encoded_body}".encode(),
         timeout=timeout,
         retries=retries,
+        country=country,
     )
 
     return _parse_booking_rpc_response(
@@ -666,6 +707,7 @@ def get_trip_booking_results(
     adults: int = 1,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
 ) -> list[BookingOption]:
     """Fetch booking options for an exact multi-leg trip selection."""
     if not booking_token or not legs:
@@ -685,6 +727,7 @@ def get_trip_booking_results(
         content=f"f.req={encoded_body}".encode(),
         timeout=timeout,
         retries=retries,
+        country=country,
     )
 
     return _parse_booking_rpc_response(res.text)
