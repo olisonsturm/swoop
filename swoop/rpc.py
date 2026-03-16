@@ -404,6 +404,22 @@ def _build_booking_f_req(
     return _encode_f_req_payload(inner)
 
 
+_shared_client = None
+
+
+def _get_client():
+    """Return a module-level singleton Client for connection reuse.
+
+    Reusing the same Client across requests keeps the underlying TCP/TLS
+    connection alive, saving ~80-200ms per call (TLS handshake + TCP setup).
+    """
+    global _shared_client
+    if _shared_client is None:
+        from primp import Client
+        _shared_client = Client(impersonate="chrome")
+    return _shared_client
+
+
 def _http_post(
     url: str,
     content: bytes,
@@ -431,9 +447,7 @@ def _http_post(
     import random
     import time
 
-    from primp import Client
-
-    client = Client(impersonate="chrome")
+    client = _get_client()
     headers = {"content-type": "application/x-www-form-urlencoded;charset=UTF-8"}
 
     for attempt in range(1 + retries):
