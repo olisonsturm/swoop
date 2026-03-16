@@ -51,6 +51,7 @@ from .rpc import (
     get_booking_results,
     search_raw,
     set_country,
+    set_proxy,
 )
 
 # ---------------------------------------------------------------------------
@@ -154,6 +155,7 @@ def _search_with_normalized_legs(
     retries: int = 2,
     correct_roundtrip_prices: bool = False,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> SearchResult:
     """Execute a staged trip search from normalized leg definitions."""
     return search_trip_options(
@@ -166,6 +168,7 @@ def _search_with_normalized_legs(
         timeout=timeout,
         retries=retries,
         country=country,
+        proxy=proxy,
     )
 
 
@@ -179,6 +182,7 @@ def search_legs(
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> SearchResult:
     """Search Google Flights using explicit leg definitions.
 
@@ -221,6 +225,7 @@ def search_legs(
         timeout=timeout,
         retries=retries,
         country=country,
+        proxy=proxy,
     )
 
 
@@ -246,6 +251,7 @@ def search(
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> SearchResult:
     """Search Google Flights and return decoded results.
 
@@ -366,6 +372,7 @@ def search(
         timeout=timeout,
         retries=retries,
         country=country,
+        proxy=proxy,
     )
 
     if parsed_number is not None:
@@ -387,6 +394,7 @@ def price_legs(
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare using explicit leg definitions.
 
@@ -428,6 +436,7 @@ def price_legs(
             and not include_basic_economy
         ),
         country=country,
+        proxy=proxy,
     )
     if not resolved:
         return None
@@ -443,6 +452,7 @@ def price_legs(
         rpc_calls=rpc_calls,
         selections=selections,
         country=country,
+        proxy=proxy,
     )
 
 
@@ -452,6 +462,7 @@ def price_selector(
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare for an itinerary selector.
 
@@ -485,6 +496,7 @@ def check_price(
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare for a specific flight.
 
@@ -573,6 +585,7 @@ def check_price(
             and not include_basic_economy
         ),
         country=country,
+        proxy=proxy,
     )
     if not resolved:
         return None
@@ -588,6 +601,7 @@ def check_price(
         rpc_calls=rpc_calls,
         selections=selections,
         country=country,
+        proxy=proxy,
     )
 
 
@@ -601,6 +615,7 @@ __all__ = [
     "get_booking_results",
     "search_raw",
     "set_country",
+    "set_proxy",
     "parse_flight_number",
     "itinerary_matches_flight",
     # Types

@@ -209,6 +209,7 @@ def fetch_trip_booking_options(
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> list:
     selected_payloads = _selected_payloads_for_itineraries(itineraries)
     if selected_payloads is None:
@@ -225,6 +226,7 @@ def fetch_trip_booking_options(
         timeout=timeout,
         retries=retries,
         country=country,
+        proxy=proxy,
     )
 
 
@@ -270,6 +272,7 @@ def correct_trip_option_prices(
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> None:
     if cabin != "economy" or not result.results:
         return
@@ -312,6 +315,7 @@ def search_trip_options(
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> SearchResult:
     if not request_legs:
         return SearchResult()
@@ -330,6 +334,7 @@ def search_trip_options(
         retries=retries,
         exclude_basic_economy=exclude_basic,
         country=country,
+        proxy=proxy,
     )
     if first_pass is None:
         return SearchResult()
@@ -446,6 +451,7 @@ def resolve_trip_selector(
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[Itinerary], int]:
     payload = decode_trip_selector(selector)
     request_legs = [_copy_request_leg(leg) for leg in payload["query_legs"]]
@@ -494,6 +500,7 @@ def price_selected_trip(
     rpc_calls: int = 0,
     selections: Optional[list[str]] = None,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[PriceResult]:
     if not itineraries:
         return None
@@ -579,6 +586,7 @@ def resolve_selected_trip(
     retries: int = 2,
     exclude_basic_economy: bool = False,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> tuple[list[Itinerary], list[str], int]:
     resolved: list[Itinerary] = []
     selections: list[str] = []
@@ -630,6 +638,7 @@ def price_trip_selector(
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[PriceResult]:
     try:
         payload, request_legs, itineraries, rpc_calls = resolve_trip_selector(
@@ -650,6 +659,7 @@ def price_trip_selector(
         retries=retries,
         rpc_calls=rpc_calls,
         country=country,
+        proxy=proxy,
     )
 
 

@@ -348,6 +348,7 @@ def _search_from_legs(
     retries: int = 2,
     exclude_basic_economy: bool = False,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[RawSearchResult]:
     """Search Google Flights from normalized leg definitions."""
     encoded_body = _encode_f_req_payload(
@@ -366,6 +367,7 @@ def _search_from_legs(
         timeout=timeout,
         retries=retries,
         country=country,
+        proxy=proxy,
     )
 
     result = _parse_rpc_response(res.text)
@@ -406,8 +408,9 @@ def _build_booking_f_req(
     return _encode_f_req_payload(inner)
 
 
-_shared_client = None
+_clients: dict[str, Any] = {}
 _default_country: Optional[str] = None
+_default_proxy: Optional[str] = None
 
 
 def set_country(country: Optional[str]) -> None:
@@ -430,17 +433,45 @@ def set_country(country: Optional[str]) -> None:
     _default_country = country.upper() if country else None
 
 
-def _get_client():
-    """Return a module-level singleton Client for connection reuse.
+def set_proxy(proxy: Optional[str]) -> None:
+    """Set the default proxy for all subsequent requests.
 
-    Reusing the same Client across requests keeps the underlying TCP/TLS
-    connection alive, saving ~80-200ms per call (TLS handshake + TCP setup).
+    Useful for routing requests through different servers to use
+    different source IPs (e.g. for rate-limit management).
+
+    Supports HTTP, HTTPS, and SOCKS5 proxy URLs.
+
+    Args:
+        proxy: Proxy URL (e.g. ``"socks5://user:pass@host:port"``,
+            ``"http://host:port"``), or ``None`` to connect directly.
+
+    Example::
+
+        import swoop
+        swoop.set_proxy("socks5://myserver:1080")
     """
-    global _shared_client
-    if _shared_client is None:
-        from primp import Client
-        _shared_client = Client(impersonate="chrome")
-    return _shared_client
+    global _default_proxy
+    if proxy != _default_proxy:
+        _default_proxy = proxy
+        _clients.clear()  # reset clients so new proxy takes effect
+
+
+def _get_client(proxy: Optional[str] = None) -> Any:
+    """Return a Client for the given proxy, with connection reuse.
+
+    Maintains separate Client instances per proxy so that different
+    proxy routes don't interfere with each other's connection state.
+    """
+    from primp import Client
+
+    effective_proxy = proxy if proxy is not None else _default_proxy
+    key = effective_proxy or ""
+    if key not in _clients:
+        kwargs: dict[str, Any] = {"impersonate": "chrome"}
+        if effective_proxy:
+            kwargs["proxy"] = effective_proxy
+        _clients[key] = Client(**kwargs)
+    return _clients[key]
 
 
 def _apply_country(url: str, country: Optional[str]) -> str:
@@ -459,6 +490,7 @@ def _http_post(
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Any:
     """POST with optional retry on 429 and timeout.
 
@@ -481,7 +513,7 @@ def _http_post(
     import time
 
     url = _apply_country(url, country)
-    client = _get_client()
+    client = _get_client(proxy)
     headers = {"content-type": "application/x-www-form-urlencoded;charset=UTF-8"}
 
     for attempt in range(1 + retries):
@@ -520,6 +552,7 @@ def search_raw(
     retries: int = 2,
     exclude_basic_economy: bool = False,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[RawSearchResult]:
     """Search Google Flights via RPC endpoint and return decoded results.
 
@@ -566,6 +599,7 @@ def search_raw(
         timeout=timeout,
         retries=retries,
         country=country,
+        proxy=proxy,
     )
 
     result = _parse_rpc_response(res.text)
@@ -622,6 +656,7 @@ def get_booking_results(
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> list[BookingOption]:
     """Fetch fare options (brand + price) for a specific itinerary.
 
@@ -640,6 +675,7 @@ def get_booking_results(
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 (default 0).
         country: Two-letter country code for point of sale.
+        proxy: Proxy URL for this request.
     """
     if isinstance(itinerary_or_token, Itinerary):
         itin = itinerary_or_token
@@ -690,6 +726,7 @@ def get_booking_results(
         timeout=timeout,
         retries=retries,
         country=country,
+        proxy=proxy,
     )
 
     return _parse_booking_rpc_response(
@@ -708,6 +745,7 @@ def get_trip_booking_results(
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> list[BookingOption]:
     """Fetch booking options for an exact multi-leg trip selection."""
     if not booking_token or not legs:
@@ -728,6 +766,7 @@ def get_trip_booking_results(
         timeout=timeout,
         retries=retries,
         country=country,
+        proxy=proxy,
     )
 
     return _parse_booking_rpc_response(res.text)
