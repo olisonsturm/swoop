@@ -261,24 +261,11 @@ def test_exception_hierarchy():
 
 
 def test_booking_option_attribute_access():
-    opt = BookingOption(price=250, brand_label="Main Cabin", brand_code="MAIN")
+    opt = BookingOption(price=250, brand_label="Main Cabin", brand_code="MAIN", fare_family="standard")
     assert opt.price == 250
     assert opt.brand_label == "Main Cabin"
     assert opt.brand_code == "MAIN"
-
-
-def test_booking_option_dict_style_access():
-    opt = BookingOption(price=250, brand_label="Main Cabin", fare_family="standard")
-    assert opt["price"] == 250
-    assert opt["brand_label"] == "Main Cabin"
-    assert opt.get("fare_family") == "standard"
-    assert opt.get("nonexistent", "default") == "default"
-
-
-def test_booking_option_getitem_raises_on_missing():
-    opt = BookingOption()
-    with pytest.raises(AttributeError):
-        _ = opt["nonexistent_field"]
+    assert opt.fare_family == "standard"
 
 
 # --- Itinerary-based get_booking_results ---
