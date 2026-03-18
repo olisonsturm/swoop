@@ -181,6 +181,7 @@ def _build_trip_option(
             sort=sort,
         ),
         price=itineraries[-1].price,
+        currency=itineraries[-1].currency,
         legs=_trip_legs_from_itineraries(request_legs, itineraries),
     )
 
@@ -372,6 +373,7 @@ def search_trip_options(
 
     first_candidates = _iter_raw_itineraries(first_pass)
     if len(request_legs) == 1:
+        first_currency = first_candidates[0].currency if first_candidates else None
         return SearchResult(
             results=[
                 _build_trip_option(
@@ -389,6 +391,7 @@ def search_trip_options(
             ],
             price_range=first_pass.price_range,
             is_complete=True,
+            currency=first_currency,
         )
 
     started_at = time.monotonic()
@@ -459,7 +462,8 @@ def search_trip_options(
         )
         for prefix in prefixes[:TARGET_RESULTS]
     ]
-    result = SearchResult(results=options, price_range=None, is_complete=is_complete)
+    multi_currency = options[0].currency if options else None
+    result = SearchResult(results=options, price_range=None, is_complete=is_complete, currency=multi_currency)
 
     if cabin == "economy" and not include_basic_economy and correct_prices:
         correct_trip_option_prices(
@@ -578,6 +582,7 @@ def price_selected_trip(
             return None
         return PriceResult(
             price=base_price,
+            currency=final_itinerary.currency,
             itinerary=final_itinerary,
             resolved_legs=resolved_legs,
             rpc_calls=rpc_calls,
@@ -612,6 +617,7 @@ def price_selected_trip(
             best_option = min(eligible, key=lambda option: option.price)
             return PriceResult(
                 price=best_option.price,
+                currency=final_itinerary.currency,
                 fare_brand=best_option.brand_label or best_option.brand_code or None,
                 is_basic_economy=best_option.is_basic,
                 booking_options=booking_options,
@@ -625,6 +631,7 @@ def price_selected_trip(
 
     return PriceResult(
         price=base_price,
+        currency=final_itinerary.currency,
         booking_options=booking_options,
         itinerary=final_itinerary,
         resolved_legs=resolved_legs,
