@@ -5,7 +5,7 @@ import json
 import sys
 from typing import Optional
 
-from babel.numbers import format_currency
+from babel.numbers import get_currency_symbol
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
@@ -14,11 +14,18 @@ from .utils import format_date_display, format_duration, format_time
 
 
 def _format_price(price: Optional[int], currency: Optional[str] = None) -> str:
-    """Format a price using babel for correct currency symbol and positioning."""
+    """Format a price with the correct currency symbol.
+
+    Uses the system's default locale for symbol lookup.
+    """
     if price is None:
         return "\u2014"  # em-dash
     curr = currency or "USD"
-    return format_currency(price, curr, locale="en_US", currency_digits=False)
+    try:
+        symbol = get_currency_symbol(curr)
+    except Exception:
+        symbol = curr + " "
+    return f"{symbol}{price:,}"
 
 
 def _stderr_console(**kwargs) -> Console:
