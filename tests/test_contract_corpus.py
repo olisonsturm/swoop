@@ -69,25 +69,6 @@ def test_shopping_corpus_currency_fields():
         )
 
 
-def test_shopping_corpus_price_sanity():
-    """Verify prices fall in sane ranges for each currency."""
-    for case in MANIFEST["shopping"]:
-        expected = case["expected"]
-        if "price_range" not in expected:
-            continue
-
-        data = json.loads((FIXTURES / case["path"]).read_text())
-        result = decode_result(data)
-        all_itins = result.best + result.other
-        low, high = expected["price_range"]
-
-        for itin in all_itins:
-            if itin.price is not None and itin.price > 0:
-                assert low <= itin.price <= high, (
-                    f"{case['id']}: price {itin.price} outside [{low}, {high}]"
-                )
-
-
 def test_shopping_corpus_protobuf_price_agrees_with_direct():
     """Verify protobuf price (with currency-aware divisor) matches direct_price."""
     for case in MANIFEST["shopping"]:

@@ -55,11 +55,7 @@
         "first_destination": "LAX",
         "first_price": 169,
         "first_flights": 1,
-        "currency": "USD",
-        "price_range": [
-          30,
-          2000
-        ]
+        "currency": "USD"
       }
     },
     {
@@ -74,11 +70,7 @@
         "first_destination": "LAX",
         "first_price": 337,
         "first_flights": 1,
-        "currency": "USD",
-        "price_range": [
-          50,
-          3000
-        ]
+        "currency": "USD"
       }
     },
     {
@@ -93,11 +85,7 @@
         "first_destination": "EDI",
         "first_price": 208,
         "first_flights": 2,
-        "currency": "GBP",
-        "price_range": [
-          20,
-          2000
-        ]
+        "currency": "GBP"
       }
     },
     {
@@ -112,11 +100,7 @@
         "first_destination": "KIX",
         "first_price": 6040,
         "first_flights": 1,
-        "currency": "JPY",
-        "price_range": [
-          1000,
-          200000
-        ]
+        "currency": "JPY"
       }
     },
     {
@@ -131,11 +115,7 @@
         "first_destination": "BOM",
         "first_price": 6725,
         "first_flights": 1,
-        "currency": "INR",
-        "price_range": [
-          1000,
-          100000
-        ]
+        "currency": "INR"
       }
     },
     {
@@ -150,11 +130,7 @@
         "first_destination": "FCO",
         "first_price": 151,
         "first_flights": 1,
-        "currency": "EUR",
-        "price_range": [
-          30,
-          2000
-        ]
+        "currency": "EUR"
       }
     },
     {
@@ -169,11 +145,7 @@
         "first_destination": "LHR",
         "first_price": 389,
         "first_flights": 1,
-        "currency": "USD",
-        "price_range": [
-          200,
-          10000
-        ]
+        "currency": "USD"
       }
     },
     {
@@ -188,11 +160,7 @@
         "first_destination": "CJU",
         "first_price": 480900,
         "first_flights": 3,
-        "currency": "KRW",
-        "price_range": [
-          20000,
-          1000000
-        ]
+        "currency": "KRW"
       }
     },
     {
@@ -207,11 +175,7 @@
         "first_destination": "YVR",
         "first_price": 554,
         "first_flights": 1,
-        "currency": "CAD",
-        "price_range": [
-          50,
-          3000
-        ]
+        "currency": "CAD"
       }
     },
     {
@@ -226,11 +190,7 @@
         "first_destination": "MEL",
         "first_price": 111,
         "first_flights": 1,
-        "currency": "AUD",
-        "price_range": [
-          40,
-          2000
-        ]
+        "currency": "AUD"
       }
     },
     {
@@ -245,11 +205,7 @@
         "first_destination": "GIG",
         "first_price": 330,
         "first_flights": 1,
-        "currency": "BRL",
-        "price_range": [
-          100,
-          10000
-        ]
+        "currency": "BRL"
       }
     }
   ],

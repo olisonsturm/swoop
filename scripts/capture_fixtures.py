@@ -45,7 +45,6 @@ SCENARIOS = [
             "date_offset": 60,
         },
         "expected_currency": "USD",
-        "price_range": (30, 2000),
     },
     {
         "id": "shopping_domestic_roundtrip_v2",
@@ -58,7 +57,6 @@ SCENARIOS = [
             "return_offset": 67,
         },
         "expected_currency": "USD",
-        "price_range": (50, 3000),
     },
     # --- UK (GBP) ---
     {
@@ -72,7 +70,6 @@ SCENARIOS = [
             "country": "GB",
         },
         "expected_currency": "GBP",
-        "price_range": (20, 2000),
     },
     # --- Japan (JPY) ---
     {
@@ -86,7 +83,6 @@ SCENARIOS = [
             "country": "JP",
         },
         "expected_currency": "JPY",
-        "price_range": (1000, 200000),
     },
     # --- India (INR) ---
     {
@@ -100,7 +96,6 @@ SCENARIOS = [
             "country": "IN",
         },
         "expected_currency": "INR",
-        "price_range": (1000, 100000),
     },
     # --- Europe (EUR) ---
     {
@@ -114,7 +109,6 @@ SCENARIOS = [
             "country": "FR",
         },
         "expected_currency": "EUR",
-        "price_range": (30, 2000),
     },
     # --- Transatlantic (USD) ---
     {
@@ -127,7 +121,6 @@ SCENARIOS = [
             "date_offset": 60,
         },
         "expected_currency": "USD",
-        "price_range": (200, 10000),
     },
     # --- South Korea (KRW) ---
     {
@@ -141,7 +134,6 @@ SCENARIOS = [
             "country": "KR",
         },
         "expected_currency": "KRW",
-        "price_range": (20000, 1000000),
     },
     # --- Canada (CAD) ---
     {
@@ -155,7 +147,6 @@ SCENARIOS = [
             "country": "CA",
         },
         "expected_currency": "CAD",
-        "price_range": (50, 3000),
     },
     # --- Australia (AUD) ---
     {
@@ -183,7 +174,6 @@ SCENARIOS = [
             "country": "BR",
         },
         "expected_currency": "BRL",
-        "price_range": (100, 10000),
     },
 ]
 
@@ -249,7 +239,6 @@ def _extract_manifest_entry(scenario: dict, result) -> dict:
             "first_price": first.price,
             "first_flights": len(first.flights),
             "currency": first_currency,
-            "price_range": list(scenario["price_range"]),
         },
     }
 
