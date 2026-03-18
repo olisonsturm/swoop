@@ -3,9 +3,9 @@
     null,
     [
       [
-        1773874247854210,
-        44781021,
-        538325772
+        1773874763281751,
+        118986856,
+        3359400531
       ],
       null,
       null,
@@ -18,8 +18,8 @@
       ]
     ],
     0,
-    "Ryy7acKRNN2brcUPjObYgAI",
-    "HwK_o3W4I1VYAAHxbwBG---------yibbg5AAAAAGm7LEcM38bAA"
+    "Sy67aZeZEeiw3ugP08TxwQw",
+    "HRDgmXd7oK74AAMIqwBG---------vwve12AAAAAGm7LksET0CeA"
   ],
   [
     [
@@ -127,13 +127,13 @@
               false,
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 "GK",
@@ -156,8 +156,8 @@
           "NRT",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             7,
@@ -166,8 +166,8 @@
           "KIX",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             9,
@@ -181,12 +181,12 @@
           null,
           null,
           null,
-          "FhgLi",
+          "fXTPzf",
           [
             [
-              1773874247854210,
-              44781021,
-              538325772
+              1773874763281751,
+              118986856,
+              3359400531
             ],
             null,
             null,
@@ -214,7 +214,7 @@
             [
               true
             ],
-            124000,
+            150000,
             1,
             false,
             null,
@@ -237,9 +237,9 @@
         [
           [
             null,
-            5540
+            6040
           ],
-          "CjRId0tfbzNXNEkxVllBQUh4YndCRy0tLS0tLS0tLXlpYmJnNUFBQUFBR203TEVjTTM4YkFBEgVHSzIxNxoKCKQrEAAaA0pQWTgccIob"
+          "CjRIUkRnbVhkN29LNzRBQU1JcXdCRy0tLS0tLS0tLXZ3dmUxMkFBQUFBR203TGtzRVQwQ2VBEgVHSzIxNxoKCJgvEAAaA0pQWTgccMMd"
         ],
         null,
         true,
@@ -262,7 +262,7 @@
         ],
         false,
         [],
-        "[\"CAASA0pQWRoDCKQrInIKWwpZCgNOUlQSGTIwMjYtMDctMTVUMDc6NDA6MDArMDk6MDAaA0tJWCIZMjAyNi0wNy0xNVQwOToxNTowMCswOTowMCoCR0syAzIxNzoCR0tCAzIxN0gBUgMzMlESBAgDEAEYASgAMgkKB0pldHN0YXI\\u003d\"]",
+        "[\"CAASA0pQWRoDCJgvInIKWwpZCgNOUlQSGTIwMjYtMDUtMTdUMDc6NDA6MDArMDk6MDAaA0tJWCIZMjAyNi0wNS0xN1QwOToxNTowMCswOTowMCoCR0syAzIxNzoCR0tCAzIxN0gBUgMzMlESBAgDEAEYASgAMgkKB0pldHN0YXI\\u003d\"]",
         [
           [
             1
@@ -306,13 +306,13 @@
               false,
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 "MM",
@@ -335,8 +335,8 @@
           "NRT",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             8,
@@ -345,8 +345,8 @@
           "KIX",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             10,
@@ -360,12 +360,12 @@
           null,
           null,
           null,
-          "HHWUzc",
+          "yERwhb",
           [
             [
-              1773874247854210,
-              44781021,
-              538325772
+              1773874763281751,
+              118986856,
+              3359400531
             ],
             null,
             null,
@@ -391,7 +391,7 @@
             68000,
             72000,
             null,
-            124000,
+            150000,
             1,
             false,
             null,
@@ -416,7 +416,7 @@
             null,
             8190
           ],
-          "CjRId0tfbzNXNEkxVllBQUh4YndCRy0tLS0tLS0tLXlpYmJnNUFBQUFBR203TEVjTTM4YkFBEgVNTTMwNBoKCP4/EAAaA0pQWTgccIQo"
+          "CjRIUkRnbVhkN29LNzRBQU1JcXdCRy0tLS0tLS0tLXZ3dmUxMkFBQUFBR203TGtzRVQwQ2VBEgVNTTMwNBoKCP4/EAAaA0pQWTgccIQo"
         ],
         null,
         false,
@@ -439,7 +439,7 @@
         ],
         false,
         [],
-        "[\"CAASA0pQWRoDCP4/InkKWwpZCgNOUlQSGTIwMjYtMDctMTVUMDg6MzA6MDArMDk6MDAaA0tJWCIZMjAyNi0wNy0xNVQxMDowNTowMCswOTowMCoCTU0yAzMwNDoCTU1CAzMwNEgBUgMzMjASBAgDEAEYASgAMhAKDlBlYWNoIEF2aWF0aW9u\"]",
+        "[\"CAASA0pQWRoDCP4/InkKWwpZCgNOUlQSGTIwMjYtMDUtMTdUMDg6MzA6MDArMDk6MDAaA0tJWCIZMjAyNi0wNS0xN1QxMDowNTowMCswOTowMCoCTU0yAzMwNDoCTU1CAzMwNEgBUgMzMjASBAgDEAEYASgAMhAKDlBlYWNoIEF2aWF0aW9u\"]",
         [
           [
             1
@@ -460,19 +460,18 @@
               null,
               "NRT",
               "Narita International Airport",
-              "Incheon International Airport",
-              "ICN",
+              "Gimhae International Airport",
+              "PUS",
               null,
               [
-                11,
-                10
+                10,
+                55
               ],
               null,
               [
-                13,
-                40
+                13
               ],
-              150,
+              125,
               [],
               2,
               "29 in",
@@ -483,17 +482,17 @@
               false,
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 "LJ",
-                "202",
+                "222",
                 null,
                 "Jin Air"
               ],
@@ -505,54 +504,49 @@
               null,
               null,
               "29 inches",
-              116742,
+              99083,
               1
             ],
             [
               null,
               null,
               null,
-              "ICN",
-              "Incheon International Airport",
+              "PUS",
+              "Gimhae International Airport",
               "Kansai International Airport",
               "KIX",
-              null,
+              1,
               [
-                16,
-                10
+                13,
+                35
               ],
-              null,
+              1,
               [
-                18,
+                15,
                 5
               ],
-              115,
-              [
-                null,
-                null,
-                null,
-                true
-              ],
-              1,
-              "30 in",
+              90,
+              [],
+              2,
+              "29 in",
               null,
               1,
-              "Boeing 777",
+              "Boeing 737",
               null,
               false,
               [
                 2026,
-                7,
-                15
+                5,
+                18
               ],
               [
                 2026,
-                7,
-                15
+                5,
+                18
               ],
               [
                 "LJ",
-                "239",
+                "251",
                 null,
                 "Jin Air"
               ],
@@ -563,56 +557,58 @@
               null,
               null,
               null,
-              "30 inches",
-              100505,
+              "29 inches",
+              71489,
               1
             ]
           ],
           "NRT",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
-            11,
-            10
+            10,
+            55
           ],
           "KIX",
           [
             2026,
-            7,
-            15
+            5,
+            18
           ],
           [
-            18,
+            15,
             5
           ],
-          415,
-          null,
+          1690,
+          1,
           null,
           false,
           [
             [
-              150,
-              "ICN",
-              "ICN",
-              null,
-              "Incheon International Airport",
-              "Seoul",
-              "Incheon International Airport",
-              "Seoul"
+              1475,
+              "PUS",
+              "PUS",
+              [
+                1
+              ],
+              "Gimhae International Airport",
+              "Busan",
+              "Gimhae International Airport",
+              "Busan"
             ]
           ],
           null,
           null,
           null,
-          "WMbxfc",
+          "xX6lTd",
           [
             [
-              1773874247854210,
-              44781021,
-              538325772
+              1773874763281751,
+              118986856,
+              3359400531
             ],
             null,
             null,
@@ -631,14 +627,14 @@
             null,
             null,
             3,
-            201,
+            138,
             null,
             true,
             true,
-            217000,
+            171000,
             72000,
             null,
-            124000,
+            150000,
             3,
             false,
             null,
@@ -661,9 +657,9 @@
         [
           [
             null,
-            29130
+            38600
           ],
-          "CjRId0tfbzNXNEkxVllBQUh4YndCRy0tLS0tLS0tLXlpYmJnNUFBQUFBR203TEVjTTM4YkFBEgtMSjIwMnxMSjIzORoLCMrjARAAGgNKUFk4HHCyjgE="
+          "CjRIUkRnbVhkN29LNzRBQU1JcXdCRy0tLS0tLS0tLXZ3dmUxMkFBQUFBR203TGtzRVQwQ2VBEgtMSjIyMnxMSjI1MRoLCMitAhAAGgNKUFk4HHDXvAE="
         ],
         null,
         false,
@@ -686,7 +682,7 @@
         ],
         false,
         [],
-        "[\"CAASA0pQWRoECMrjASLOAQq2AQpZCgNOUlQSGTIwMjYtMDctMTVUMTE6MTA6MDArMDk6MDAaA0lDTiIZMjAyNi0wNy0xNVQxMzo0MDowMCswOTowMCoCTEoyAzIwMjoCTEpCAzIwMkgBUgM3MzgKWQoDSUNOEhkyMDI2LTA3LTE1VDE2OjEwOjAwKzA5OjAwGgNLSVgiGTIwMjYtMDctMTVUMTg6MDU6MDArMDk6MDAqAkxKMgMyMzk6AkxKQgMyMzlIAVIDNzcyEgQIAxABGAEoADIJCgdKaW4gQWly\"]",
+        "[\"CAASA0pQWRoECMitAiLOAQq2AQpZCgNOUlQSGTIwMjYtMDUtMTdUMTA6NTU6MDArMDk6MDAaA1BVUyIZMjAyNi0wNS0xN1QxMzowMDowMCswOTowMCoCTEoyAzIyMjoCTEpCAzIyMkgBUgM3MzgKWQoDUFVTEhkyMDI2LTA1LTE4VDEzOjM1OjAwKzA5OjAwGgNLSVgiGTIwMjYtMDUtMThUMTU6MDU6MDArMDk6MDAqAkxKMgMyNTE6AkxKQgMyNTFIAVIDNzM4EgQIAxABGAEoADIJCgdKaW4gQWly\"]",
         [
           [
             2
@@ -730,13 +726,13 @@
               false,
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 "LJ",
@@ -774,36 +770,23 @@
                 30
               ],
               110,
-              [
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                3
-              ],
+              [],
               2,
               "29 in",
               null,
               1,
-              "Boeing 737MAX 8 Passenger",
+              "Boeing 737",
               null,
               false,
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 "LJ",
@@ -819,15 +802,15 @@
               null,
               null,
               "29 inches",
-              77491,
+              90208,
               1
             ]
           ],
           "NRT",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             11,
@@ -836,8 +819,8 @@
           "KIX",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             16,
@@ -862,12 +845,12 @@
           null,
           null,
           null,
-          "p02itf",
+          "joYWme",
           [
             [
-              1773874247854210,
-              44781021,
-              538325772
+              1773874763281751,
+              118986856,
+              3359400531
             ],
             null,
             null,
@@ -886,14 +869,14 @@
             null,
             null,
             3,
-            169,
+            188,
             null,
             true,
             true,
-            194000,
+            207000,
             72000,
             null,
-            124000,
+            150000,
             3,
             false,
             null,
@@ -916,9 +899,9 @@
         [
           [
             null,
-            30130
+            42630
           ],
-          "CjRId0tfbzNXNEkxVllBQUh4YndCRy0tLS0tLS0tLXlpYmJnNUFBQUFBR203TEVjTTM4YkFBEgtMSjIwMnxMSjIzNxoLCLLrARAAGgNKUFk4HHCkkwE="
+          "CjRIUkRnbVhkN29LNzRBQU1JcXdCRy0tLS0tLS0tLXZ3dmUxMkFBQUFBR203TGtzRVQwQ2VBEgtMSjIwMnxMSjIzNxoLCIbNAhAAGgNKUFk4HHCx0AE="
         ],
         null,
         false,
@@ -941,7 +924,249 @@
         ],
         false,
         [],
-        "[\"CAASA0pQWRoECLLrASLOAQq2AQpZCgNOUlQSGTIwMjYtMDctMTVUMTE6MTA6MDArMDk6MDAaA0lDTiIZMjAyNi0wNy0xNVQxMzo0MDowMCswOTowMCoCTEoyAzIwMjoCTEpCAzIwMkgBUgM3MzgKWQoDSUNOEhkyMDI2LTA3LTE1VDE0OjQwOjAwKzA5OjAwGgNLSVgiGTIwMjYtMDctMTVUMTY6MzA6MDArMDk6MDAqAkxKMgMyMzc6AkxKQgMyMzdIAVIDN004EgQIAxABGAEoADIJCgdKaW4gQWly\"]",
+        "[\"CAASA0pQWRoECIbNAiLOAQq2AQpZCgNOUlQSGTIwMjYtMDUtMTdUMTE6MTA6MDArMDk6MDAaA0lDTiIZMjAyNi0wNS0xN1QxMzo0MDowMCswOTowMCoCTEoyAzIwMjoCTEpCAzIwMkgBUgM3MzgKWQoDSUNOEhkyMDI2LTA1LTE3VDE0OjQwOjAwKzA5OjAwGgNLSVgiGTIwMjYtMDUtMTdUMTY6MzA6MDArMDk6MDAqAkxKMgMyMzc6AkxKQgMyMzdIAVIDNzM4EgQIAxABGAEoADIJCgdKaW4gQWly\"]",
+        [
+          [
+            2
+          ]
+        ],
+        false
+      ],
+      [
+        [
+          "TW",
+          [
+            "T'Way Air"
+          ],
+          [
+            [
+              null,
+              null,
+              null,
+              "NRT",
+              "Narita International Airport",
+              "Gimhae International Airport",
+              "PUS",
+              null,
+              [
+                11,
+                45
+              ],
+              null,
+              [
+                14
+              ],
+              135,
+              [],
+              2,
+              "29 in",
+              null,
+              1,
+              "Boeing 737",
+              null,
+              false,
+              [
+                2026,
+                5,
+                17
+              ],
+              [
+                2026,
+                5,
+                17
+              ],
+              [
+                "TW",
+                "256",
+                null,
+                "T'Way Air"
+              ],
+              null,
+              null,
+              1,
+              null,
+              null,
+              null,
+              null,
+              "29 inches",
+              99083,
+              1
+            ],
+            [
+              null,
+              null,
+              null,
+              "PUS",
+              "Gimhae International Airport",
+              "Kansai International Airport",
+              "KIX",
+              1,
+              [
+                13
+              ],
+              1,
+              [
+                14,
+                30
+              ],
+              90,
+              [],
+              2,
+              "29 in",
+              null,
+              1,
+              "Boeing 737",
+              null,
+              false,
+              [
+                2026,
+                5,
+                18
+              ],
+              [
+                2026,
+                5,
+                18
+              ],
+              [
+                "TW",
+                "321",
+                null,
+                "T'Way Air"
+              ],
+              null,
+              null,
+              1,
+              null,
+              null,
+              null,
+              null,
+              "29 inches",
+              71489,
+              1
+            ]
+          ],
+          "NRT",
+          [
+            2026,
+            5,
+            17
+          ],
+          [
+            11,
+            45
+          ],
+          "KIX",
+          [
+            2026,
+            5,
+            18
+          ],
+          [
+            14,
+            30
+          ],
+          1605,
+          1,
+          null,
+          false,
+          [
+            [
+              1380,
+              "PUS",
+              "PUS",
+              [
+                1
+              ],
+              "Gimhae International Airport",
+              "Busan",
+              "Gimhae International Airport",
+              "Busan"
+            ]
+          ],
+          null,
+          null,
+          null,
+          "BXhNUe",
+          [
+            [
+              1773874763281751,
+              118986856,
+              3359400531
+            ],
+            null,
+            null,
+            null,
+            null,
+            [
+              [
+                6
+              ]
+            ]
+          ],
+          1,
+          null,
+          null,
+          [
+            null,
+            null,
+            3,
+            138,
+            null,
+            true,
+            true,
+            171000,
+            72000,
+            null,
+            150000,
+            3,
+            false,
+            null,
+            null,
+            1,
+            null,
+            3
+          ],
+          [
+            1
+          ],
+          [
+            [
+              "TW",
+              "T'Way Air",
+              "https://www.twayair.com/app/serviceInfo/contents/1069"
+            ]
+          ]
+        ],
+        [
+          [
+            null,
+            38600
+          ],
+          "CjRIUkRnbVhkN29LNzRBQU1JcXdCRy0tLS0tLS0tLXZ3dmUxMkFBQUFBR203TGtzRVQwQ2VBEgtUVzI1NnxUVzMyMRoLCMitAhAAGgNKUFk4HHDXvAE="
+        ],
+        null,
+        false,
+        [
+          null,
+          null,
+          null,
+          null,
+          1,
+          null,
+          [
+            null,
+            1
+          ]
+        ],
+        [
+          false,
+          false,
+          false
+        ],
+        false,
+        [],
+        "[\"CAASA0pQWRoECMitAiLQAQq2AQpZCgNOUlQSGTIwMjYtMDUtMTdUMTE6NDU6MDArMDk6MDAaA1BVUyIZMjAyNi0wNS0xN1QxNDowMDowMCswOTowMCoCVFcyAzI1NjoCVFdCAzI1NkgBUgM3MzgKWQoDUFVTEhkyMDI2LTA1LTE4VDEzOjAwOjAwKzA5OjAwGgNLSVgiGTIwMjYtMDUtMThUMTQ6MzA6MDArMDk6MDAqAlRXMgMzMjE6AlRXQgMzMjFIAVIDNzM4EgQIAxABGAEoADILCglUJ1dheSBBaXI\\u003d\"]",
         [
           [
             2
@@ -984,13 +1209,13 @@
               false,
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 "GK",
@@ -1013,8 +1238,8 @@
           "NRT",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             12
@@ -1022,8 +1247,8 @@
           "KIX",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             13,
@@ -1037,12 +1262,12 @@
           null,
           null,
           null,
-          "U5XmDc",
+          "A6avff",
           [
             [
-              1773874247854210,
-              44781021,
-              538325772
+              1773874763281751,
+              118986856,
+              3359400531
             ],
             null,
             null,
@@ -1050,7 +1275,7 @@
             null,
             [
               [
-                6
+                7
               ]
             ]
           ],
@@ -1068,7 +1293,7 @@
             68000,
             72000,
             null,
-            124000,
+            150000,
             1,
             false,
             null,
@@ -1091,9 +1316,9 @@
         [
           [
             null,
-            7860
+            7140
           ],
-          "CjRId0tfbzNXNEkxVllBQUh4YndCRy0tLS0tLS0tLXlpYmJnNUFBQUFBR203TEVjTTM4YkFBEgVHSzIxNRoKCLQ9EAAaA0pQWTgccLYm"
+          "CjRIUkRnbVhkN29LNzRBQU1JcXdCRy0tLS0tLS0tLXZ3dmUxMkFBQUFBR203TGtzRVQwQ2VBEgVHSzIxNRoKCOQ3EAAaA0pQWTgccPMi"
         ],
         null,
         false,
@@ -1116,10 +1341,526 @@
         ],
         false,
         [],
-        "[\"CAASA0pQWRoDCLQ9InIKWwpZCgNOUlQSGTIwMjYtMDctMTVUMTI6MDA6MDArMDk6MDAaA0tJWCIZMjAyNi0wNy0xNVQxMzo0NTowMCswOTowMCoCR0syAzIxNToCR0tCAzIxNUgBUgMzMjASBAgDEAEYASgAMgkKB0pldHN0YXI\\u003d\"]",
+        "[\"CAASA0pQWRoDCOQ3InIKWwpZCgNOUlQSGTIwMjYtMDUtMTdUMTI6MDA6MDArMDk6MDAaA0tJWCIZMjAyNi0wNS0xN1QxMzo0NTowMCswOTowMCoCR0syAzIxNToCR0tCAzIxNUgBUgMzMjASBAgDEAEYASgAMgkKB0pldHN0YXI\\u003d\"]",
         [
           [
             1
+          ]
+        ],
+        false
+      ],
+      [
+        [
+          "OZ",
+          [
+            "Asiana Airlines"
+          ],
+          [
+            [
+              null,
+              null,
+              null,
+              "NRT",
+              "Narita International Airport",
+              "Incheon International Airport",
+              "ICN",
+              null,
+              [
+                12,
+                50
+              ],
+              null,
+              [
+                15,
+                25
+              ],
+              155,
+              [
+                null,
+                true,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                true
+              ],
+              3,
+              "33 in",
+              null,
+              1,
+              "Airbus A380",
+              null,
+              false,
+              [
+                2026,
+                5,
+                17
+              ],
+              [
+                2026,
+                5,
+                17
+              ],
+              [
+                "OZ",
+                "101",
+                null,
+                "Asiana Airlines"
+              ],
+              null,
+              null,
+              1,
+              null,
+              null,
+              null,
+              null,
+              "33 inches",
+              121614,
+              1
+            ],
+            [
+              null,
+              null,
+              null,
+              "ICN",
+              "Incheon International Airport",
+              "Kansai International Airport",
+              "KIX",
+              null,
+              [
+                16,
+                40
+              ],
+              null,
+              [
+                18,
+                30
+              ],
+              110,
+              [
+                null,
+                null,
+                null,
+                true,
+                null,
+                null,
+                null,
+                null,
+                null,
+                true
+              ],
+              1,
+              "31 in",
+              null,
+              1,
+              "Airbus A330",
+              null,
+              false,
+              [
+                2026,
+                5,
+                17
+              ],
+              [
+                2026,
+                5,
+                17
+              ],
+              [
+                "OZ",
+                "114",
+                null,
+                "Asiana Airlines"
+              ],
+              null,
+              null,
+              1,
+              null,
+              null,
+              null,
+              null,
+              "31 inches",
+              90978,
+              1
+            ]
+          ],
+          "NRT",
+          [
+            2026,
+            5,
+            17
+          ],
+          [
+            12,
+            50
+          ],
+          "KIX",
+          [
+            2026,
+            5,
+            17
+          ],
+          [
+            18,
+            30
+          ],
+          340,
+          null,
+          null,
+          false,
+          [
+            [
+              75,
+              "ICN",
+              "ICN",
+              null,
+              "Incheon International Airport",
+              "Seoul",
+              "Incheon International Airport",
+              "Seoul"
+            ]
+          ],
+          null,
+          null,
+          null,
+          "CQtfwf",
+          [
+            [
+              1773874763281751,
+              118986856,
+              3359400531
+            ],
+            null,
+            null,
+            null,
+            null,
+            [
+              [
+                8
+              ]
+            ]
+          ],
+          1,
+          null,
+          null,
+          [
+            null,
+            null,
+            3,
+            196,
+            null,
+            true,
+            true,
+            213000,
+            72000,
+            null,
+            150000,
+            3,
+            false,
+            null,
+            null,
+            1,
+            null,
+            3
+          ],
+          [
+            1
+          ],
+          [
+            [
+              "OZ",
+              "Asiana Airlines",
+              "https://flyasiana.com/C/KR/EN/contents/disabled-passenger"
+            ]
+          ]
+        ],
+        [
+          [
+            null,
+            60670
+          ],
+          "CjRIUkRnbVhkN29LNzRBQU1JcXdCRy0tLS0tLS0tLXZ3dmUxMkFBQUFBR203TGtzRVQwQ2VBEgtPWjEwMXxPWjExNBoLCP7ZAxAAGgNKUFk4HHDIqAI="
+        ],
+        null,
+        false,
+        [
+          null,
+          null,
+          null,
+          null,
+          1,
+          null,
+          [
+            null,
+            1
+          ]
+        ],
+        [
+          false,
+          false,
+          false
+        ],
+        false,
+        [],
+        "[\"CAASA0pQWRoECP7ZAyLWAQq2AQpZCgNOUlQSGTIwMjYtMDUtMTdUMTI6NTA6MDArMDk6MDAaA0lDTiIZMjAyNi0wNS0xN1QxNToyNTowMCswOTowMCoCT1oyAzEwMToCT1pCAzEwMUgBUgMzODgKWQoDSUNOEhkyMDI2LTA1LTE3VDE2OjQwOjAwKzA5OjAwGgNLSVgiGTIwMjYtMDUtMTdUMTg6MzA6MDArMDk6MDAqAk9aMgMxMTQ6Ak9aQgMxMTRIAVIDMzMzEgQIAxABGAEoADIRCg9Bc2lhbmEgQWlybGluZXM\\u003d\"]",
+        [
+          [
+            2
+          ]
+        ],
+        false
+      ],
+      [
+        [
+          "GK",
+          [
+            "Jetstar"
+          ],
+          [
+            [
+              null,
+              null,
+              null,
+              "NRT",
+              "Narita International Airport",
+              "New Chitose Airport",
+              "CTS",
+              null,
+              [
+                14
+              ],
+              null,
+              [
+                15,
+                50
+              ],
+              110,
+              [
+                null,
+                null,
+                null,
+                null,
+                null,
+                true
+              ],
+              2,
+              "29 in",
+              null,
+              1,
+              "Airbus A321neo",
+              null,
+              false,
+              [
+                2026,
+                5,
+                17
+              ],
+              [
+                2026,
+                5,
+                17
+              ],
+              [
+                "GK",
+                "113",
+                null,
+                "Jetstar"
+              ],
+              null,
+              null,
+              1,
+              null,
+              null,
+              null,
+              null,
+              "29 inches",
+              63565,
+              1
+            ],
+            [
+              null,
+              null,
+              null,
+              "CTS",
+              "New Chitose Airport",
+              "Kansai International Airport",
+              "KIX",
+              null,
+              [
+                16,
+                40
+              ],
+              null,
+              [
+                19
+              ],
+              140,
+              [
+                null,
+                null,
+                null,
+                null,
+                null,
+                true
+              ],
+              2,
+              "29 in",
+              null,
+              1,
+              "Airbus A321neo",
+              null,
+              false,
+              [
+                2026,
+                5,
+                17
+              ],
+              [
+                2026,
+                5,
+                17
+              ],
+              [
+                "GK",
+                "156",
+                null,
+                "Jetstar"
+              ],
+              null,
+              null,
+              1,
+              null,
+              null,
+              null,
+              null,
+              "29 inches",
+              86580,
+              2
+            ]
+          ],
+          "NRT",
+          [
+            2026,
+            5,
+            17
+          ],
+          [
+            14
+          ],
+          "KIX",
+          [
+            2026,
+            5,
+            17
+          ],
+          [
+            19
+          ],
+          300,
+          null,
+          null,
+          false,
+          [
+            [
+              50,
+              "CTS",
+              "CTS",
+              null,
+              "New Chitose Airport",
+              "Sapporo",
+              "New Chitose Airport",
+              "Sapporo"
+            ]
+          ],
+          null,
+          null,
+          null,
+          "s3AFXd",
+          [
+            [
+              1773874763281751,
+              118986856,
+              3359400531
+            ],
+            null,
+            null,
+            null,
+            null,
+            [
+              [
+                9
+              ]
+            ]
+          ],
+          1,
+          null,
+          null,
+          [
+            null,
+            null,
+            3,
+            108,
+            null,
+            true,
+            true,
+            150000,
+            72000,
+            null,
+            150000,
+            2,
+            false,
+            null,
+            null,
+            2,
+            null,
+            6
+          ],
+          [
+            1
+          ],
+          [
+            [
+              "GK",
+              "Jetstar",
+              "https://www.jetstar.com/au/en/help/articles/specific-assistance"
+            ]
+          ]
+        ],
+        [
+          [
+            null,
+            48000
+          ],
+          "CjRIUkRnbVhkN29LNzRBQU1JcXdCRy0tLS0tLS0tLXZ3dmUxMkFBQUFBR203TGtzRVQwQ2VBEgtHSzExM3xHSzE1NhoLCID3AhAAGgNKUFk4HHDR6gE="
+        ],
+        null,
+        false,
+        [
+          null,
+          null,
+          null,
+          null,
+          1,
+          null,
+          [
+            null,
+            1
+          ]
+        ],
+        [
+          false,
+          false,
+          false
+        ],
+        false,
+        [],
+        "[\"CAASA0pQWRoECID3AiLOAQq2AQpZCgNOUlQSGTIwMjYtMDUtMTdUMTQ6MDA6MDArMDk6MDAaA0NUUyIZMjAyNi0wNS0xN1QxNTo1MDowMCswOTowMCoCR0syAzExMzoCR0tCAzExM0gBUgMzMlEKWQoDQ1RTEhkyMDI2LTA1LTE3VDE2OjQwOjAwKzA5OjAwGgNLSVgiGTIwMjYtMDUtMTdUMTk6MDA6MDArMDk6MDAqAkdLMgMxNTY6AkdLQgMxNTZIAVIDMzJREgQIAxABGAEoADIJCgdKZXRzdGFy\"]",
+        [
+          [
+            2
           ]
         ],
         false
@@ -1172,13 +1913,13 @@
               false,
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 "KE",
@@ -1239,13 +1980,13 @@
               false,
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 "KE",
@@ -1268,8 +2009,8 @@
           "NRT",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             14
@@ -1277,8 +2018,8 @@
           "KIX",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             20,
@@ -1303,12 +2044,12 @@
           null,
           null,
           null,
-          "ZkQTAd",
+          "S4h5ze",
           [
             [
-              1773874247854210,
-              44781021,
-              538325772
+              1773874763281751,
+              118986856,
+              3359400531
             ],
             null,
             null,
@@ -1316,7 +2057,7 @@
             null,
             [
               [
-                7
+                10
               ]
             ]
           ],
@@ -1334,7 +2075,7 @@
             180000,
             72000,
             null,
-            124000,
+            150000,
             3,
             false,
             null,
@@ -1357,9 +2098,9 @@
         [
           [
             null,
-            42930
+            48930
           ],
-          "CjRId0tfbzNXNEkxVllBQUh4YndCRy0tLS0tLS0tLXlpYmJnNUFBQUFBR203TEVjTTM4YkFBEgtLRTcwNHxLRTcyMRoLCLLPAhAAGgNKUFk4HHDt0QE="
+          "CjRIUkRnbVhkN29LNzRBQU1JcXdCRy0tLS0tLS0tLXZ3dmUxMkFBQUFBR203TGtzRVQwQ2VBEgtLRTcwNHxLRTcyMRoLCKL+AhAAGgNKUFk4HHCX7wE="
         ],
         null,
         false,
@@ -1382,7 +2123,7 @@
         ],
         false,
         [],
-        "[\"CAASA0pQWRoECLLPAiLRAQq2AQpZCgNOUlQSGTIwMjYtMDctMTVUMTQ6MDA6MDArMDk6MDAaA0lDTiIZMjAyNi0wNy0xNVQxNjozMDowMCswOTowMCoCS0UyAzcwNDoCS0VCAzcwNEgBUgM3ODEKWQoDSUNOEhkyMDI2LTA3LTE1VDE4OjQ1OjAwKzA5OjAwGgNLSVgiGTIwMjYtMDctMTVUMjA6NDU6MDArMDk6MDAqAktFMgM3MjE6AktFQgM3MjFIAVIDN004EgQIAxABGAEoADIMCgpLb3JlYW4gQWly\"]",
+        "[\"CAASA0pQWRoECKL+AiLRAQq2AQpZCgNOUlQSGTIwMjYtMDUtMTdUMTQ6MDA6MDArMDk6MDAaA0lDTiIZMjAyNi0wNS0xN1QxNjozMDowMCswOTowMCoCS0UyAzcwNDoCS0VCAzcwNEgBUgM3ODEKWQoDSUNOEhkyMDI2LTA1LTE3VDE4OjQ1OjAwKzA5OjAwGgNLSVgiGTIwMjYtMDUtMTdUMjA6NDU6MDArMDk6MDAqAktFMgM3MjE6AktFQgM3MjFIAVIDN004EgQIAxABGAEoADIMCgpLb3JlYW4gQWly\"]",
         [
           [
             2
@@ -1428,13 +2169,13 @@
               false,
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 "GK",
@@ -1457,8 +2198,8 @@
           "NRT",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             19,
@@ -1467,8 +2208,8 @@
           "KIX",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             21
@@ -1481,12 +2222,12 @@
           null,
           null,
           null,
-          "Aid1Xb",
+          "j2eoRb",
           [
             [
-              1773874247854210,
-              44781021,
-              538325772
+              1773874763281751,
+              118986856,
+              3359400531
             ],
             null,
             null,
@@ -1494,7 +2235,7 @@
             null,
             [
               [
-                8
+                11
               ]
             ]
           ],
@@ -1512,7 +2253,7 @@
             68000,
             72000,
             null,
-            124000,
+            150000,
             1,
             false,
             null,
@@ -1535,9 +2276,9 @@
         [
           [
             null,
-            6540
+            7860
           ],
-          "CjRId0tfbzNXNEkxVllBQUh4YndCRy0tLS0tLS0tLXlpYmJnNUFBQUFBR203TEVjTTM4YkFBEgVHSzIxMRoKCIwzEAAaA0pQWTgccPwf"
+          "CjRIUkRnbVhkN29LNzRBQU1JcXdCRy0tLS0tLS0tLXZ3dmUxMkFBQUFBR203TGtzRVQwQ2VBEgVHSzIxMRoKCLQ9EAAaA0pQWTgccLYm"
         ],
         null,
         false,
@@ -1560,7 +2301,7 @@
         ],
         false,
         [],
-        "[\"CAASA0pQWRoDCIwzInIKWwpZCgNOUlQSGTIwMjYtMDctMTVUMTk6MTA6MDArMDk6MDAaA0tJWCIZMjAyNi0wNy0xNVQyMTowMDowMCswOTowMCoCR0syAzIxMToCR0tCAzIxMUgBUgMzMjASBAgDEAEYASgAMgkKB0pldHN0YXI\\u003d\"]",
+        "[\"CAASA0pQWRoDCLQ9InIKWwpZCgNOUlQSGTIwMjYtMDUtMTdUMTk6MTA6MDArMDk6MDAaA0tJWCIZMjAyNi0wNS0xN1QyMTowMDowMCswOTowMCoCR0syAzIxMToCR0tCAzIxMUgBUgMzMjASBAgDEAEYASgAMgkKB0pldHN0YXI\\u003d\"]",
         [
           [
             1
@@ -1603,13 +2344,13 @@
               false,
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 2026,
-                7,
-                15
+                5,
+                17
               ],
               [
                 "MM",
@@ -1632,8 +2373,8 @@
           "NRT",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             20,
@@ -1642,8 +2383,8 @@
           "KIX",
           [
             2026,
-            7,
-            15
+            5,
+            17
           ],
           [
             22
@@ -1656,12 +2397,12 @@
           null,
           null,
           null,
-          "ll56wd",
+          "j5XqGb",
           [
             [
-              1773874247854210,
-              44781021,
-              538325772
+              1773874763281751,
+              118986856,
+              3359400531
             ],
             null,
             null,
@@ -1669,7 +2410,7 @@
             null,
             [
               [
-                9
+                12
               ]
             ]
           ],
@@ -1687,7 +2428,7 @@
             68000,
             72000,
             null,
-            124000,
+            150000,
             1,
             false,
             null,
@@ -1710,9 +2451,9 @@
         [
           [
             null,
-            7490
+            9690
           ],
-          "CjRId0tfbzNXNEkxVllBQUh4YndCRy0tLS0tLS0tLXlpYmJnNUFBQUFBR203TEVjTTM4YkFBEgVNTTMxMhoKCMI6EAAaA0pQWTgccM4k"
+          "CjRIUkRnbVhkN29LNzRBQU1JcXdCRy0tLS0tLS0tLXZ3dmUxMkFBQUFBR203TGtzRVQwQ2VBEgVNTTMxMhoKCNpLEAAaA0pQWTgccK8v"
         ],
         null,
         false,
@@ -1735,556 +2476,16 @@
         ],
         false,
         [],
-        "[\"CAASA0pQWRoDCMI6InkKWwpZCgNOUlQSGTIwMjYtMDctMTVUMjA6MjA6MDArMDk6MDAaA0tJWCIZMjAyNi0wNy0xNVQyMjowMDowMCswOTowMCoCTU0yAzMxMjoCTU1CAzMxMkgBUgMzMjASBAgDEAEYASgAMhAKDlBlYWNoIEF2aWF0aW9u\"]",
+        "[\"CAASA0pQWRoDCNpLInkKWwpZCgNOUlQSGTIwMjYtMDUtMTdUMjA6MjA6MDArMDk6MDAaA0tJWCIZMjAyNi0wNS0xN1QyMjowMDowMCswOTowMCoCTU0yAzMxMjoCTU1CAzMxMkgBUgMzMjASBAgDEAEYASgAMhAKDlBlYWNoIEF2aWF0aW9u\"]",
         [
           [
             1
-          ]
-        ],
-        false
-      ],
-      [
-        [
-          "BR",
-          [
-            "EVA Air"
-          ],
-          [
-            [
-              null,
-              null,
-              null,
-              "NRT",
-              "Narita International Airport",
-              "Taiwan Taoyuan International Airport",
-              "TPE",
-              null,
-              [
-                20,
-                40
-              ],
-              null,
-              [
-                23,
-                20
-              ],
-              220,
-              [
-                null,
-                true,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                true,
-                null,
-                3
-              ],
-              1,
-              "31 in",
-              null,
-              1,
-              "Boeing 787-10",
-              null,
-              false,
-              [
-                2026,
-                7,
-                15
-              ],
-              [
-                2026,
-                7,
-                15
-              ],
-              [
-                "BR",
-                "195",
-                null,
-                "EVA Air"
-              ],
-              null,
-              null,
-              1,
-              null,
-              null,
-              null,
-              null,
-              "31 inches",
-              137087,
-              1
-            ],
-            [
-              null,
-              null,
-              null,
-              "TPE",
-              "Taiwan Taoyuan International Airport",
-              "Kansai International Airport",
-              "KIX",
-              1,
-              [
-                6,
-                30
-              ],
-              1,
-              [
-                10,
-                10
-              ],
-              160,
-              [
-                null,
-                true,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                true,
-                null,
-                3
-              ],
-              1,
-              "31 in",
-              null,
-              1,
-              "Boeing 787-10",
-              null,
-              false,
-              [
-                2026,
-                7,
-                16
-              ],
-              [
-                2026,
-                7,
-                16
-              ],
-              [
-                "BR",
-                "178",
-                null,
-                "EVA Air"
-              ],
-              null,
-              null,
-              1,
-              null,
-              null,
-              null,
-              null,
-              "31 inches",
-              112474,
-              1
-            ]
-          ],
-          "NRT",
-          [
-            2026,
-            7,
-            15
-          ],
-          [
-            20,
-            40
-          ],
-          "KIX",
-          [
-            2026,
-            7,
-            16
-          ],
-          [
-            10,
-            10
-          ],
-          810,
-          1,
-          null,
-          false,
-          [
-            [
-              430,
-              "TPE",
-              "TPE",
-              [
-                1
-              ],
-              "Taiwan Taoyuan International Airport",
-              "Taipei City",
-              "Taiwan Taoyuan International Airport",
-              "Taipei City"
-            ]
-          ],
-          null,
-          null,
-          null,
-          "L3p91c",
-          [
-            [
-              1773874247854210,
-              44781021,
-              538325772
-            ],
-            null,
-            null,
-            null,
-            null,
-            [
-              [
-                10
-              ]
-            ]
-          ],
-          1,
-          null,
-          null,
-          [
-            null,
-            null,
-            3,
-            247,
-            null,
-            true,
-            true,
-            250000,
-            72000,
-            null,
-            124000,
-            3,
-            false,
-            null,
-            null,
-            1,
-            null,
-            3
-          ],
-          [
-            1
-          ],
-          [
-            [
-              "BR",
-              "EVA Air",
-              "https://www.evaair.com/en-tw/fly-prepare/special-assistance-and-inquiry/"
-            ]
-          ]
-        ],
-        [
-          [
-            null,
-            48620
-          ],
-          "CjRId0tfbzNXNEkxVllBQUh4YndCRy0tLS0tLS0tLXlpYmJnNUFBQUFBR203TEVjTTM4YkFBEgtCUjE5NXxCUjE3OBoLCOz7AhAAGgNKUFk4HHDV7QE="
-        ],
-        null,
-        false,
-        [
-          null,
-          null,
-          null,
-          null,
-          1,
-          null,
-          [
-            null,
-            1
-          ]
-        ],
-        [
-          false,
-          false,
-          false
-        ],
-        false,
-        [],
-        "[\"CAASA0pQWRoECOz7AiLOAQq2AQpZCgNOUlQSGTIwMjYtMDctMTVUMjA6NDA6MDArMDk6MDAaA1RQRSIZMjAyNi0wNy0xNVQyMzoyMDowMCswODowMCoCQlIyAzE5NToCQlJCAzE5NUgBUgM3ODEKWQoDVFBFEhkyMDI2LTA3LTE2VDA2OjMwOjAwKzA4OjAwGgNLSVgiGTIwMjYtMDctMTZUMTA6MTA6MDArMDk6MDAqAkJSMgMxNzg6AkJSQgMxNzhIAVIDNzgxEgQIAxABGAEoADIJCgdFVkEgQWly\"]",
-        [
-          [
-            2
-          ]
-        ],
-        false
-      ],
-      [
-        [
-          "KE",
-          [
-            "Korean Air"
-          ],
-          [
-            [
-              null,
-              null,
-              null,
-              "NRT",
-              "Narita International Airport",
-              "Incheon International Airport",
-              "ICN",
-              null,
-              [
-                20,
-                55
-              ],
-              null,
-              [
-                23,
-                25
-              ],
-              150,
-              [
-                null,
-                true,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                true,
-                3
-              ],
-              1,
-              "31 in",
-              null,
-              1,
-              "Boeing 737MAX 8 Passenger",
-              null,
-              false,
-              [
-                2026,
-                7,
-                15
-              ],
-              [
-                2026,
-                7,
-                15
-              ],
-              [
-                "KE",
-                "714",
-                null,
-                "Korean Air"
-              ],
-              null,
-              null,
-              1,
-              null,
-              null,
-              null,
-              null,
-              "31 inches",
-              116344,
-              2
-            ],
-            [
-              null,
-              null,
-              null,
-              "ICN",
-              "Incheon International Airport",
-              "Kansai International Airport",
-              "KIX",
-              1,
-              [
-                9,
-                35
-              ],
-              1,
-              [
-                11,
-                20
-              ],
-              105,
-              [
-                null,
-                true,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                true,
-                null,
-                3
-              ],
-              3,
-              "32 in",
-              null,
-              1,
-              "Boeing 787-10",
-              null,
-              false,
-              [
-                2026,
-                7,
-                16
-              ],
-              [
-                2026,
-                7,
-                16
-              ],
-              [
-                "KE",
-                "723",
-                null,
-                "Korean Air"
-              ],
-              null,
-              null,
-              1,
-              null,
-              null,
-              null,
-              null,
-              "32 inches",
-              76654,
-              1
-            ]
-          ],
-          "NRT",
-          [
-            2026,
-            7,
-            15
-          ],
-          [
-            20,
-            55
-          ],
-          "KIX",
-          [
-            2026,
-            7,
-            16
-          ],
-          [
-            11,
-            20
-          ],
-          865,
-          1,
-          null,
-          false,
-          [
-            [
-              610,
-              "ICN",
-              "ICN",
-              [
-                1
-              ],
-              "Incheon International Airport",
-              "Seoul",
-              "Incheon International Airport",
-              "Seoul"
-            ]
-          ],
-          null,
-          null,
-          null,
-          "JLBMrd",
-          [
-            [
-              1773874247854210,
-              44781021,
-              538325772
-            ],
-            null,
-            null,
-            null,
-            null,
-            [
-              [
-                11
-              ]
-            ]
-          ],
-          1,
-          null,
-          null,
-          [
-            null,
-            null,
-            3,
-            168,
-            null,
-            true,
-            true,
-            193000,
-            72000,
-            null,
-            124000,
-            3,
-            false,
-            null,
-            null,
-            2,
-            null,
-            6
-          ],
-          [
-            1
-          ],
-          [
-            [
-              "KE",
-              "Korean Air",
-              "https://www.koreanair.com/kr/en/airport/assistance/special-needs"
-            ]
-          ]
-        ],
-        [
-          [
-            null,
-            46930
-          ],
-          "CjRId0tfbzNXNEkxVllBQUh4YndCRy0tLS0tLS0tLXlpYmJnNUFBQUFBR203TEVjTTM4YkFBEgtLRTcxNHxLRTcyMxoLCNLuAhAAGgNKUFk4HHCz5QE="
-        ],
-        null,
-        false,
-        [
-          null,
-          null,
-          null,
-          null,
-          1,
-          null,
-          [
-            null,
-            1
-          ]
-        ],
-        [
-          false,
-          false,
-          false
-        ],
-        false,
-        [],
-        "[\"CAASA0pQWRoECNLuAiLRAQq2AQpZCgNOUlQSGTIwMjYtMDctMTVUMjA6NTU6MDArMDk6MDAaA0lDTiIZMjAyNi0wNy0xNVQyMzoyNTowMCswOTowMCoCS0UyAzcxNDoCS0VCAzcxNEgBUgM3TTgKWQoDSUNOEhkyMDI2LTA3LTE2VDA5OjM1OjAwKzA5OjAwGgNLSVgiGTIwMjYtMDctMTZUMTE6MjA6MDArMDk6MDAqAktFMgM3MjM6AktFQgM3MjNIAVIDNzgxEgQIAxABGAEoADIMCgpLb3JlYW4gQWly\"]",
-        [
-          [
-            2
           ]
         ],
         false
       ]
     ],
-    152,
+    159,
     false,
     false,
     [
@@ -2298,11 +2499,11 @@
     [
       [
         null,
-        5540
+        6040
       ],
       [
         null,
-        114620
+        110910
       ]
     ],
     [
@@ -2514,20 +2715,12 @@
     [
       [
         [
-          "PEK",
-          "Beijing"
-        ],
-        [
           "PUS",
           "Busan"
         ],
         [
           "CEB",
           "Cebu City"
-        ],
-        [
-          "TAE",
-          "Daegu"
         ],
         [
           "FOC",
@@ -2542,24 +2735,8 @@
           "Guangzhou"
         ],
         [
-          "HGH",
-          "Hangzhou"
-        ],
-        [
           "HKG",
           "Hong Kong"
-        ],
-        [
-          "CJU",
-          "Jeju-si"
-        ],
-        [
-          "TNA",
-          "Jinan"
-        ],
-        [
-          "KHH",
-          "Kaohsiung City"
         ],
         [
           "MNL",
@@ -2603,11 +2780,11 @@
         ]
       ],
       50,
-      1905
+      1750
     ],
     [
       95,
-      2150
+      2010
     ],
     [
       [
@@ -2632,9 +2809,9 @@
   null,
   [
     [
-      "BR",
-      "EVA Air",
-      "https://www.evaair.com/en-us/fly-prepare/baggage/"
+      "OZ",
+      "Asiana Airlines",
+      "https://flyasiana.com/C/US/EN/contents/free-baggage"
     ],
     [
       "GK",
@@ -2656,9 +2833,9 @@
   null,
   [
     [
-      1773874247854210,
-      44781021,
-      538325772
+      1773874763281751,
+      118986856,
+      3359400531
     ],
     null,
     null,
@@ -2673,61 +2850,6 @@
   null,
   null,
   [
-    [
-      [
-        "BJS",
-        0
-      ],
-      "Metropolitan Area",
-      [
-        "/m/01914",
-        "Beijing",
-        [
-          [
-            "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcSzsj_yw6o3vb8i54_D21VgI5rTohxexQkZ0TrZKDKJwTSKw2yqnRYLoIcBWIY50BlHo-OPMm68zbUO-qnFvmQmm6jvtWPwo7WOzjNGX_A"
-          ],
-          [
-            "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcQ9v_tNYxaummsU2qbFn8zuYzkcG0x6qCvqB2gbBnx-2FVlZZPsnkvUXGk07vxotk-0vRQMUYCjj2d4Wg"
-          ]
-        ]
-      ],
-      [
-        39.904211,
-        116.407395
-      ],
-      "CN",
-      false,
-      "China"
-    ],
-    [
-      [
-        "/m/01914",
-        4
-      ],
-      "Beijing",
-      [
-        "/m/01914",
-        "Beijing",
-        [
-          [
-            "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcSzsj_yw6o3vb8i54_D21VgI5rTohxexQkZ0TrZKDKJwTSKw2yqnRYLoIcBWIY50BlHo-OPMm68zbUO-qnFvmQmm6jvtWPwo7WOzjNGX_A"
-          ],
-          [
-            "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcQ9v_tNYxaummsU2qbFn8zuYzkcG0x6qCvqB2gbBnx-2FVlZZPsnkvUXGk07vxotk-0vRQMUYCjj2d4Wg"
-          ]
-        ],
-        "Forbidden City & Tiananmen Square",
-        "China's capital & home to major sites such as the Forbidden City palace complex & Tiananmen Square.",
-        "BJS"
-      ],
-      [
-        39.904211,
-        116.407395
-      ],
-      "CN",
-      null,
-      "China"
-    ],
     [
       [
         "CAN",
@@ -2837,61 +2959,6 @@
       "PH",
       null,
       "Philippines"
-    ],
-    [
-      [
-        "CJU",
-        0
-      ],
-      "Jeju International Airport",
-      [
-        "/m/03m9sv",
-        "Jeju-si",
-        [
-          [
-            "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcTZevoFLtta3ssN-OhirEXOGqkfxh9kIG-mW52BkNchVKYEWIBftvUTOMBOAczX8-6WvIW2kPTZdVeanlgxnFBvuaqXFOPz2D0MoVvN8fA"
-          ],
-          [
-            "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcSHPyCSD11bK6OV89k-ilyF3ARZYLmtt1_5n6QboXt-S0T5hCZpEYnxA9MJl_oWezl75zVFRv-BS1rMBg"
-          ]
-        ]
-      ],
-      [
-        33.5122222,
-        126.492778
-      ],
-      "KR",
-      false,
-      "South Korea"
-    ],
-    [
-      [
-        "/m/03m9sv",
-        4
-      ],
-      "Jeju-si",
-      [
-        "/m/03m9sv",
-        "Jeju-si",
-        [
-          [
-            "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcTZevoFLtta3ssN-OhirEXOGqkfxh9kIG-mW52BkNchVKYEWIBftvUTOMBOAczX8-6WvIW2kPTZdVeanlgxnFBvuaqXFOPz2D0MoVvN8fA"
-          ],
-          [
-            "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcSHPyCSD11bK6OV89k-ilyF3ARZYLmtt1_5n6QboXt-S0T5hCZpEYnxA9MJl_oWezl75zVFRv-BS1rMBg"
-          ]
-        ],
-        "Folklore Museum & seawater saunas",
-        "Capital city of South Korea’s Jeju Island, with Folklore Museum, Nanta Theatre & seawater saunas.",
-        "CJU"
-      ],
-      [
-        33.5042779,
-        126.519838
-      ],
-      "KR",
-      null,
-      "South Korea"
     ],
     [
       [
@@ -3115,61 +3182,6 @@
     ],
     [
       [
-        "HGH",
-        0
-      ],
-      "Hangzhou International Airport",
-      [
-        "/m/014vm4",
-        "Hangzhou",
-        [
-          [
-            "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcSBd-y4lg-GmoBkzDmEtiIOAPa_u7KReDdcRx-kZWR2K8wVkZlYTAAwj_alEatmUWfCSf9pDoLHn9-1eEfXphKF4HBnIGsduACLHysd5o4"
-          ],
-          [
-            "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcS3uOojBmOIThSwxwDBDC8EwtXVKJwuSTR8wV4INHAIomedc-UcVPsTE_0BM9ymZBE2g2JPItCoSpvTMQ"
-          ]
-        ]
-      ],
-      [
-        30.2294444,
-        120.434444
-      ],
-      "CN",
-      false,
-      "China"
-    ],
-    [
-      [
-        "/m/014vm4",
-        4
-      ],
-      "Hangzhou",
-      [
-        "/m/014vm4",
-        "Hangzhou",
-        [
-          [
-            "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcSBd-y4lg-GmoBkzDmEtiIOAPa_u7KReDdcRx-kZWR2K8wVkZlYTAAwj_alEatmUWfCSf9pDoLHn9-1eEfXphKF4HBnIGsduACLHysd5o4"
-          ],
-          [
-            "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcS3uOojBmOIThSwxwDBDC8EwtXVKJwuSTR8wV4INHAIomedc-UcVPsTE_0BM9ymZBE2g2JPItCoSpvTMQ"
-          ]
-        ],
-        "West Lake, Grand Canal & tea fields",
-        "Chinese city famed for its expansive West Lake, its Grand Canal & nearby Longjin tea producers.",
-        "HGH"
-      ],
-      [
-        30.2741499,
-        120.15515
-      ],
-      "CN",
-      null,
-      "China"
-    ],
-    [
-      [
         "HKG",
         0
       ],
@@ -3248,61 +3260,6 @@
       "KR",
       false,
       "South Korea"
-    ],
-    [
-      [
-        "KHH",
-        0
-      ],
-      "Kaohsiung International Airport",
-      [
-        "/m/04bnx",
-        "Kaohsiung City",
-        [
-          [
-            "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcQ0QruOiG3lQiajkV4FrOidIISjAxkKulbXYbO3b_VNzKqL07Ai1JxdUJPkVtqSIV-KobNcw_TlKI4Ev6J0EwUQlK5vZjHXpaHXNwpuX_Y"
-          ],
-          [
-            "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcTAI8XrEcb00HNX1nMoXDAAUenmdGP1FufJckg2v0spLVnbBxVKJGcSxM8SwlmAYD9MYDYMrn9TnOJlYQ"
-          ]
-        ]
-      ],
-      [
-        22.5769444,
-        120.350278
-      ],
-      "TW",
-      false,
-      "Taiwan"
-    ],
-    [
-      [
-        "/m/04bnx",
-        4
-      ],
-      "Kaohsiung City",
-      [
-        "/m/04bnx",
-        "Kaohsiung City",
-        [
-          [
-            "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcQ0QruOiG3lQiajkV4FrOidIISjAxkKulbXYbO3b_VNzKqL07Ai1JxdUJPkVtqSIV-KobNcw_TlKI4Ev6J0EwUQlK5vZjHXpaHXNwpuX_Y"
-          ],
-          [
-            "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcTAI8XrEcb00HNX1nMoXDAAUenmdGP1FufJckg2v0spLVnbBxVKJGcSxM8SwlmAYD9MYDYMrn9TnOJlYQ"
-          ]
-        ],
-        "Love River, museums & Tuntex Sky Tower",
-        "Taiwanese port city known for Love River greenways, museums & skyscrapers like Tuntex Sky Tower.",
-        "KHH"
-      ],
-      [
-        22.6272784,
-        120.3014353
-      ],
-      "TW",
-      null,
-      "Taiwan"
     ],
     [
       [
@@ -3552,32 +3509,6 @@
     ],
     [
       [
-        "PEK",
-        0
-      ],
-      "Beijing Capital International Airport",
-      [
-        "/m/01914",
-        "Beijing",
-        [
-          [
-            "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcSzsj_yw6o3vb8i54_D21VgI5rTohxexQkZ0TrZKDKJwTSKw2yqnRYLoIcBWIY50BlHo-OPMm68zbUO-qnFvmQmm6jvtWPwo7WOzjNGX_A"
-          ],
-          [
-            "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcQ9v_tNYxaummsU2qbFn8zuYzkcG0x6qCvqB2gbBnx-2FVlZZPsnkvUXGk07vxotk-0vRQMUYCjj2d4Wg"
-          ]
-        ]
-      ],
-      [
-        40.08,
-        116.584444
-      ],
-      "CN",
-      false,
-      "China"
-    ],
-    [
-      [
         "PUS",
         0
       ],
@@ -3821,61 +3752,6 @@
     ],
     [
       [
-        "TAE",
-        0
-      ],
-      "Daegu International Airport (TAE)",
-      [
-        "/m/01vskn",
-        "Daegu",
-        [
-          [
-            "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcSnAmlW25PjXyaEBMRYFh21fBZo9AUPc3xjuP6sZIk8xuwy9SNumElf9Yz7gAuK-CTOKxkxlv53nW_dKouiQ9TPcsdlAwcksLUhEpXyeN0"
-          ],
-          [
-            "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcSz5iQiV8lYNrCk_8TBeNa6y62Qq0oUo9X_im7Ua43hiZDEWE_P6edhP7pSr90ySwdJiCZXwlvfTZeJMA"
-          ]
-        ]
-      ],
-      [
-        35.8938889,
-        128.658889
-      ],
-      "KR",
-      false,
-      "South Korea"
-    ],
-    [
-      [
-        "/m/01vskn",
-        4
-      ],
-      "Daegu",
-      [
-        "/m/01vskn",
-        "Daegu",
-        [
-          [
-            "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcSnAmlW25PjXyaEBMRYFh21fBZo9AUPc3xjuP6sZIk8xuwy9SNumElf9Yz7gAuK-CTOKxkxlv53nW_dKouiQ9TPcsdlAwcksLUhEpXyeN0"
-          ],
-          [
-            "https://encrypted-tbn2.gstatic.com/images?q=tbn:ANd9GcSz5iQiV8lYNrCk_8TBeNa6y62Qq0oUo9X_im7Ua43hiZDEWE_P6edhP7pSr90ySwdJiCZXwlvfTZeJMA"
-          ]
-        ],
-        "Oriental Medicine Center & Daegu Museum",
-        "South Korean city with Oriental Medicine Cultural Center, Daegu National Museum & Gatbawi Buddha.",
-        "TAE"
-      ],
-      [
-        35.8501034,
-        128.5206192
-      ],
-      "KR",
-      null,
-      "South Korea"
-    ],
-    [
-      [
         "TAO",
         0
       ],
@@ -3924,61 +3800,6 @@
       [
         36.0662299,
         120.38299
-      ],
-      "CN",
-      null,
-      "China"
-    ],
-    [
-      [
-        "TNA",
-        0
-      ],
-      "Jinan Yaoqiang International Airport",
-      [
-        "/m/01l3h7",
-        "Jinan",
-        [
-          [
-            "https://encrypted-tbn3.gstatic.com/licensed-image?q=tbn:ANd9GcQtk7MDSXo9eqQgJEX_gQSD2D39cXuxKa00JjnXK1BW5zqTEgXMa19JFuGiXSImlrliHv39J6Md51o02FCiAoe01yJRDdfboJeoRs4JNyw"
-          ],
-          [
-            "https://encrypted-tbn3.gstatic.com/licensed-image?q=tbn:ANd9GcQ2VFSUnqjexFB5GMvdwXJEPticXJcdgwSj9XMJUJL3oS5_olfWX67o8FCmHNjwqZbTtt1rWfxgvGB4Hw"
-          ]
-        ]
-      ],
-      [
-        36.8572222,
-        117.216111
-      ],
-      "CN",
-      false,
-      "China"
-    ],
-    [
-      [
-        "/m/01l3h7",
-        4
-      ],
-      "Jinan",
-      [
-        "/m/01l3h7",
-        "Jinan",
-        [
-          [
-            "https://encrypted-tbn3.gstatic.com/licensed-image?q=tbn:ANd9GcQtk7MDSXo9eqQgJEX_gQSD2D39cXuxKa00JjnXK1BW5zqTEgXMa19JFuGiXSImlrliHv39J6Md51o02FCiAoe01yJRDdfboJeoRs4JNyw"
-          ],
-          [
-            "https://encrypted-tbn3.gstatic.com/licensed-image?q=tbn:ANd9GcQ2VFSUnqjexFB5GMvdwXJEPticXJcdgwSj9XMJUJL3oS5_olfWX67o8FCmHNjwqZbTtt1rWfxgvGB4Hw"
-          ]
-        ],
-        "Springs, Daming Lake & Shandong Museum",
-        "Capital of Shandong province known for its many natural springs, Daming Lake & the Shandong Museum.",
-        "TNA"
-      ],
-      [
-        36.6518399,
-        117.12009
       ],
       "CN",
       null,
@@ -4131,14 +3952,14 @@
   [
     [
       null,
-      5540
+      6040
     ]
   ],
   [
     [
-      "BR",
-      "EVA Air",
-      "https://www.evaair.com/en-tw/fly-prepare/special-assistance-and-inquiry/"
+      "OZ",
+      "Asiana Airlines",
+      "https://flyasiana.com/C/KR/EN/contents/disabled-passenger"
     ],
     [
       "GK",
@@ -4159,6 +3980,11 @@
       "MM",
       "Peach Aviation",
       "https://www.flypeach.com/en/lm/ai/airports/special_support"
+    ],
+    [
+      "TW",
+      "T'Way Air",
+      "https://www.twayair.com/app/serviceInfo/contents/1069"
     ]
   ],
   null,
@@ -4167,9 +3993,9 @@
   [
     [
       null,
-      5540
+      6040
     ],
-    "CjRId0tfbzNXNEkxVllBQUh4YndCRy0tLS0tLS0tLXlpYmJnNUFBQUFBR203TEVjTTM4YkFBEhZjb21wcmVoZW5zaXZlbmVzc19sdXJlGgoIpCsQABoDSlBZOBxwihs="
+    "CjRIUkRnbVhkN29LNzRBQU1JcXdCRy0tLS0tLS0tLXZ3dmUxMkFBQUFBR203TGtzRVQwQ2VBEhZjb21wcmVoZW5zaXZlbmVzc19sdXJlGgoImC8QABoDSlBZOBxwwx0="
   ],
   true,
   true
