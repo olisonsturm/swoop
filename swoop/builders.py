@@ -198,4 +198,4 @@ class ItinerarySummary:
             pb.ParseFromString(raw)
             return cls(pb.flights, pb.price.price, pb.price.currency)
         except Exception:
-            return cls("", 0, "")
+            return cls("", 0, "")  # empty currency = unknown (Itinerary.currency returns None)
