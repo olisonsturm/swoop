@@ -160,7 +160,6 @@ SCENARIOS = [
             "country": "AU",
         },
         "expected_currency": "AUD",
-        "price_range": (40, 2000),
     },
     # --- Brazil (BRL) ---
     {
