@@ -22,6 +22,7 @@ class TripOption:
 
     selector: str
     price: Optional[int] = None
+    currency: Optional[str] = None
     legs: list[TripLeg] = field(default_factory=list)
 
 
@@ -32,6 +33,7 @@ class SearchResult:
     results: list[TripOption] = field(default_factory=list)
     price_range: Optional[PriceRange] = None
     is_complete: bool = True
+    currency: Optional[str] = None
 
 
 @dataclass
@@ -61,6 +63,7 @@ class PriceResult:
     """Result of a targeted price check for a specific trip."""
 
     price: int
+    currency: Optional[str] = None
     fare_brand: Optional[str] = None
     is_basic_economy: bool = False
     booking_options: list[BookingOption] = field(default_factory=list)

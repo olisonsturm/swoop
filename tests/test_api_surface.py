@@ -132,7 +132,7 @@ class TestFrozenDataclassFields:
         assert self._field_names(Itinerary) == expected
 
     def test_search_result_fields(self):
-        expected = {"results", "price_range", "is_complete"}
+        expected = {"results", "price_range", "is_complete", "currency"}
         assert self._field_names(SearchResult) == expected
 
     def test_raw_search_result_fields(self):
@@ -186,7 +186,7 @@ class TestFrozenDataclassFields:
         assert self._field_names(PriceRange) == expected
 
     def test_price_result_fields(self):
-        expected = {"price", "fare_brand", "is_basic_economy", "booking_options", "itinerary", "resolved_legs", "rpc_calls"}
+        expected = {"price", "currency", "fare_brand", "is_basic_economy", "booking_options", "itinerary", "resolved_legs", "rpc_calls"}
         assert self._field_names(PriceResult) == expected
 
     def test_resolved_leg_fields(self):
@@ -202,7 +202,7 @@ class TestFrozenDataclassFields:
         assert self._field_names(TripLeg) == expected
 
     def test_trip_option_fields(self):
-        expected = {"selector", "price", "legs"}
+        expected = {"selector", "price", "currency", "legs"}
         assert self._field_names(TripOption) == expected
 
 
