@@ -274,7 +274,7 @@ class TestPriceCommandBranches:
 
     @patch("swoop.price_selector")
     def test_selector_mode_renders_table_for_found_result(self, mock_price_selector):
-        mock_price_selector.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
+        mock_price_selector.return_value = PriceResult(price=342, currency="USD", fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, ["price", "--selector", "selector-1", "-q"])
         assert result.exit_code == 0

@@ -100,10 +100,11 @@ def _make_connecting_itinerary() -> Itinerary:
     )
 
 
-def _make_trip_option(itinerary: Itinerary, *, index: int) -> TripOption:
+def _make_trip_option(itinerary: Itinerary, *, index: int, currency: str = "USD") -> TripOption:
     return TripOption(
         selector=f"selector-{index}",
         price=itinerary.price,
+        currency=currency,
         legs=[
             TripLeg(
                 origin=itinerary.departure_airport_code,
@@ -136,6 +137,7 @@ def _make_search_result(n: int = 3) -> SearchResult:
         results=options,
         price_range=PriceRange(low=127, high=450),
         is_complete=True,
+        currency="USD",
     )
 
 
@@ -559,7 +561,7 @@ class TestSearchCommand:
 class TestPriceCommand:
     @patch("swoop.check_price")
     def test_price_shorthand_one_way(self, mock_check):
-        mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
+        mock_check.return_value = PriceResult(price=342, currency="USD", fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, [
             "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300", "-q",
@@ -597,7 +599,7 @@ class TestPriceCommand:
 
     @patch("swoop.check_price")
     def test_price_brief_output(self, mock_check):
-        mock_check.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
+        mock_check.return_value = PriceResult(price=342, currency="USD", fare_brand="Main Cabin", rpc_calls=1)
         runner = CliRunner()
         result = runner.invoke(main, [
             "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300",
@@ -635,7 +637,7 @@ class TestPriceCommand:
 
     @patch("swoop.check_price")
     def test_price_shorthand_roundtrip(self, mock_check):
-        mock_check.return_value = PriceResult(price=684, fare_brand="Main Cabin", rpc_calls=3)
+        mock_check.return_value = PriceResult(price=684, currency="USD", fare_brand="Main Cabin", rpc_calls=3)
         runner = CliRunner()
         result = runner.invoke(main, [
             "price", "JFK", "LAX",
@@ -662,7 +664,7 @@ class TestPriceCommand:
     @patch("swoop.price_legs")
     def test_price_leg_syntax(self, mock_price_legs):
         """--leg repeated syntax works."""
-        mock_price_legs.return_value = PriceResult(price=684, fare_brand="Main Cabin", rpc_calls=3)
+        mock_price_legs.return_value = PriceResult(price=684, currency="USD", fare_brand="Main Cabin", rpc_calls=3)
         runner = CliRunner()
         result = runner.invoke(main, [
             "price",

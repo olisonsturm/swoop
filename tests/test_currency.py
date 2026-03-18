@@ -155,8 +155,8 @@ class TestFormatPrice:
     def test_none_price(self):
         assert _format_price(None) == "\u2014"  # em-dash
 
-    def test_none_currency_defaults_usd(self):
-        assert _format_price(100) == "$100"
+    def test_none_currency_shows_raw(self):
+        assert _format_price(100) == "100"
 
     def test_zero_price(self):
         assert _format_price(0, "USD") == "$0"
