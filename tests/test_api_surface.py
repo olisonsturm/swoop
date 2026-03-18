@@ -43,6 +43,8 @@ class TestFrozenExports:
         "price_legs",
         "get_booking_results",
         "search_raw",
+        "set_country",
+        "set_proxy",
         "parse_flight_number",
         "itinerary_matches_flight",
         # Types
@@ -212,12 +214,15 @@ class TestSearchSignature:
         param_names = list(sig.parameters.keys())
         expected = [
             "origin", "destination", "date",
-            "return_date", "cabin", "adults", "max_stops", "sort",
+            "return_date", "cabin", "adults",
+            "children", "infants_in_seat", "infants_on_lap",
+            "max_stops", "sort",
             "airlines", "flight_number", "include_basic_economy",
             "earliest_departure", "latest_departure",
             "earliest_arrival", "latest_arrival",
             "return_earliest_departure", "return_latest_departure",
             "timeout", "retries",
+            "country", "proxy",
         ]
         assert param_names == expected
 
@@ -226,13 +231,16 @@ class TestSearchSignature:
         param_names = list(sig.parameters.keys())
         expected = [
             "origin", "destination", "date",
-            "cabin", "adults", "sort", "max_stops", "airlines",
+            "cabin", "adults",
+            "children", "infants_in_seat", "infants_on_lap",
+            "sort", "max_stops", "airlines",
             "earliest_departure", "latest_departure",
             "earliest_arrival", "latest_arrival",
             "return_date", "return_earliest_departure", "return_latest_departure",
             "selected_outbound_legs",
             "timeout", "retries",
             "exclude_basic_economy",
+            "country", "proxy",
         ]
         assert param_names == expected
 
@@ -242,8 +250,11 @@ class TestSearchSignature:
         expected = [
             "flight_number", "origin", "destination", "date",
             "return_flight_number", "return_date",
-            "cabin", "adults", "max_stops", "include_basic_economy",
+            "cabin", "adults",
+            "children", "infants_in_seat", "infants_on_lap",
+            "max_stops", "include_basic_economy",
             "timeout", "retries",
+            "country", "proxy",
         ]
         assert param_names == expected
 
@@ -251,8 +262,11 @@ class TestSearchSignature:
         sig = inspect.signature(swoop.search_legs)
         param_names = list(sig.parameters.keys())
         expected = [
-            "legs", "cabin", "adults", "sort",
+            "legs", "cabin", "adults",
+            "children", "infants_in_seat", "infants_on_lap",
+            "sort",
             "include_basic_economy", "timeout", "retries",
+            "country", "proxy",
         ]
         assert param_names == expected
 
@@ -261,14 +275,16 @@ class TestSearchSignature:
         param_names = list(sig.parameters.keys())
         expected = [
             "legs", "cabin", "adults",
+            "children", "infants_in_seat", "infants_on_lap",
             "include_basic_economy", "timeout", "retries",
+            "country", "proxy",
         ]
         assert param_names == expected
 
     def test_price_selector_params(self):
         sig = inspect.signature(swoop.price_selector)
         param_names = list(sig.parameters.keys())
-        expected = ["selector", "timeout", "retries"]
+        expected = ["selector", "timeout", "retries", "country", "proxy"]
         assert param_names == expected
 
 
