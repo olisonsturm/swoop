@@ -300,12 +300,7 @@ SearchResult = RawSearchResult
 
 @dataclass
 class BookingOption:
-    """A single fare option from GetBookingResults.
-
-    Supports both attribute access and dict-style access via ``[]`` and
-    ``.get()`` for backward compatibility with code that used the old
-    ``dict`` return type.
-    """
+    """A single fare option from GetBookingResults."""
     price: int = 0
     brand_label: str = ""
     brand_code: str = ""
@@ -338,14 +333,6 @@ class BookingOption:
             parts.append("basic")
         return f"BookingOption({' '.join(parts)})"
 
-    def __getitem__(self, key: str) -> Any:
-        return getattr(self, key)
-
-    def __contains__(self, key: str) -> bool:
-        return hasattr(self, key)
-
-    def get(self, key: str, default: Any = None) -> Any:
-        return getattr(self, key, default)
 
 
 def _decode_codeshare(el: list) -> Codeshare:
