@@ -180,8 +180,8 @@ class TFSData:
 class ItinerarySummary:
     """Decoded price data from a Google Flights itinerary summary token.
 
-    The ``price`` field is in USD (cents divided by 100). ``currency`` is
-    the 3-letter ISO code (usually ``"USD"``).
+    The ``price`` field is in the response currency's major unit
+    (raw protobuf value / 100). ``currency`` is the 3-letter ISO 4217 code.
     """
 
     flights: str

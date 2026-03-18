@@ -179,7 +179,7 @@ class Itinerary:
     departure_time: Tuple[int, int] = (0, 0)
     arrival_time: Tuple[int, int] = (0, 0)
     price_info: Optional[ItinerarySummary] = None
-    direct_price: Optional[int] = None  # Integer USD price from root[1][0][1], more accurate than protobuf
+    direct_price: Optional[int] = None  # Integer price in response currency's major unit from root[1][0][1]
     booking_token: str = ""
     carbon_emissions: Optional[CarbonEmissions] = None
     stop_count: Optional[int] = None  # Number of stops
@@ -187,8 +187,15 @@ class Itinerary:
     quality_signals: Optional[QualitySignals] = None  # itinerary root[4]
 
     @property
+    def currency(self) -> Optional[str]:
+        """ISO 4217 currency code from the itinerary's price info, or None."""
+        if self.price_info is not None and self.price_info.currency:
+            return self.price_info.currency
+        return None
+
+    @property
     def price(self) -> Optional[int]:
-        """Canonical USD price. Prefers ``direct_price``, falls back to ``price_info``."""
+        """Canonical price in the response currency's major unit. Prefers ``direct_price``, falls back to ``price_info``."""
         if self.direct_price is not None:
             return self.direct_price
         if self.price_info is not None:
