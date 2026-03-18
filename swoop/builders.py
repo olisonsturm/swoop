@@ -176,41 +176,28 @@ class TFSData:
         )
 
 
-# Currencies where Google Flights sends protobuf prices in the major unit
-# directly (divisor=1), determined empirically from live API responses.
-# Most currencies (USD, EUR, GBP, etc.) use divisor=100 (minor units).
-# This does NOT match ISO 4217 — e.g. INR has 2 decimal places in ISO 4217
-# but Google sends whole rupees, not paise.
-_GOOGLE_MAJOR_UNIT_CURRENCIES = frozenset({
-    # Confirmed via live captures:
-    "JPY",  # ¥5,540 sent as 5540
-    "INR",  # ₹6,725 sent as 6725
-    # Expected based on Google Flights display behavior (whole-number prices):
-    "KRW",  # South Korean Won
-    "VND",  # Vietnamese Dong
-    "IDR",  # Indonesian Rupiah
-    "CLP",  # Chilean Peso
-    "ISK",  # Icelandic Króna
-    "PKR",  # Pakistani Rupee
-    "LKR",  # Sri Lankan Rupee
-    "HUF",  # Hungarian Forint
-    "TWD",  # New Taiwan Dollar
-})
-
-
-_DIVISOR_MAJOR_UNIT = 1      # Price is already in the major unit (e.g. ¥5540)
-_DIVISOR_MINOR_UNIT = 100    # Price is in minor units, e.g. cents (25000 → $250)
+# Currencies where Google deviates from ISO 4217 precision.
+# Google sends these as whole major units despite ISO saying they have
+# 2 decimal places. Confirmed via live API captures.
+_GOOGLE_PRECISION_OVERRIDES = {
+    "INR": 0,  # ISO says 2 (paise), but Google sends whole rupees
+}
 
 
 def _currency_divisor(currency: str) -> int:
     """Return the divisor to convert Google's protobuf price to major unit.
 
-    Based on empirical observation of what Google Flights actually sends,
-    not ISO 4217 decimal places.
+    Uses babel's ISO 4217 currency precision (e.g. USD=2 → 10^2=100,
+    JPY=0 → 10^0=1), with overrides for currencies where Google deviates
+    from the standard.
     """
-    if currency in _GOOGLE_MAJOR_UNIT_CURRENCIES:
-        return _DIVISOR_MAJOR_UNIT
-    return _DIVISOR_MINOR_UNIT
+    if currency in _GOOGLE_PRECISION_OVERRIDES:
+        return 10 ** _GOOGLE_PRECISION_OVERRIDES[currency]
+    try:
+        from babel.numbers import get_currency_precision
+        return 10 ** get_currency_precision(currency)
+    except Exception:
+        return 100  # safe fallback if babel unavailable
 
 
 @dataclass
