@@ -38,6 +38,8 @@ def fake_primp(monkeypatch):
             fake_primp(200, "response body")
             # now primp.Client().post() returns FakeHTTPResponse(200, "response body")
     """
+    import swoop.rpc as _rpc
+
     def _install(status_code=200, text=""):
         response = FakeHTTPResponse(status_code, text)
         class FakeClient:
@@ -45,6 +47,8 @@ def fake_primp(monkeypatch):
                 pass
             def post(self, *_a, **_kw):
                 return response
+        # Clear the connection cache so the fake client is actually used
+        _rpc._clients.clear()
         monkeypatch.setitem(sys.modules, "primp", types.SimpleNamespace(Client=FakeClient))
         return response
     return _install

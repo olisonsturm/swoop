@@ -304,10 +304,10 @@ def test_get_booking_results_with_itinerary(monkeypatch):
 
     captured = {}
 
-    def fake_http_post(url, content, *, timeout=90, retries=0):
+    def fake_http_post(url, content, **kwargs):
         captured["url"] = url
-        captured["timeout"] = timeout
-        captured["retries"] = retries
+        captured["timeout"] = kwargs.get("timeout", 90)
+        captured["retries"] = kwargs.get("retries", 0)
         return FakeHTTPResponse(200, ")]}'" + json.dumps([["wrb.fr", None, json.dumps([None, []])]]))
 
     monkeypatch.setattr(rpc, "_http_post", fake_http_post)
@@ -377,6 +377,7 @@ def test_http_post_retries_on_429(monkeypatch):
                 return FakeHTTPResponse(429, "ok")
             return FakeHTTPResponse(200, "ok")
 
+    rpc._clients.clear()
     monkeypatch.setitem(sys.modules, "primp", types.SimpleNamespace(Client=FakeClient))
     monkeypatch.setattr("time.sleep", lambda _: None)  # skip actual sleep
 
@@ -406,6 +407,7 @@ def test_http_post_no_retry_on_non_429(monkeypatch):
             call_count += 1
             return FakeHTTPResponse(503, "")
 
+    rpc._clients.clear()
     monkeypatch.setitem(sys.modules, "primp", types.SimpleNamespace(Client=FakeClient))
 
     with pytest.raises(SwoopHTTPError, match="HTTP 503"):
@@ -424,6 +426,7 @@ def test_http_post_passes_timeout(monkeypatch):
             captured_kwargs.update(kwargs)
             return FakeHTTPResponse(200, "ok")
 
+    rpc._clients.clear()
     monkeypatch.setitem(sys.modules, "primp", types.SimpleNamespace(Client=FakeClient))
 
     rpc._http_post("http://test", b"body", timeout=45)

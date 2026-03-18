@@ -393,7 +393,7 @@ def test_build_booking_f_req_validation_and_padding() -> None:
 
 
 def test_search_raw_success_and_http_error(monkeypatch) -> None:
-    def fake_http_post(url, content, *, timeout=90, retries=0):
+    def fake_http_post(url, content, **kwargs):
         return FakeHTTPResponse(200, "ok")
 
     monkeypatch.setattr(rpc, "_http_post", fake_http_post)
@@ -402,7 +402,7 @@ def test_search_raw_success_and_http_error(monkeypatch) -> None:
     parsed = rpc.search_raw("LGA", "BHM", "2026-03-12")
     assert parsed == {"parsed": "ok"}
 
-    def error_http_post(url, content, *, timeout=90, retries=0):
+    def error_http_post(url, content, **kwargs):
         raise rpc.SwoopHTTPError(503)
 
     monkeypatch.setattr(rpc, "_http_post", error_http_post)
@@ -425,7 +425,7 @@ def test_get_booking_results_branches(monkeypatch) -> None:
 
     monkeypatch.undo()
 
-    def error_http_post(url, content, *, timeout=90, retries=0):
+    def error_http_post(url, content, **kwargs):
         raise rpc.SwoopHTTPError(500)
 
     monkeypatch.setattr(rpc, "_http_post", error_http_post)
@@ -438,7 +438,7 @@ def test_get_booking_results_branches(monkeypatch) -> None:
             selected_legs=[["LGA", "2026-03-12", "BHM", None, "DL", "4938"]],
         )
 
-    def success_http_post(url, content, *, timeout=90, retries=0):
+    def success_http_post(url, content, **kwargs):
         return FakeHTTPResponse(200, "payload")
 
     monkeypatch.setattr(rpc, "_http_post", success_http_post)
