@@ -8,50 +8,8 @@ import json
 import pytest
 
 import swoop._selection as selection
-from swoop.decoder import BookingOption, Flight, Itinerary, RawSearchResult
-
-
-def _make_itinerary(
-    *,
-    origin: str,
-    destination: str,
-    date: str,
-    airline: str,
-    flight_number: str,
-    price: int,
-    booking_token: str,
-) -> Itinerary:
-    year, month, day = [int(part) for part in date.split("-")]
-    flight = Flight(
-        airline=airline,
-        airline_name=airline,
-        flight_number=flight_number,
-        departure_airport_code=origin,
-        arrival_airport_code=destination,
-        departure_date=(year, month, day),
-        arrival_date=(year, month, day),
-        departure_time=(8, 0),
-        arrival_time=(11, 15),
-        travel_time=195,
-    )
-    return Itinerary(
-        airline_code=airline,
-        airline_names=[airline],
-        flights=[flight],
-        travel_time=195,
-        departure_airport_code=origin,
-        arrival_airport_code=destination,
-        departure_date=(year, month, day),
-        arrival_date=(year, month, day),
-        departure_time=(8, 0),
-        arrival_time=(11, 15),
-        direct_price=price,
-        booking_token=booking_token,
-    )
-
-
-def _raw_result(*itineraries: Itinerary) -> RawSearchResult:
-    return RawSearchResult(_raw=[], best=list(itineraries), other=[])
+from swoop.decoder import BookingOption, Itinerary, RawSearchResult
+from tests.factories import make_simple_itinerary as _make_itinerary, make_raw_result as _raw_result
 
 
 def _booking_option(

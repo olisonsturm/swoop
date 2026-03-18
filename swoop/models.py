@@ -18,10 +18,15 @@ class TripLeg:
 
 @dataclass
 class TripOption:
-    """A complete trip option spanning one or more requested legs."""
+    """A complete trip option spanning one or more requested legs.
+
+    ``price`` is in the currency's major unit (e.g. 250 for $250 USD,
+    6725 for ₹6,725 INR). ``currency`` is the ISO 4217 code.
+    """
 
     selector: str
     price: Optional[int] = None
+    currency: Optional[str] = None
     legs: list[TripLeg] = field(default_factory=list)
 
 
@@ -32,6 +37,7 @@ class SearchResult:
     results: list[TripOption] = field(default_factory=list)
     price_range: Optional[PriceRange] = None
     is_complete: bool = True
+    currency: Optional[str] = None
 
 
 @dataclass
@@ -58,9 +64,14 @@ class ResolvedLeg:
 
 @dataclass
 class PriceResult:
-    """Result of a targeted price check for a specific trip."""
+    """Result of a targeted price check for a specific trip.
+
+    ``price`` is in the currency's major unit (e.g. 342 for $342 USD,
+    5540 for ¥5,540 JPY). ``currency`` is the ISO 4217 code.
+    """
 
     price: int
+    currency: Optional[str] = None
     fare_brand: Optional[str] = None
     is_basic_economy: bool = False
     booking_options: list[BookingOption] = field(default_factory=list)

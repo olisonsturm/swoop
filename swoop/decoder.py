@@ -41,7 +41,7 @@ Per flight segment:
   [31]         -> CO2 grams per segment
 
 Itinerary summary:
-  [0]          -> [None, price_cents]
+  [0]          -> [None, display_price]
   [1]          -> base64-encoded protobuf string
 """
 
@@ -179,7 +179,7 @@ class Itinerary:
     departure_time: Tuple[int, int] = (0, 0)
     arrival_time: Tuple[int, int] = (0, 0)
     price_info: Optional[ItinerarySummary] = None
-    direct_price: Optional[int] = None  # Integer USD price from root[1][0][1], more accurate than protobuf
+    direct_price: Optional[int] = None  # Integer price in response currency's major unit from root[1][0][1]
     booking_token: str = ""
     carbon_emissions: Optional[CarbonEmissions] = None
     stop_count: Optional[int] = None  # Number of stops
@@ -187,13 +187,16 @@ class Itinerary:
     quality_signals: Optional[QualitySignals] = None  # itinerary root[4]
 
     @property
-    def price(self) -> Optional[int]:
-        """Canonical USD price. Prefers ``direct_price``, falls back to ``price_info``."""
-        if self.direct_price is not None:
-            return self.direct_price
-        if self.price_info is not None:
-            return round(self.price_info.price)
+    def currency(self) -> Optional[str]:
+        """ISO 4217 currency code from the itinerary's price info, or None."""
+        if self.price_info is not None and self.price_info.currency:
+            return self.price_info.currency
         return None
+
+    @property
+    def price(self) -> Optional[int]:
+        """Price in the currency's major unit (e.g. 250 for $250, 6725 for ₹6,725)."""
+        return self.direct_price
 
 
 @dataclass
@@ -232,9 +235,9 @@ class BookingOption:
     _is_basic_by_flags: bool = False
     _is_basic_by_text: bool = False
     _option_index: Optional[int] = None
-    _token_price_cents: Optional[int] = None
-    _display_price_cents: Optional[int] = None
-    _price_delta_cents: Optional[int] = None
+    _token_price_raw: Optional[int] = None
+    _display_price_raw: Optional[int] = None
+    _price_delta_raw: Optional[int] = None
     _context_segment_token: str = ""
     _context_origin_iata: Optional[str] = None
     _context_destination_iata: Optional[str] = None
@@ -366,7 +369,7 @@ def _decode_layover(el: list) -> Optional[Layover]:
 def _decode_price_info(el: list) -> Optional[ItinerarySummary]:
     """Decode the itinerary summary (contains price).
 
-    Structure: [[None, price_cents], 'base64_encoded_protobuf']
+    Structure: [[None, display_price], 'base64_encoded_protobuf']
     The b64 protobuf string is at el[1], NOT el[1][1] — this was a past
     bug where using path [1,1] returned None and all prices came back as $0.
     """

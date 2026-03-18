@@ -1,5 +1,5 @@
 {
-  "version": "2026-03-12",
+  "version": "2026-03-18",
   "shopping": [
     {
       "id": "shopping_domestic_oneway_v1",
@@ -42,6 +42,171 @@
         "first_price": 307,
         "first_flights": 1
       }
+    },
+    {
+      "id": "shopping_domestic_oneway_v2",
+      "path": "responses/shopping_oneway_us.json",
+      "expected": {
+        "best_count": 0,
+        "other_count": 29,
+        "first_section": "other",
+        "first_airline_code": "AA",
+        "first_origin": "JFK",
+        "first_destination": "LAX",
+        "first_price": 169,
+        "first_flights": 1,
+        "currency": "USD"
+      }
+    },
+    {
+      "id": "shopping_domestic_roundtrip_v2",
+      "path": "responses/shopping_roundtrip_us.json",
+      "expected": {
+        "best_count": 0,
+        "other_count": 29,
+        "first_section": "other",
+        "first_airline_code": "AA",
+        "first_origin": "JFK",
+        "first_destination": "LAX",
+        "first_price": 337,
+        "first_flights": 1,
+        "currency": "USD"
+      }
+    },
+    {
+      "id": "shopping_gb_oneway_v1",
+      "path": "responses/shopping_oneway_gb.json",
+      "expected": {
+        "best_count": 0,
+        "other_count": 14,
+        "first_section": "other",
+        "first_airline_code": "multi",
+        "first_origin": "LHR",
+        "first_destination": "EDI",
+        "first_price": 208,
+        "first_flights": 2,
+        "currency": "GBP"
+      }
+    },
+    {
+      "id": "shopping_jp_oneway_v1",
+      "path": "responses/shopping_oneway_jp.json",
+      "expected": {
+        "best_count": 0,
+        "other_count": 11,
+        "first_section": "other",
+        "first_airline_code": "GK",
+        "first_origin": "NRT",
+        "first_destination": "KIX",
+        "first_price": 6040,
+        "first_flights": 1,
+        "currency": "JPY"
+      }
+    },
+    {
+      "id": "shopping_in_oneway_v1",
+      "path": "responses/shopping_oneway_in.json",
+      "expected": {
+        "best_count": 0,
+        "other_count": 59,
+        "first_section": "other",
+        "first_airline_code": "6E",
+        "first_origin": "DEL",
+        "first_destination": "BOM",
+        "first_price": 6725,
+        "first_flights": 1,
+        "currency": "INR"
+      }
+    },
+    {
+      "id": "shopping_eu_oneway_v1",
+      "path": "responses/shopping_oneway_eu.json",
+      "expected": {
+        "best_count": 0,
+        "other_count": 16,
+        "first_section": "other",
+        "first_airline_code": "AZ",
+        "first_origin": "CDG",
+        "first_destination": "FCO",
+        "first_price": 151,
+        "first_flights": 1,
+        "currency": "EUR"
+      }
+    },
+    {
+      "id": "shopping_transatlantic_oneway_v1",
+      "path": "responses/shopping_oneway_transatlantic.json",
+      "expected": {
+        "best_count": 0,
+        "other_count": 24,
+        "first_section": "other",
+        "first_airline_code": "BA",
+        "first_origin": "JFK",
+        "first_destination": "LHR",
+        "first_price": 389,
+        "first_flights": 1,
+        "currency": "USD"
+      }
+    },
+    {
+      "id": "shopping_kr_oneway_v1",
+      "path": "responses/shopping_oneway_kr.json",
+      "expected": {
+        "best_count": 0,
+        "other_count": 12,
+        "first_section": "other",
+        "first_airline_code": "KE",
+        "first_origin": "ICN",
+        "first_destination": "CJU",
+        "first_price": 480900,
+        "first_flights": 3,
+        "currency": "KRW"
+      }
+    },
+    {
+      "id": "shopping_ca_oneway_v1",
+      "path": "responses/shopping_oneway_ca.json",
+      "expected": {
+        "best_count": 0,
+        "other_count": 27,
+        "first_section": "other",
+        "first_airline_code": "AC",
+        "first_origin": "YYZ",
+        "first_destination": "YVR",
+        "first_price": 554,
+        "first_flights": 1,
+        "currency": "CAD"
+      }
+    },
+    {
+      "id": "shopping_au_oneway_v1",
+      "path": "responses/shopping_oneway_au.json",
+      "expected": {
+        "best_count": 0,
+        "other_count": 65,
+        "first_section": "other",
+        "first_airline_code": "JQ",
+        "first_origin": "SYD",
+        "first_destination": "MEL",
+        "first_price": 111,
+        "first_flights": 1,
+        "currency": "AUD"
+      }
+    },
+    {
+      "id": "shopping_br_oneway_v1",
+      "path": "responses/shopping_oneway_br.json",
+      "expected": {
+        "best_count": 0,
+        "other_count": 15,
+        "first_section": "other",
+        "first_airline_code": "LA",
+        "first_origin": "GRU",
+        "first_destination": "GIG",
+        "first_price": 330,
+        "first_flights": 1,
+        "currency": "BRL"
+      }
     }
   ],
   "booking": [
@@ -50,10 +215,26 @@
       "path": "corpus/booking_delta_mixed_response.txt",
       "registry_version": "2026-03-12",
       "expected": {
-        "prices": [249, 319, 689],
-        "brands": ["Delta Main Basic", "Premium Select", "Delta One"],
-        "cabin_buckets": ["economy", "premium-economy", "business"],
-        "fare_families": ["basic", "premium", "unknown"]
+        "prices": [
+          249,
+          319,
+          689
+        ],
+        "brands": [
+          "Delta Main Basic",
+          "Premium Select",
+          "Delta One"
+        ],
+        "cabin_buckets": [
+          "economy",
+          "premium-economy",
+          "business"
+        ],
+        "fare_families": [
+          "basic",
+          "premium",
+          "unknown"
+        ]
       }
     },
     {
@@ -61,10 +242,30 @@
       "path": "corpus/booking_jfk_lax_blue_response.txt",
       "registry_version": "2026-03-12",
       "expected": {
-        "prices": [159, 204, 239, 383],
-        "brands": ["Blue Basic", "Blue", "Blue Extra", "Even More"],
-        "cabin_buckets": ["economy", "unknown", "unknown", "unknown"],
-        "fare_families": ["basic", "unknown", "unknown", "unknown"]
+        "prices": [
+          159,
+          204,
+          239,
+          383
+        ],
+        "brands": [
+          "Blue Basic",
+          "Blue",
+          "Blue Extra",
+          "Even More"
+        ],
+        "cabin_buckets": [
+          "economy",
+          "unknown",
+          "unknown",
+          "unknown"
+        ],
+        "fare_families": [
+          "basic",
+          "unknown",
+          "unknown",
+          "unknown"
+        ]
       }
     }
   ]

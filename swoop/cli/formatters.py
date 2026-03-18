@@ -1,15 +1,38 @@
 """Output formatters for the CLI — table, JSON, CSV, brief."""
 
 import csv
+import functools
 import json
 import sys
 from typing import Optional
 
+from babel.numbers import get_currency_symbol
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
 from .utils import format_date_display, format_duration, format_time
+
+
+@functools.lru_cache(maxsize=16)
+def _currency_symbol(currency: str) -> str:
+    """Cached currency symbol lookup."""
+    try:
+        return get_currency_symbol(currency)
+    except Exception:
+        return currency + " "
+
+
+def _format_price(price: Optional[int], currency: Optional[str] = None) -> str:
+    """Format a price with the correct currency symbol.
+
+    Uses the system's default locale for symbol lookup.
+    """
+    if price is None:
+        return "\u2014"  # em-dash
+    if not currency:
+        return str(price)
+    return f"{_currency_symbol(currency)}{price:,}"
 
 
 def _stderr_console(**kwargs) -> Console:
@@ -76,11 +99,11 @@ def _flight_summary(itin) -> str:
     return f"{first_str} +{len(flights) - 1}"
 
 
-def _price_text(price: Optional[int], cheapest: Optional[int]) -> Text:
+def _price_text(price: Optional[int], cheapest: Optional[int], currency: Optional[str] = None) -> Text:
     """Formatted price, cheapest highlighted green."""
     if price is None:
         return Text("—")
-    text = Text(f"${price:,}", style="bold")
+    text = Text(_format_price(price, currency), style="bold")
     if cheapest is not None and price == cheapest:
         text.stylize("green")
     return text
@@ -208,11 +231,12 @@ def format_search_table(
     table.add_column("Trip", min_width=36)
     table.add_column("Price", justify="right", width=8)
 
+    currency = result.currency
     for i, option in enumerate(display_options, 1):
         table.add_row(
             str(i),
             "\n".join(_trip_lines(option)),
-            _price_text(option.price, cheapest),
+            _price_text(option.price, cheapest, currency),
         )
 
     console.print(table)
@@ -222,11 +246,15 @@ def format_search_table(
     shown = len(display_options)
     if result.price_range and result.price_range.low is not None:
         pr = result.price_range
-        range_str = f"${pr.low:,}-${pr.high:,}" if pr.high else f"from ${pr.low:,}"
+        low_fmt = _format_price(pr.low, currency)
+        high_fmt = _format_price(pr.high, currency)
+        range_str = f"{low_fmt}-{high_fmt}" if pr.high else f"from {low_fmt}"
         console.print(f" [dim]Price range: {range_str} · {shown} of {total} results shown[/dim]")
     else:
         if prices:
-            console.print(f" [dim]Price range: ${min(prices):,}-${max(prices):,} · {shown} of {total} results shown[/dim]")
+            low_fmt = _format_price(min(prices), currency)
+            high_fmt = _format_price(max(prices), currency)
+            console.print(f" [dim]Price range: {low_fmt}-{high_fmt} · {shown} of {total} results shown[/dim]")
         else:
             console.print(f" [dim]{shown} of {total} results shown[/dim]")
 
@@ -237,7 +265,7 @@ def format_search_table(
     console.print()
 
 
-def _itin_to_dict(itin) -> dict:
+def _itin_to_dict(itin, currency: Optional[str] = None) -> dict:
     """Convert an itinerary to a JSON-serializable dict."""
     flights = []
     for f in itin.flights:
@@ -277,8 +305,9 @@ def _itin_to_dict(itin) -> dict:
 
     return {
         "flight_summary": _flight_summary(itin),
-        "price_usd": itin.price,
-        "airlines": _airline_names(itin) if isinstance(_airline_names(itin), str) else str(_airline_names(itin)),
+        "price": itin.price,
+        "currency": currency or itin.currency,
+        "airlines": _airline_names(itin),
         "departure_airport_code": itin.departure_airport_code,
         "arrival_airport_code": itin.arrival_airport_code,
         "departure_time": _format_clock(itin.departure_time),
@@ -317,6 +346,8 @@ def format_search_json(
             "high": result.price_range.high,
         }
 
+    currency = result.currency
+
     output = {
         "query": {
             "origin": origin,
@@ -330,6 +361,7 @@ def format_search_json(
             "cabin": cabin,
             "adults": adults,
         },
+        "currency": currency,
         "price_source": "shopping",
         "price_range": price_range,
         "total_results": len(result.results),
@@ -338,13 +370,14 @@ def format_search_json(
             {
                 "index": index + 1,
                 "selector": option.selector,
-                "price_usd": option.price,
+                "price": option.price,
+                "currency": option.currency or currency,
                 "legs": [
                     {
                         "origin": leg.origin,
                         "destination": leg.destination,
                         "date": leg.date,
-                        "itinerary": _itin_to_dict(leg.itinerary) if leg.itinerary else None,
+                        "itinerary": _itin_to_dict(leg.itinerary, currency=option.currency or currency) if leg.itinerary else None,
                     }
                     for leg in option.legs
                 ],
@@ -365,15 +398,18 @@ def format_search_csv(
     if limit:
         all_options = all_options[:limit]
 
+    currency = result.currency
+
     writer = csv.writer(sys.stdout)
     writer.writerow([
-        "index", "selector", "price_usd", "leg_count", "summary",
+        "index", "selector", "price", "currency", "leg_count", "summary",
     ])
     for i, option in enumerate(all_options, 1):
         writer.writerow([
             i,
             option.selector,
             option.price if option.price is not None else "",
+            option.currency or currency or "",
             len(option.legs),
             _trip_summary(option),
         ])
@@ -390,9 +426,10 @@ def format_search_brief(
     if limit:
         all_options = all_options[:limit]
 
+    currency = result.currency
     for i, option in enumerate(all_options, 1):
-        price = f"${option.price:,}" if option.price is not None else "—"
-        print(f"{i:<3} {price:<8} {_trip_summary(option)}")
+        price = _format_price(option.price, option.currency or currency)
+        print(f"{i:<3} {price:<12} {_trip_summary(option)}")
 
     if all_options:
         console = _stdout_console()
@@ -468,7 +505,8 @@ def format_price_table(
     if result.resolved_legs:
         _render_resolved_legs(console, result.resolved_legs)
 
-    console.print(f" [bold green]Price: ${result.price:,}[/bold green]")
+    currency = result.currency
+    console.print(f" [bold green]Price: {_format_price(result.price, currency)}[/bold green]")
 
     if result.fare_brand:
         console.print(f" [dim]Fare: {result.fare_brand}[/dim]")
@@ -484,10 +522,10 @@ def format_price_table(
         table.add_column("Basic", width=6)
 
         for i, opt in enumerate(result.booking_options, 1):
-            price = f"${opt.price:,}" if opt.price else "—"
+            price = _format_price(opt.price, currency) if opt.price else "\u2014"
             table.add_row(
                 str(i),
-                opt.brand_label or opt.brand_code or "—",
+                opt.brand_label or opt.brand_code or "\u2014",
                 price,
                 "Yes" if opt.is_basic else "No",
             )
@@ -502,25 +540,27 @@ def format_price_json(
     query_legs=None,
 ) -> None:
     """Render a price check result as JSON to stdout."""
+    currency = result.currency
     output = {
         "query": {
             "legs": list(query_legs or []),
         },
-        "price_usd": result.price,
+        "price": result.price,
+        "currency": currency,
         "fare_brand": result.fare_brand,
         "is_basic_economy": result.is_basic_economy,
         "booking_options": [
             {
                 "brand_label": opt.brand_label,
                 "brand_code": opt.brand_code,
-                "price_usd": opt.price,
+                "price": opt.price,
                 "is_basic": opt.is_basic,
             }
             for opt in result.booking_options
         ] if result.booking_options else [],
     }
     if result.itinerary:
-        output["itinerary"] = _itin_to_dict(result.itinerary)
+        output["itinerary"] = _itin_to_dict(result.itinerary, currency=currency)
     if result.resolved_legs:
         output["resolved_legs"] = [
             {
@@ -529,7 +569,7 @@ def format_price_json(
                 "destination": leg.destination,
                 "date": leg.date,
                 "selection": leg.selection,
-                "itinerary": _itin_to_dict(leg.itinerary) if leg.itinerary else None,
+                "itinerary": _itin_to_dict(leg.itinerary, currency=currency) if leg.itinerary else None,
             }
             for leg in result.resolved_legs
         ]
@@ -544,4 +584,4 @@ def format_price_brief(
     """Render a price check result in compact format to stdout."""
     trip_type = f"{len(query_legs or result.resolved_legs or [])}-leg"
     brand = f" ({result.fare_brand})" if result.fare_brand else ""
-    print(f"${result.price:,}{brand} {trip_type}")
+    print(f"{_format_price(result.price, result.currency)}{brand} {trip_type}")

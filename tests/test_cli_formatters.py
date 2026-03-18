@@ -197,7 +197,7 @@ class TestPriceFormatters:
         )
 
         payload = json.loads(capsys.readouterr().out)
-        assert payload["price_usd"] == 342
+        assert payload["price"] == 342
         assert payload["itinerary"]["flight_summary"] == "DL 2300"
         assert payload["resolved_legs"][0]["selection"] == "explicit"
         assert payload["resolved_legs"][0]["itinerary"]["departure_airport_code"] == "JFK"

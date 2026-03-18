@@ -13,7 +13,11 @@ from swoop import flights_pb2 as PB
 
 
 class TestItinerarySummaryRoundtrip:
-    """ItinerarySummary b64 encode -> from_b64 -> verify."""
+    """ItinerarySummary b64 encode -> from_b64 -> verify.
+
+    ItinerarySummary.price stores the raw protobuf value (no conversion).
+    The authoritative price comes from Itinerary.direct_price.
+    """
 
     def test_basic_roundtrip(self):
         pb = PB.ItinerarySummary()
@@ -24,7 +28,7 @@ class TestItinerarySummaryRoundtrip:
 
         decoded = ItinerarySummary.from_b64(b64)
         assert decoded.flights == "test-flight-data"
-        assert decoded.price == 350.0  # cents / 100
+        assert decoded.price == 35000  # raw protobuf value
         assert decoded.currency == "USD"
 
     def test_zero_price(self):
@@ -35,17 +39,17 @@ class TestItinerarySummaryRoundtrip:
         b64 = base64.b64encode(pb.SerializeToString()).decode()
 
         decoded = ItinerarySummary.from_b64(b64)
-        assert decoded.price == 0.0
+        assert decoded.price == 0
 
     def test_high_price(self):
         pb = PB.ItinerarySummary()
         pb.flights = "expensive"
-        pb.price.price = 999900  # $9,999
+        pb.price.price = 999900
         pb.price.currency = "USD"
         b64 = base64.b64encode(pb.SerializeToString()).decode()
 
         decoded = ItinerarySummary.from_b64(b64)
-        assert decoded.price == 9999.0
+        assert decoded.price == 999900  # raw protobuf value
 
     def test_non_usd_currency(self):
         pb = PB.ItinerarySummary()
@@ -56,13 +60,46 @@ class TestItinerarySummaryRoundtrip:
 
         decoded = ItinerarySummary.from_b64(b64)
         assert decoded.currency == "EUR"
-        assert decoded.price == 500.0
+        assert decoded.price == 50000
+
+    def test_gbp_currency(self):
+        pb = PB.ItinerarySummary()
+        pb.flights = "gbp-flight"
+        pb.price.price = 15000
+        pb.price.currency = "GBP"
+        b64 = base64.b64encode(pb.SerializeToString()).decode()
+
+        decoded = ItinerarySummary.from_b64(b64)
+        assert decoded.currency == "GBP"
+        assert decoded.price == 15000
+
+    def test_jpy_currency(self):
+        pb = PB.ItinerarySummary()
+        pb.flights = "jpy-flight"
+        pb.price.price = 15000
+        pb.price.currency = "JPY"
+        b64 = base64.b64encode(pb.SerializeToString()).decode()
+
+        decoded = ItinerarySummary.from_b64(b64)
+        assert decoded.currency == "JPY"
+        assert decoded.price == 15000
+
+    def test_inr_currency(self):
+        pb = PB.ItinerarySummary()
+        pb.flights = "inr-flight"
+        pb.price.price = 8500
+        pb.price.currency = "INR"
+        b64 = base64.b64encode(pb.SerializeToString()).decode()
+
+        decoded = ItinerarySummary.from_b64(b64)
+        assert decoded.currency == "INR"
+        assert decoded.price == 8500
 
     def test_invalid_b64_returns_defaults(self):
         decoded = ItinerarySummary.from_b64("not-valid-base64!!!")
         assert decoded.flights == ""
         assert decoded.price == 0
-        assert decoded.currency == "USD"
+        assert decoded.currency == ""
 
     def test_empty_string_returns_defaults(self):
         decoded = ItinerarySummary.from_b64("")

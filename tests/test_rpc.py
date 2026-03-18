@@ -307,9 +307,9 @@ class TestBookingRequestHelpers:
         assert options[0]["_is_basic_by_flags"] is True
         assert options[0]["_is_basic_by_text"] is True
         assert options[0]["_option_index"] == 0
-        assert options[0]["_token_price_cents"] == 24900
-        assert options[0]["_display_price_cents"] == 24900
-        assert options[0]["_price_delta_cents"] == 0
+        assert options[0]["_token_price_raw"] == 24900
+        assert options[0]["_display_price_raw"] == 24900
+        assert options[0]["_price_delta_raw"] == 0
         assert options[0]["_context_origin_iata"] == "LGA"
         assert options[0]["_context_destination_iata"] == "BHM"
         assert options[0]["_context_departure_local_iso"] == "2026-03-13T20:59:00-04:00"
@@ -452,28 +452,28 @@ def test_token_and_context_decoders(monkeypatch) -> None:
             if token == "explode":
                 raise ValueError("bad token")
             if token == "bad-index":
-                return FakeSummary("options:not-int", 123.45)
-            return FakeSummary("options:7", 123.45)
+                return FakeSummary("options:not-int", 12345)
+            return FakeSummary("options:7", 12345)
 
     monkeypatch.setattr(_booking, "ItinerarySummary", FakeItinerarySummary)
 
-    assert rpc._extract_option_index_and_token_price_cents("") == (None, None)
-    assert rpc._extract_option_index_and_token_price_cents("explode") == (None, None)
-    assert rpc._extract_option_index_and_token_price_cents("bad-index") == (None, 12345)
-    assert rpc._extract_option_index_and_token_price_cents("ok") == (7, 12345)
+    assert rpc._extract_option_index_and_token_price_raw("") == (None, None)
+    assert rpc._extract_option_index_and_token_price_raw("explode") == (None, None)
+    assert rpc._extract_option_index_and_token_price_raw("bad-index") == (None, 12345)
+    assert rpc._extract_option_index_and_token_price_raw("ok") == (7, 12345)
 
-    assert rpc._extract_display_price_cents_from_context("") is None
-    assert rpc._extract_display_price_cents_from_context("not-base64!") is None
+    assert rpc._extract_display_price_raw_from_context("") is None
+    assert rpc._extract_display_price_raw_from_context("not-base64!") is None
 
     # Outer field != 3 should hit skip path and return None.
     skip_payload = base64.b64encode(bytes([0x20, 0x01])).decode()
-    assert rpc._extract_display_price_cents_from_context(skip_payload) is None
+    assert rpc._extract_display_price_raw_from_context(skip_payload) is None
 
     # Nested field != 1 should also skip and return None.
     nested = bytes([0x12, 0x01, 0x00])  # field2 len-delimited
     payload = bytes([0x1A, len(nested)]) + nested  # field3 len-delimited
     nested_skip_payload = base64.b64encode(payload).decode()
-    assert rpc._extract_display_price_cents_from_context(nested_skip_payload) is None
+    assert rpc._extract_display_price_raw_from_context(nested_skip_payload) is None
 
     assert rpc._extract_context_tokens([None] * 19 + [123]) == ("", "")
     assert rpc._extract_context_tokens([None] * 19 + ["{bad json"]) == ("", "")

@@ -69,7 +69,7 @@ class TestPriceInfoB64Path:
 
         result = _decode_price_info(el)
         assert result is not None
-        assert result.price == 350.0  # 35000 cents / 100
+        assert result.price == 35000  # raw protobuf value
 
     def test_wrong_path_would_fail(self):
         """If we used [1,1], we'd get None since [1] is a string not a list."""
@@ -116,31 +116,32 @@ class TestRoundtripPriceIsReturnTotal:
         # We verify the ItinerarySummary decoder preserves prices faithfully.
         from swoop import flights_pb2 as PB
         summary = PB.ItinerarySummary()
-        summary.price.price = 52800  # cents -- roundtrip total
+        summary.price.price = 52800
         summary.price.currency = "USD"
         b64 = base64.b64encode(summary.SerializeToString()).decode()
 
         decoded = ItinerarySummary.from_b64(b64)
-        assert decoded.price == 528.0  # $528 roundtrip total
+        assert decoded.price == 52800  # raw protobuf value preserved
         assert decoded.currency == "USD"
 
 
 class TestItinerarySummaryPriceConversion:
-    """Bug: ItinerarySummary.from_b64() returns price in cents/100 = dollars.
-    Code that used the raw value without dividing showed prices 100x too high.
-    Fix: Use round() on the decoded price.
+    """ItinerarySummary.from_b64() stores the raw protobuf price value.
+
+    The authoritative price comes from Itinerary.direct_price (the display
+    integer from the JSON response). The protobuf value is only used for
+    the currency code.
     """
 
-    def test_price_is_in_dollars_not_cents(self):
+    def test_price_is_raw_protobuf_value(self):
         from swoop import flights_pb2 as PB
         summary = PB.ItinerarySummary()
-        summary.price.price = 28400  # 284 dollars in cents
+        summary.price.price = 28400
         summary.price.currency = "USD"
         b64 = base64.b64encode(summary.SerializeToString()).decode()
 
         decoded = ItinerarySummary.from_b64(b64)
-        # from_b64 divides by 100
-        assert decoded.price == 284.0
+        assert decoded.price == 28400  # raw value, no conversion
 
 
 class TestDecoderGracefulDegradation:
