@@ -95,8 +95,8 @@ def _skip_wire_value(data: bytes, pos: int, wire_type: int) -> int:
     raise ValueError(f"unsupported wire type: {wire_type}")
 
 
-def _extract_option_index_and_token_price_cents(price_token_b64: str) -> tuple[int | None, int | None]:
-    """Decode booking price token and return (option_index, price_cents)."""
+def _extract_option_index_and_token_price_raw(price_token_b64: str) -> tuple[int | None, int | None]:
+    """Decode booking price token and return (option_index, price_raw)."""
     if not price_token_b64:
         return None, None
 
@@ -113,12 +113,12 @@ def _extract_option_index_and_token_price_cents(price_token_b64: str) -> tuple[i
         except (TypeError, ValueError, IndexError):
             option_index = None
 
-    price_cents = int(summary.price or 0) if summary else None
-    return option_index, price_cents
+    price_raw = int(summary.price or 0) if summary else None
+    return option_index, price_raw
 
 
-def _extract_display_price_cents_from_context(context_token_b64: str) -> int | None:
-    """Decode option context token and extract display price cents (field 3.1)."""
+def _extract_display_price_raw_from_context(context_token_b64: str) -> int | None:
+    """Decode option context token and extract raw display price (field 3.1)."""
     if not context_token_b64:
         return None
 
@@ -146,8 +146,8 @@ def _extract_display_price_cents_from_context(context_token_b64: str) -> int | N
                     nested_wire_type = nested_tag & 7
 
                     if nested_field == 1 and nested_wire_type == 0:
-                        cents, nested_pos = _read_varint(nested, nested_pos)
-                        return cents
+                        raw_price, nested_pos = _read_varint(nested, nested_pos)
+                        return raw_price
 
                     nested_pos = _skip_wire_value(nested, nested_pos, nested_wire_type)
             else:
@@ -417,14 +417,14 @@ def _parse_booking_rpc_response(
         brand_code = str(_safe_get(brand_block, [0, 1], "") or "")
 
         price_token = str(_safe_get(price_block, [1], "") or "")
-        option_index, token_price_cents = _extract_option_index_and_token_price_cents(price_token)
+        option_index, token_price_raw = _extract_option_index_and_token_price_raw(price_token)
 
         context_token0, context_token1 = _extract_context_tokens(option)
-        display_price_cents = _extract_display_price_cents_from_context(context_token0)
+        display_price_raw = _extract_display_price_raw_from_context(context_token0)
         segment_identity = _extract_segment_identity_from_context(context_token1)
-        price_delta_cents = (
-            int(display_price_cents - token_price_cents)
-            if isinstance(display_price_cents, int) and isinstance(token_price_cents, int)
+        price_delta_raw = (
+            int(display_price_raw - token_price_raw)
+            if isinstance(display_price_raw, int) and isinstance(token_price_raw, int)
             else None
         )
 
@@ -449,9 +449,9 @@ def _parse_booking_rpc_response(
             _is_basic_by_flags=is_basic_by_flags,
             _is_basic_by_text=is_basic_by_text,
             _option_index=option_index,
-            _token_price_cents=token_price_cents,
-            _display_price_cents=display_price_cents,
-            _price_delta_cents=price_delta_cents,
+            _token_price_raw=token_price_raw,
+            _display_price_raw=display_price_raw,
+            _price_delta_raw=price_delta_raw,
             _context_segment_token=context_token1,
             _context_origin_iata=segment_identity.get("context_origin_iata"),
             _context_destination_iata=segment_identity.get("context_destination_iata"),

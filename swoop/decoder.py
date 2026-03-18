@@ -41,7 +41,7 @@ Per flight segment:
   [31]         -> CO2 grams per segment
 
 Itinerary summary:
-  [0]          -> [None, price_cents]
+  [0]          -> [None, display_price]
   [1]          -> base64-encoded protobuf string
 """
 
@@ -235,9 +235,9 @@ class BookingOption:
     _is_basic_by_flags: bool = False
     _is_basic_by_text: bool = False
     _option_index: Optional[int] = None
-    _token_price_cents: Optional[int] = None
-    _display_price_cents: Optional[int] = None
-    _price_delta_cents: Optional[int] = None
+    _token_price_raw: Optional[int] = None
+    _display_price_raw: Optional[int] = None
+    _price_delta_raw: Optional[int] = None
     _context_segment_token: str = ""
     _context_origin_iata: Optional[str] = None
     _context_destination_iata: Optional[str] = None
@@ -369,7 +369,7 @@ def _decode_layover(el: list) -> Optional[Layover]:
 def _decode_price_info(el: list) -> Optional[ItinerarySummary]:
     """Decode the itinerary summary (contains price).
 
-    Structure: [[None, price_cents], 'base64_encoded_protobuf']
+    Structure: [[None, display_price], 'base64_encoded_protobuf']
     The b64 protobuf string is at el[1], NOT el[1][1] — this was a past
     bug where using path [1,1] returned None and all prices came back as $0.
     """
