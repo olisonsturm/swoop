@@ -94,6 +94,43 @@ def _safe_int(value: Any, default: int = 0) -> int:
     return default
 
 
+def _fmt_clock(t: Tuple[int, ...]) -> str:
+    """Format a time tuple like (8, 30) as '08:30'."""
+    h = t[0] if len(t) > 0 else 0
+    m = t[1] if len(t) > 1 else 0
+    return f"{h:02d}:{m:02d}"
+
+
+def _fmt_duration(minutes: int) -> str:
+    """Format minutes as 'Xh Ym'."""
+    h, m = divmod(minutes, 60)
+    return f"{h}h {m:02d}m"
+
+
+def _flight_summary_repr(flights: list) -> str:
+    """Compact flight number summary for repr.
+
+    - Nonstop: "DL 2300"
+    - 2 segments same carrier: "DL 2300 / 5678"
+    - 2 segments diff carrier: "DL 2300 / AA 200"
+    - 3+ segments: "DL 2300 +2"
+    - No flights: ""
+    """
+    if not flights:
+        return ""
+    first = flights[0]
+    first_str = f"{first.airline} {first.flight_number}" if first.airline and first.flight_number else str(first.flight_number or "")
+    if len(flights) == 1:
+        return first_str
+    if len(flights) == 2:
+        second = flights[1]
+        if first.airline and second.airline and first.airline == second.airline:
+            return f"{first.airline} {first.flight_number} / {second.flight_number}"
+        second_str = f"{second.airline} {second.flight_number}" if second.airline and second.flight_number else str(second.flight_number or "")
+        return f"{first_str} / {second_str}"
+    return f"{first_str} +{len(flights) - 1}"
+
+
 @dataclass
 class Codeshare:
     airline_code: str = ""
@@ -143,6 +180,18 @@ class Flight:
     amenities: Optional[AmenityFlags] = None  # segment[12]: cabin-class amenities
     seat_type: Optional[int] = None  # segment[13]: 1=avg, 2=below-avg, 3=above-avg, 4+=business
 
+    def __repr__(self) -> str:
+        parts = []
+        if self.airline or self.flight_number:
+            parts.append(f"{self.airline} {self.flight_number}".strip())
+        dep = self.departure_airport_code
+        arr = self.arrival_airport_code
+        if dep or arr:
+            parts.append(f"{dep}->{arr}")
+        parts.append(f"{_fmt_clock(self.departure_time)}-{_fmt_clock(self.arrival_time)}")
+        parts.append(_fmt_duration(self.travel_time))
+        return f"Flight({' '.join(parts)})"
+
 
 @dataclass
 class Layover:
@@ -154,6 +203,14 @@ class Layover:
     arrival_airport_name: str = ""
     arrival_airport_city: str = ""
     is_overnight: bool = False  # layover[3]: [1] when layover spans overnight
+
+    def __repr__(self) -> str:
+        parts = [_fmt_duration(self.minutes)]
+        if self.departure_airport_code:
+            parts.append(self.departure_airport_code)
+        if self.is_overnight:
+            parts.append("overnight")
+        return f"Layover({' '.join(parts)})"
 
 
 @dataclass
@@ -198,6 +255,26 @@ class Itinerary:
         """Price in the currency's major unit (e.g. 250 for $250, 6725 for ₹6,725)."""
         return self.direct_price
 
+    def __repr__(self) -> str:
+        parts = []
+        summary = _flight_summary_repr(self.flights)
+        if summary:
+            parts.append(summary)
+        dep = self.departure_airport_code
+        arr = self.arrival_airport_code
+        if dep or arr:
+            parts.append(f"{dep}->{arr}")
+        parts.append(f"{_fmt_clock(self.departure_time)}-{_fmt_clock(self.arrival_time)}")
+        parts.append(_fmt_duration(self.travel_time))
+        stops = self.stop_count if self.stop_count is not None else len(self.layovers)
+        if stops == 0:
+            parts.append("nonstop")
+        else:
+            parts.append(f"{stops} stop{'s' if stops > 1 else ''}")
+        if self.direct_price is not None:
+            parts.append(f"price={self.direct_price}")
+        return f"Itinerary({' '.join(parts)})"
+
 
 @dataclass
 class PriceRange:
@@ -212,6 +289,9 @@ class RawSearchResult:
     best: List[Itinerary]
     other: List[Itinerary]
     price_range: Optional[PriceRange] = None  # Price range from response
+
+    def __repr__(self) -> str:
+        return f"RawSearchResult(best={len(self.best)}, other={len(self.other)})"
 
 
 # Backward-compatible decoder alias for internal/raw callers.
@@ -249,6 +329,14 @@ class BookingOption:
     _cabin_bucket: str = ""
     _brand_attribute_vector: List = field(default_factory=list)
     _registry_version: Optional[str] = None
+
+    def __repr__(self) -> str:
+        parts = [f"price={self.price}"]
+        if self.brand_label:
+            parts.append(f"'{self.brand_label}'")
+        if self.is_basic:
+            parts.append("basic")
+        return f"BookingOption({' '.join(parts)})"
 
     def __getitem__(self, key: str) -> Any:
         return getattr(self, key)
