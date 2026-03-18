@@ -75,6 +75,9 @@ def encode_trip_selector(
     itineraries: list[Itinerary],
     cabin: str,
     adults: int,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     include_basic_economy: bool,
     sort: int = SORT_DEPARTURE_TIME,
 ) -> str:
@@ -84,6 +87,9 @@ def encode_trip_selector(
         "selected_legs": [_build_selected_legs(itinerary) for itinerary in itineraries],
         "cabin": cabin,
         "adults": adults,
+        "children": children,
+        "infants_in_seat": infants_in_seat,
+        "infants_on_lap": infants_on_lap,
         "include_basic_economy": include_basic_economy,
         "sort": sort,
         "booking_token_hint": itineraries[-1].booking_token or None,
@@ -156,6 +162,9 @@ def _build_trip_option(
     *,
     cabin: str,
     adults: int,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     include_basic_economy: bool,
     sort: int = SORT_DEPARTURE_TIME,
 ) -> TripOption:
@@ -165,6 +174,9 @@ def _build_trip_option(
             itineraries=itineraries,
             cabin=cabin,
             adults=adults,
+            children=children,
+            infants_in_seat=infants_in_seat,
+            infants_on_lap=infants_on_lap,
             include_basic_economy=include_basic_economy,
             sort=sort,
         ),
@@ -206,8 +218,13 @@ def fetch_trip_booking_options(
     *,
     cabin: str,
     adults: int,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> list:
     selected_payloads = _selected_payloads_for_itineraries(itineraries)
     if selected_payloads is None:
@@ -221,8 +238,13 @@ def fetch_trip_booking_options(
         staged_legs,
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         timeout=timeout,
         retries=retries,
+        country=country,
+        proxy=proxy,
     )
 
 
@@ -265,8 +287,13 @@ def correct_trip_option_prices(
     include_basic_economy: bool,
     cabin: str,
     adults: int,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> None:
     if cabin != "economy" or not result.results:
         return
@@ -281,8 +308,13 @@ def correct_trip_option_prices(
                 itineraries,
                 cabin=cabin,
                 adults=adults,
+                children=children,
+                infants_in_seat=infants_in_seat,
+                infants_on_lap=infants_on_lap,
                 timeout=timeout,
                 retries=retries,
+                country=country,
+                proxy=proxy,
             )
         except (SwoopHTTPError, SwoopParseError) as exc:
             logger.debug("Trip booking correction failed: %s", exc)
@@ -302,11 +334,16 @@ def search_trip_options(
     *,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
     correct_prices: bool = False,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> SearchResult:
     if not request_legs:
         return SearchResult()
@@ -320,10 +357,15 @@ def search_trip_options(
         request_legs,
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         sort=sort,
         timeout=timeout,
         retries=retries,
         exclude_basic_economy=exclude_basic,
+        country=country,
+        proxy=proxy,
     )
     if first_pass is None:
         return SearchResult()
@@ -337,6 +379,9 @@ def search_trip_options(
                     [itinerary],
                     cabin=cabin,
                     adults=adults,
+                    children=children,
+                    infants_in_seat=infants_in_seat,
+                    infants_on_lap=infants_on_lap,
                     include_basic_economy=include_basic_economy,
                     sort=sort,
                 )
@@ -370,10 +415,15 @@ def search_trip_options(
                 staged_legs,
                 cabin=cabin,
                 adults=adults,
+                children=children,
+                infants_in_seat=infants_in_seat,
+                infants_on_lap=infants_on_lap,
                 sort=sort,
                 timeout=timeout,
                 retries=retries,
                 exclude_basic_economy=False,
+                country=country,
+                proxy=proxy,
             )
             stage_candidates = _iter_raw_itineraries(stage_result)
             if not stage_candidates:
@@ -401,6 +451,9 @@ def search_trip_options(
             prefix,
             cabin=cabin,
             adults=adults,
+            children=children,
+            infants_in_seat=infants_in_seat,
+            infants_on_lap=infants_on_lap,
             include_basic_economy=include_basic_economy,
             sort=sort,
         )
@@ -415,8 +468,13 @@ def search_trip_options(
             include_basic_economy=include_basic_economy,
             cabin=cabin,
             adults=adults,
+            children=children,
+            infants_in_seat=infants_in_seat,
+            infants_on_lap=infants_on_lap,
             timeout=timeout,
             retries=retries,
+            country=country,
+            proxy=proxy,
         )
 
     return result
@@ -437,6 +495,8 @@ def resolve_trip_selector(
     *,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[Itinerary], int]:
     payload = decode_trip_selector(selector)
     request_legs = [_copy_request_leg(leg) for leg in payload["query_legs"]]
@@ -457,10 +517,15 @@ def resolve_trip_selector(
             staged_legs,
             cabin=payload["cabin"],
             adults=payload["adults"],
+            children=payload.get("children", 0),
+            infants_in_seat=payload.get("infants_in_seat", 0),
+            infants_on_lap=payload.get("infants_on_lap", 0),
             sort=replay_sort,
             timeout=timeout,
             retries=retries,
             exclude_basic_economy=exclude_basic if index == 0 else False,
+            country=country,
+            proxy=proxy,
         )
         rpc_calls += 1
         candidates = _iter_raw_itineraries(stage_result)
@@ -478,11 +543,16 @@ def price_selected_trip(
     *,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     include_basic_economy: bool = False,
     timeout: int = 90,
     retries: int = 2,
     rpc_calls: int = 0,
     selections: Optional[list[str]] = None,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[PriceResult]:
     if not itineraries:
         return None
@@ -519,8 +589,13 @@ def price_selected_trip(
             itineraries,
             cabin=cabin,
             adults=adults,
+            children=children,
+            infants_in_seat=infants_in_seat,
+            infants_on_lap=infants_on_lap,
             timeout=timeout,
             retries=retries,
+            country=country,
+            proxy=proxy,
         )
         rpc_calls += 1
     except (SwoopHTTPError, SwoopParseError) as exc:
@@ -563,9 +638,14 @@ def resolve_selected_trip(
     *,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     timeout: int = 90,
     retries: int = 2,
     exclude_basic_economy: bool = False,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> tuple[list[Itinerary], list[str], int]:
     resolved: list[Itinerary] = []
     selections: list[str] = []
@@ -580,10 +660,15 @@ def resolve_selected_trip(
             staged_legs,
             cabin=cabin,
             adults=adults,
+            children=children,
+            infants_in_seat=infants_in_seat,
+            infants_on_lap=infants_on_lap,
             sort=SORT_DEPARTURE_TIME,
             timeout=timeout,
             retries=retries,
             exclude_basic_economy=exclude_basic_economy if index == 0 else False,
+            country=country,
+            proxy=proxy,
         )
         rpc_calls += 1
         candidates = _iter_raw_itineraries(stage_result)
@@ -615,12 +700,16 @@ def price_trip_selector(
     *,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[PriceResult]:
     try:
         payload, request_legs, itineraries, rpc_calls = resolve_trip_selector(
             selector,
             timeout=timeout,
             retries=retries,
+            country=country,
+            proxy=proxy,
         )
     except ValueError:
         return None
@@ -629,10 +718,15 @@ def price_trip_selector(
         itineraries,
         cabin=payload["cabin"],
         adults=payload["adults"],
+        children=payload.get("children", 0),
+        infants_in_seat=payload.get("infants_in_seat", 0),
+        infants_on_lap=payload.get("infants_on_lap", 0),
         include_basic_economy=payload["include_basic_economy"],
         timeout=timeout,
         retries=retries,
         rpc_calls=rpc_calls,
+        country=country,
+        proxy=proxy,
     )
 
 
