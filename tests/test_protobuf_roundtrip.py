@@ -70,9 +70,10 @@ class TestItinerarySummaryRoundtrip:
         assert decoded.price == 150.0
 
     def test_jpy_currency(self):
+        """JPY is zero-decimal — divisor is 1, not 100."""
         pb = PB.ItinerarySummary()
         pb.flights = "jpy-flight"
-        pb.price.price = 1500000
+        pb.price.price = 15000
         pb.price.currency = "JPY"
         b64 = base64.b64encode(pb.SerializeToString()).decode()
 
@@ -81,9 +82,10 @@ class TestItinerarySummaryRoundtrip:
         assert decoded.price == 15000.0
 
     def test_inr_currency(self):
+        """INR uses divisor=1 — Google sends whole rupees, not paise."""
         pb = PB.ItinerarySummary()
         pb.flights = "inr-flight"
-        pb.price.price = 850000
+        pb.price.price = 8500
         pb.price.currency = "INR"
         b64 = base64.b64encode(pb.SerializeToString()).decode()
 
