@@ -58,6 +58,39 @@ class TestItinerarySummaryRoundtrip:
         assert decoded.currency == "EUR"
         assert decoded.price == 500.0
 
+    def test_gbp_currency(self):
+        pb = PB.ItinerarySummary()
+        pb.flights = "gbp-flight"
+        pb.price.price = 15000
+        pb.price.currency = "GBP"
+        b64 = base64.b64encode(pb.SerializeToString()).decode()
+
+        decoded = ItinerarySummary.from_b64(b64)
+        assert decoded.currency == "GBP"
+        assert decoded.price == 150.0
+
+    def test_jpy_currency(self):
+        pb = PB.ItinerarySummary()
+        pb.flights = "jpy-flight"
+        pb.price.price = 1500000
+        pb.price.currency = "JPY"
+        b64 = base64.b64encode(pb.SerializeToString()).decode()
+
+        decoded = ItinerarySummary.from_b64(b64)
+        assert decoded.currency == "JPY"
+        assert decoded.price == 15000.0
+
+    def test_inr_currency(self):
+        pb = PB.ItinerarySummary()
+        pb.flights = "inr-flight"
+        pb.price.price = 850000
+        pb.price.currency = "INR"
+        b64 = base64.b64encode(pb.SerializeToString()).decode()
+
+        decoded = ItinerarySummary.from_b64(b64)
+        assert decoded.currency == "INR"
+        assert decoded.price == 8500.0
+
     def test_invalid_b64_returns_defaults(self):
         decoded = ItinerarySummary.from_b64("not-valid-base64!!!")
         assert decoded.flights == ""

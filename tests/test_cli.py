@@ -730,6 +730,143 @@ class TestPriceCommand:
 
 
 # ---------------------------------------------------------------------------
+# Currency display tests
+# ---------------------------------------------------------------------------
+
+
+class TestCurrencyDisplay:
+    @patch("swoop.cli.commands._run_search")
+    def test_gbp_table_output(self, mock_search):
+        """GBP currency renders pound symbol in table output."""
+        from swoop.builders import ItinerarySummary
+        itin = _make_itinerary(
+            direct_price=150,
+            price_info=ItinerarySummary(flights="f", price=150.0, currency="GBP"),
+        )
+        option = TripOption(
+            selector="sel-gbp",
+            price=150,
+            currency="GBP",
+            legs=[TripLeg(origin="LHR", destination="CDG", date="2026-07-01", itinerary=itin)],
+        )
+        mock_search.return_value = SearchResult(results=[option], currency="GBP")
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "LHR", "CDG", "2026-07-01", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "\u00a3150" in result.output  # £150
+
+    @patch("swoop.cli.commands._run_search")
+    def test_gbp_brief_output(self, mock_search):
+        """GBP currency renders pound symbol in brief output."""
+        from swoop.builders import ItinerarySummary
+        itin = _make_itinerary(
+            direct_price=150,
+            price_info=ItinerarySummary(flights="f", price=150.0, currency="GBP"),
+        )
+        option = TripOption(
+            selector="sel-gbp",
+            price=150,
+            currency="GBP",
+            legs=[TripLeg(origin="LHR", destination="CDG", date="2026-07-01", itinerary=itin)],
+        )
+        mock_search.return_value = SearchResult(results=[option], currency="GBP")
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "LHR", "CDG", "2026-07-01", "-o", "brief", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "\u00a3150" in result.output
+
+    @patch("swoop.check_price")
+    def test_price_table_gbp(self, mock_check):
+        """Price table renders pound symbol for GBP."""
+        mock_check.return_value = PriceResult(price=150, currency="GBP", fare_brand="Flex", rpc_calls=1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "price", "LHR", "CDG", "--depart", "2026-07-01", "BA304", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "\u00a3150" in result.output
+
+    @patch("swoop.check_price")
+    def test_price_brief_gbp(self, mock_check):
+        """Price brief renders pound symbol for GBP."""
+        mock_check.return_value = PriceResult(price=150, currency="GBP", fare_brand="Flex", rpc_calls=1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "price", "LHR", "CDG", "--depart", "2026-07-01", "BA304", "-o", "brief", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "\u00a3150" in result.output
+
+    @patch("swoop.check_price")
+    def test_price_json_includes_currency(self, mock_check):
+        """Price JSON output includes currency field."""
+        mock_check.return_value = PriceResult(price=150, currency="GBP", fare_brand="Flex", rpc_calls=1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "price", "LHR", "CDG", "--depart", "2026-07-01", "BA304", "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        import json
+        data = json.loads(result.output)
+        assert data["price"] == 150
+        assert data["currency"] == "GBP"
+
+    @patch("swoop.cli.commands._run_search")
+    def test_search_json_includes_currency(self, mock_search):
+        """Search JSON output includes currency field."""
+        from swoop.builders import ItinerarySummary
+        itin = _make_itinerary(
+            direct_price=150,
+            price_info=ItinerarySummary(flights="f", price=150.0, currency="GBP"),
+        )
+        option = TripOption(
+            selector="sel-gbp",
+            price=150,
+            currency="GBP",
+            legs=[TripLeg(origin="LHR", destination="CDG", date="2026-07-01", itinerary=itin)],
+        )
+        mock_search.return_value = SearchResult(results=[option], currency="GBP")
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "LHR", "CDG", "2026-07-01", "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        import json
+        data = json.loads(result.output)
+        assert data["currency"] == "GBP"
+        assert data["results"][0]["price"] == 150
+        assert data["results"][0]["currency"] == "GBP"
+
+    @patch("swoop.cli.commands._run_search")
+    def test_search_csv_includes_currency(self, mock_search):
+        """Search CSV output includes currency column."""
+        from swoop.builders import ItinerarySummary
+        itin = _make_itinerary(
+            direct_price=150,
+            price_info=ItinerarySummary(flights="f", price=150.0, currency="GBP"),
+        )
+        option = TripOption(
+            selector="sel-gbp",
+            price=150,
+            currency="GBP",
+            legs=[TripLeg(origin="LHR", destination="CDG", date="2026-07-01", itinerary=itin)],
+        )
+        mock_search.return_value = SearchResult(results=[option], currency="GBP")
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "LHR", "CDG", "2026-07-01", "-o", "csv", "-q",
+        ])
+        assert result.exit_code == 0
+        lines = result.output.strip().split("\n")
+        assert "currency" in lines[0]
+        assert "GBP" in lines[1]
+
+
+# ---------------------------------------------------------------------------
 # __main__ entry point
 # ---------------------------------------------------------------------------
 
