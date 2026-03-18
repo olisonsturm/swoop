@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from .decoder import BookingOption, Itinerary, PriceRange
+from .decoder import BookingOption, Itinerary, PriceRange, _flight_summary_repr, _fmt_duration
 
 
 @dataclass
@@ -14,6 +14,12 @@ class TripLeg:
     destination: str
     date: str
     itinerary: Optional[Itinerary] = None
+
+    def __repr__(self) -> str:
+        parts = [f"{self.origin}->{self.destination}", self.date]
+        if self.itinerary and self.itinerary.flights:
+            parts.append(_flight_summary_repr(self.itinerary.flights))
+        return f"TripLeg({' '.join(parts)})"
 
 
 @dataclass
@@ -29,6 +35,19 @@ class TripOption:
     currency: Optional[str] = None
     legs: list[TripLeg] = field(default_factory=list)
 
+    def __repr__(self) -> str:
+        parts = []
+        if self.price is not None:
+            parts.append(f"price={self.price}")
+        if len(self.legs) == 1:
+            leg = self.legs[0]
+            parts.append(f"{leg.origin}->{leg.destination}")
+            if leg.itinerary and leg.itinerary.flights:
+                parts.append(_flight_summary_repr(leg.itinerary.flights))
+        elif self.legs:
+            parts.append(f"{len(self.legs)} legs")
+        return f"TripOption({' '.join(parts)})"
+
 
 @dataclass
 class SearchResult:
@@ -38,6 +57,22 @@ class SearchResult:
     price_range: Optional[PriceRange] = None
     is_complete: bool = True
     currency: Optional[str] = None
+
+    def __repr__(self) -> str:
+        n = len(self.results)
+        parts = [f"{n} result{'s' if n != 1 else ''}"]
+        if self.price_range and (self.price_range.low is not None or self.price_range.high is not None):
+            lo = self.price_range.low
+            hi = self.price_range.high
+            if lo is not None and hi is not None:
+                parts.append(f"price_range={lo}-{hi}")
+            elif lo is not None:
+                parts.append(f"price_range={lo}-?")
+            else:
+                parts.append(f"price_range=?-{hi}")
+        if not self.is_complete:
+            parts.append("incomplete")
+        return f"SearchResult({', '.join(parts)})"
 
 
 @dataclass
@@ -61,6 +96,14 @@ class ResolvedLeg:
     itinerary: Optional[Itinerary] = None
     selection: str = "explicit"
 
+    def __repr__(self) -> str:
+        parts = []
+        if self.flight_summary:
+            parts.append(self.flight_summary)
+        parts.append(f"{self.origin}->{self.destination}")
+        parts.append(self.date)
+        return f"ResolvedLeg({' '.join(parts)})"
+
 
 @dataclass
 class PriceResult:
@@ -78,3 +121,18 @@ class PriceResult:
     itinerary: Optional[Itinerary] = None
     resolved_legs: list[ResolvedLeg] = field(default_factory=list)
     rpc_calls: int = 0
+
+    def __repr__(self) -> str:
+        parts = [f"price={self.price}"]
+        if self.fare_brand:
+            parts.append(f"'{self.fare_brand}'")
+        elif self.is_basic_economy:
+            parts.append("basic_economy")
+        detail = []
+        if self.resolved_legs:
+            detail.append(f"{len(self.resolved_legs)} leg{'s' if len(self.resolved_legs) != 1 else ''}")
+        if self.booking_options:
+            detail.append(f"{len(self.booking_options)} option{'s' if len(self.booking_options) != 1 else ''}")
+        if detail:
+            parts.append(", ".join(detail))
+        return f"PriceResult({' '.join(parts)})"
