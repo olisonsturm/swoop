@@ -30,7 +30,7 @@ dependencies = [
 
 [project.optional-dependencies]
 validation = ["airportsdata>=1.3.0"]
-cli = ["click>=8.2", "rich>=13.0"]
+cli = ["click>=8.2", "rich>=13.0", "babel>=2.14"]
 
 [project.scripts]
 swoop = "swoop.cli:main"

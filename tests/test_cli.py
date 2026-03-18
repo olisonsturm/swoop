@@ -280,7 +280,7 @@ class TestSearchCommand:
         assert data["query"]["origin"] == "JFK"
         assert data["price_source"] == "shopping"
         assert len(data["results"]) == 3
-        assert data["results"][0]["price_usd"] == 247
+        assert data["results"][0]["price"] == 247
         assert data["results"][0]["selector"] == "selector-1"
         assert data["results"][0]["legs"][0]["itinerary"]["flight_summary"] == "DL 2300"
 
@@ -592,7 +592,7 @@ class TestPriceCommand:
         assert result.exit_code == 0
         import json
         data = json.loads(result.output)
-        assert data["price_usd"] == 342
+        assert data["price"] == 342
         assert "rpc_calls" not in data
 
     @patch("swoop.check_price")
