@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import urllib.parse
 
-from swoop.decoder import Flight, Itinerary, SearchResult
+from swoop.decoder import Flight, Itinerary, RawSearchResult, SearchResult
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +185,51 @@ def make_booking_option(*, price: object | None = 250, brand_code: str | None = 
 def make_itinerary(*flights: Flight) -> Itinerary:
     """Build an Itinerary with the given flights (defaults for everything else)."""
     return Itinerary(flights=list(flights))
+
+
+def make_simple_itinerary(
+    *,
+    origin: str = "JFK",
+    destination: str = "LAX",
+    date: str = "2026-06-15",
+    airline: str = "DL",
+    flight_number: str = "2300",
+    price: int = 299,
+    booking_token: str = "tok",
+) -> Itinerary:
+    """Build a complete single-flight Itinerary from simple parameters."""
+    year, month, day = [int(p) for p in date.split("-")]
+    flight = Flight(
+        airline=airline,
+        airline_name=airline,
+        flight_number=flight_number,
+        departure_airport_code=origin,
+        arrival_airport_code=destination,
+        departure_date=(year, month, day),
+        arrival_date=(year, month, day),
+        departure_time=(8, 0),
+        arrival_time=(11, 15),
+        travel_time=195,
+    )
+    return Itinerary(
+        airline_code=airline,
+        airline_names=[airline],
+        flights=[flight],
+        travel_time=195,
+        departure_airport_code=origin,
+        arrival_airport_code=destination,
+        departure_date=(year, month, day),
+        arrival_date=(year, month, day),
+        departure_time=(8, 0),
+        arrival_time=(11, 15),
+        direct_price=price,
+        booking_token=booking_token,
+    )
+
+
+def make_raw_result(*itineraries: Itinerary) -> RawSearchResult:
+    """Build a RawSearchResult with itineraries in the 'best' bucket."""
+    return RawSearchResult(_raw=[], best=list(itineraries), other=[])
 
 
 def make_search_result(best=None, other=None) -> SearchResult:
