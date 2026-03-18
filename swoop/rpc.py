@@ -512,7 +512,7 @@ def _apply_country(url: str, country: Optional[str]) -> str:
     effective = country if country is not None else _default_country
     if effective:
         sep = "&" if "?" in url else "?"
-        return f"{url}{sep}gl={effective}"
+        return f"{url}{sep}gl={effective.upper()}"
     return url
 
 

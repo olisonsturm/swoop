@@ -72,6 +72,10 @@ class TestApplyCountry:
         url = rpc._apply_country("https://example.com/path", "US")
         assert url == "https://example.com/path?gl=US"
 
+    def test_lowercase_country_is_uppercased(self):
+        url = rpc._apply_country("https://example.com/path", "us")
+        assert url == "https://example.com/path?gl=US"
+
     def test_country_with_existing_query_string(self):
         url = rpc._apply_country("https://example.com/path?foo=bar", "GB")
         assert url == "https://example.com/path?foo=bar&gl=GB"
