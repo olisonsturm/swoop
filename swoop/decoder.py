@@ -195,7 +195,7 @@ class Itinerary:
 
     @property
     def price(self) -> Optional[int]:
-        """Canonical price in the response currency's major unit."""
+        """Price in the currency's major unit (e.g. 250 for $250, 6725 for ₹6,725)."""
         return self.direct_price
 
 
