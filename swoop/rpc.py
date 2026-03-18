@@ -374,6 +374,9 @@ def _search_from_legs(
             legs,
             cabin=cabin,
             adults=adults,
+            children=children,
+            infants_in_seat=infants_in_seat,
+            infants_on_lap=infants_on_lap,
             sort=sort,
             exclude_basic_economy=exclude_basic_economy,
         )
@@ -438,6 +441,11 @@ def set_country(country: Optional[str]) -> None:
     and available fares.  Uses the ``gl=`` query parameter (ISO 3166-1
     alpha-2 country code).
 
+    .. note::
+
+        Not thread-safe.  If you need per-thread country control, pass
+        ``country=`` explicitly to each call instead.
+
     Args:
         country: Two-letter country code (e.g. ``"US"``, ``"GB"``,
             ``"JP"``), or ``None`` to let Google auto-detect from IP.
@@ -459,6 +467,11 @@ def set_proxy(proxy: Optional[str]) -> None:
 
     Supports HTTP, HTTPS, and SOCKS5 proxy URLs.
 
+    .. note::
+
+        Not thread-safe.  If you need per-thread proxy control, pass
+        ``proxy=`` explicitly to each call instead.
+
     Args:
         proxy: Proxy URL (e.g. ``"socks5://user:pass@host:port"``,
             ``"http://host:port"``), or ``None`` to connect directly.
@@ -470,8 +483,10 @@ def set_proxy(proxy: Optional[str]) -> None:
     """
     global _default_proxy
     if proxy != _default_proxy:
+        # Only evict the old default-proxy client; leave per-call clients intact
+        old_key = _default_proxy or ""
+        _clients.pop(old_key, None)
         _default_proxy = proxy
-        _clients.clear()  # reset clients so new proxy takes effect
 
 
 def _get_client(proxy: Optional[str] = None) -> Any:
@@ -587,6 +602,8 @@ def search_raw(
             and jitter (default 2).
         country: Two-letter country code (e.g. ``"US"``) for point of sale.
             Overrides the module-level default set via :func:`set_country`.
+        proxy: Proxy URL for this request.  Overrides the module-level
+            default set via :func:`set_proxy`.
     """
     logger.debug(
         "search_raw %s->%s on %s (cabin=%s, adults=%d)",

@@ -208,6 +208,8 @@ def search_legs(
         retries: Number of retries on HTTP 429 (default 2).
         country: Two-letter country code for point of sale (e.g. ``"US"``).
             Overrides the default set via :func:`set_country`.
+        proxy: Proxy URL for this request.  Overrides the module-level
+            default set via :func:`set_proxy`.
 
     Returns:
         A trip-level :class:`SearchResult` with shopping totals.
@@ -301,6 +303,8 @@ def search(
         country: Two-letter country code for point of sale (e.g. ``"US"``,
             ``"GB"``). Controls currency and available fares. Overrides the
             default set via :func:`set_country`.
+        proxy: Proxy URL for this request.  Overrides the module-level
+            default set via :func:`set_proxy`.
 
     Returns:
         A trip-level :class:`SearchResult` with shopping totals.
@@ -505,7 +509,7 @@ def price_selector(
         A :class:`PriceResult`, or ``None`` if the selected itinerary no
         longer exists.
     """
-    return price_trip_selector(selector, timeout=timeout, retries=retries, country=country)
+    return price_trip_selector(selector, timeout=timeout, retries=retries, country=country, proxy=proxy)
 
 
 def check_price(
