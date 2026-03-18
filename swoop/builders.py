@@ -176,12 +176,45 @@ class TFSData:
         )
 
 
+# Currencies where Google Flights sends protobuf prices in the major unit
+# directly (divisor=1), determined empirically from live API responses.
+# Most currencies (USD, EUR, GBP, etc.) use divisor=100 (minor units).
+# This does NOT match ISO 4217 — e.g. INR has 2 decimal places in ISO 4217
+# but Google sends whole rupees, not paise.
+_GOOGLE_MAJOR_UNIT_CURRENCIES = frozenset({
+    # Confirmed via live captures:
+    "JPY",  # ¥5,540 sent as 5540
+    "INR",  # ₹6,725 sent as 6725
+    # Expected based on Google Flights display behavior (whole-number prices):
+    "KRW",  # South Korean Won
+    "VND",  # Vietnamese Dong
+    "IDR",  # Indonesian Rupiah
+    "CLP",  # Chilean Peso
+    "ISK",  # Icelandic Króna
+    "PKR",  # Pakistani Rupee
+    "LKR",  # Sri Lankan Rupee
+    "HUF",  # Hungarian Forint
+    "TWD",  # New Taiwan Dollar
+})
+
+
+def _currency_divisor(currency: str) -> int:
+    """Return the divisor to convert Google's protobuf price to major unit.
+
+    Based on empirical observation of what Google Flights actually sends,
+    not ISO 4217 decimal places.
+    """
+    if currency in _GOOGLE_MAJOR_UNIT_CURRENCIES:
+        return 1
+    return 100
+
+
 @dataclass
 class ItinerarySummary:
     """Decoded price data from a Google Flights itinerary summary token.
 
-    The ``price`` field is in the response currency's major unit
-    (raw protobuf value / 100). ``currency`` is the 3-letter ISO 4217 code.
+    The ``price`` field is in the response currency's major unit.
+    ``currency`` is the 3-letter ISO 4217 code.
     """
 
     flights: str
@@ -194,6 +227,7 @@ class ItinerarySummary:
             raw = base64.b64decode(b64_string)
             pb = PB.ItinerarySummary()
             pb.ParseFromString(raw)
-            return cls(pb.flights, pb.price.price / 100, pb.price.currency)
+            divisor = _currency_divisor(pb.price.currency)
+            return cls(pb.flights, pb.price.price / divisor, pb.price.currency)
         except Exception:
             return cls("", 0, "USD")
