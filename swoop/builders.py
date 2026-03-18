@@ -198,6 +198,10 @@ _GOOGLE_MAJOR_UNIT_CURRENCIES = frozenset({
 })
 
 
+_DIVISOR_MAJOR_UNIT = 1      # Price is already in the major unit (e.g. ¥5540)
+_DIVISOR_MINOR_UNIT = 100    # Price is in minor units, e.g. cents (25000 → $250)
+
+
 def _currency_divisor(currency: str) -> int:
     """Return the divisor to convert Google's protobuf price to major unit.
 
@@ -205,8 +209,8 @@ def _currency_divisor(currency: str) -> int:
     not ISO 4217 decimal places.
     """
     if currency in _GOOGLE_MAJOR_UNIT_CURRENCIES:
-        return 1
-    return 100
+        return _DIVISOR_MAJOR_UNIT
+    return _DIVISOR_MINOR_UNIT
 
 
 @dataclass
