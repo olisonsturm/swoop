@@ -39,13 +39,94 @@ def test_shopping_corpus_cases_decode_critical_fields():
         expected = case["expected"]
         first = _first_itinerary(result, expected["first_section"])
 
-        assert len(result.best) == expected["best_count"]
-        assert len(result.other) == expected["other_count"]
-        assert first.airline_code == expected["first_airline_code"]
-        assert first.departure_airport_code == expected["first_origin"]
-        assert first.arrival_airport_code == expected["first_destination"]
-        assert first.price == expected["first_price"]
-        assert len(first.flights) == expected["first_flights"]
+        assert len(result.best) == expected["best_count"], f"{case['id']}: best_count"
+        assert len(result.other) == expected["other_count"], f"{case['id']}: other_count"
+        assert first.airline_code == expected["first_airline_code"], f"{case['id']}: airline"
+        assert first.departure_airport_code == expected["first_origin"], f"{case['id']}: origin"
+        assert first.arrival_airport_code == expected["first_destination"], f"{case['id']}: dest"
+        assert first.price == expected["first_price"], f"{case['id']}: price"
+        assert len(first.flights) == expected["first_flights"], f"{case['id']}: flights"
+
+
+def test_shopping_corpus_currency_fields():
+    """Verify currency is decoded correctly for all corpus fixtures."""
+    for case in MANIFEST["shopping"]:
+        expected = case["expected"]
+        if "currency" not in expected or expected["currency"] is None:
+            continue
+
+        data = json.loads((FIXTURES / case["path"]).read_text())
+        result = decode_result(data)
+        all_itins = result.best + result.other
+        expected_currency = expected["currency"]
+
+        # At least one itinerary should report the expected currency
+        currencies = {
+            itin.currency for itin in all_itins if itin.currency
+        }
+        assert expected_currency in currencies, (
+            f"{case['id']}: expected currency {expected_currency}, got {currencies}"
+        )
+
+
+def test_shopping_corpus_price_sanity():
+    """Verify prices fall in sane ranges for each currency."""
+    for case in MANIFEST["shopping"]:
+        expected = case["expected"]
+        if "price_range" not in expected:
+            continue
+
+        data = json.loads((FIXTURES / case["path"]).read_text())
+        result = decode_result(data)
+        all_itins = result.best + result.other
+        low, high = expected["price_range"]
+
+        for itin in all_itins:
+            if itin.price is not None and itin.price > 0:
+                assert low <= itin.price <= high, (
+                    f"{case['id']}: price {itin.price} outside [{low}, {high}]"
+                )
+
+
+def test_shopping_corpus_protobuf_price_agrees_with_direct():
+    """Verify protobuf price (with currency-aware divisor) matches direct_price."""
+    for case in MANIFEST["shopping"]:
+        data = json.loads((FIXTURES / case["path"]).read_text())
+        result = decode_result(data)
+
+        for itin in result.best + result.other:
+            if itin.direct_price is None or itin.price_info is None:
+                continue
+            if itin.price_info.price <= 0:
+                continue
+            diff = abs(itin.direct_price - round(itin.price_info.price))
+            assert diff <= 1, (
+                f"{case['id']}: direct_price={itin.direct_price} vs "
+                f"pb_price={itin.price_info.price} (diff={diff})"
+            )
+
+
+def test_shopping_corpus_structural_invariants():
+    """Verify structural invariants hold across all corpus fixtures."""
+    for case in MANIFEST["shopping"]:
+        data = json.loads((FIXTURES / case["path"]).read_text())
+        result = decode_result(data)
+
+        for itin in result.best + result.other:
+            # Every itinerary must have at least one flight
+            assert itin.flights, f"{case['id']}: itinerary has no flights"
+            # Every flight must have airline info
+            for flight in itin.flights:
+                assert flight.flight_number, f"{case['id']}: flight missing number"
+                assert flight.departure_airport_code, f"{case['id']}: flight missing dep"
+                assert flight.arrival_airport_code, f"{case['id']}: flight missing arr"
+            # Travel time must be positive
+            assert itin.travel_time > 0, f"{case['id']}: travel_time={itin.travel_time}"
+            # Layover count = flights - 1
+            if len(itin.flights) > 1:
+                assert len(itin.layovers) == len(itin.flights) - 1, (
+                    f"{case['id']}: {len(itin.layovers)} layovers for {len(itin.flights)} flights"
+                )
 
 
 def test_booking_corpus_cases_parse_critical_fields():
