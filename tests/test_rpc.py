@@ -300,36 +300,36 @@ class TestBookingRequestHelpers:
         options = _parse_booking_rpc_response(text, registry_version="2026-02-21")
 
         assert len(options) == 2
-        assert options[0]["price"] == 249
-        assert options[0]["brand_label"] == "Delta Main Basic"
-        assert options[0]["brand_code"] == "DELTA MAIN BASIC"
-        assert options[0]["is_basic"] is True
-        assert options[0]["_is_basic_by_flags"] is True
-        assert options[0]["_is_basic_by_text"] is True
-        assert options[0]["_option_index"] == 0
-        assert options[0]["_token_price_raw"] == 24900
-        assert options[0]["_display_price_raw"] == 24900
-        assert options[0]["_price_delta_raw"] == 0
-        assert options[0]["_context_origin_iata"] == "LGA"
-        assert options[0]["_context_destination_iata"] == "BHM"
-        assert options[0]["_context_departure_local_iso"] == "2026-03-13T20:59:00-04:00"
-        assert options[0]["_context_arrival_local_iso"] == "2026-03-13T22:45:00-05:00"
-        assert options[0]["_context_carrier_code"] == "DL"
-        assert options[0]["_context_flight_number"] == "4938"
-        assert options[0]["_context_aircraft_code"] == "CR9"
-        assert options[0]["_cabin_bucket"] == "economy"
-        assert options[0]["fare_family"] == "basic"
-        assert options[0]["rebookability_signal"] == "restricted"
-        assert options[0]["_registry_version"] == "2026-02-21"
+        assert options[0].price == 249
+        assert options[0].brand_label == "Delta Main Basic"
+        assert options[0].brand_code == "DELTA MAIN BASIC"
+        assert options[0].is_basic is True
+        assert options[0]._is_basic_by_flags is True
+        assert options[0]._is_basic_by_text is True
+        assert options[0]._option_index == 0
+        assert options[0]._token_price_raw == 24900
+        assert options[0]._display_price_raw == 24900
+        assert options[0]._price_delta_raw == 0
+        assert options[0]._context_origin_iata == "LGA"
+        assert options[0]._context_destination_iata == "BHM"
+        assert options[0]._context_departure_local_iso == "2026-03-13T20:59:00-04:00"
+        assert options[0]._context_arrival_local_iso == "2026-03-13T22:45:00-05:00"
+        assert options[0]._context_carrier_code == "DL"
+        assert options[0]._context_flight_number == "4938"
+        assert options[0]._context_aircraft_code == "CR9"
+        assert options[0]._cabin_bucket == "economy"
+        assert options[0].fare_family == "basic"
+        assert options[0].rebookability_signal == "restricted"
+        assert options[0]._registry_version == "2026-02-21"
 
-        assert options[1]["price"] == 284
-        assert options[1]["brand_label"] == "Delta Main Classic"
-        assert options[1]["brand_code"] == "DELTA MAIN CLASSIC"
-        assert options[1]["is_basic"] is False
-        assert options[1]["_option_index"] == 1
-        assert options[1]["_cabin_bucket"] == "economy"
-        assert options[1]["fare_family"] == "standard"
-        assert options[1]["rebookability_signal"] == "standard_rebookable"
+        assert options[1].price == 284
+        assert options[1].brand_label == "Delta Main Classic"
+        assert options[1].brand_code == "DELTA MAIN CLASSIC"
+        assert options[1].is_basic is False
+        assert options[1]._option_index == 1
+        assert options[1]._cabin_bucket == "economy"
+        assert options[1].fare_family == "standard"
+        assert options[1].rebookability_signal == "standard_rebookable"
 
 
 # --- Booking/Branch coverage (merged from test_rpc_client_branches) ---
@@ -557,7 +557,7 @@ def test_extract_booking_payload_and_rpc_parsers(monkeypatch) -> None:
 
     # Trigger missing required field warning path by requiring a fake key.
     parsed = rpc._parse_booking_rpc_response(text, required_keys=("price", "missing_key"))
-    assert parsed and parsed[0]["price"] == 250
+    assert parsed and parsed[0].price == 250
 
     assert rpc._parse_rpc_response(")]}'  ") is None
     with pytest.raises(rpc.SwoopParseError, match="Failed to parse RPC response JSON"):
