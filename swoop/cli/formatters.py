@@ -1,6 +1,7 @@
 """Output formatters for the CLI — table, JSON, CSV, brief."""
 
 import csv
+import functools
 import json
 import sys
 from typing import Optional
@@ -13,6 +14,15 @@ from rich.text import Text
 from .utils import format_date_display, format_duration, format_time
 
 
+@functools.lru_cache(maxsize=16)
+def _currency_symbol(currency: str) -> str:
+    """Cached currency symbol lookup."""
+    try:
+        return get_currency_symbol(currency)
+    except Exception:
+        return currency + " "
+
+
 def _format_price(price: Optional[int], currency: Optional[str] = None) -> str:
     """Format a price with the correct currency symbol.
 
@@ -20,12 +30,9 @@ def _format_price(price: Optional[int], currency: Optional[str] = None) -> str:
     """
     if price is None:
         return "\u2014"  # em-dash
-    curr = currency or "USD"
-    try:
-        symbol = get_currency_symbol(curr)
-    except Exception:
-        symbol = curr + " "
-    return f"{symbol}{price:,}"
+    if not currency:
+        return str(price)
+    return f"{_currency_symbol(currency)}{price:,}"
 
 
 def _stderr_console(**kwargs) -> Console:
@@ -296,11 +303,11 @@ def _itin_to_dict(itin, currency: Optional[str] = None) -> dict:
             "difference_percent": ce.difference_percent,
         }
 
-    result = {
+    return {
         "flight_summary": _flight_summary(itin),
         "price": itin.price,
         "currency": currency or itin.currency,
-        "airlines": _airline_names(itin) if isinstance(_airline_names(itin), str) else str(_airline_names(itin)),
+        "airlines": _airline_names(itin),
         "departure_airport_code": itin.departure_airport_code,
         "arrival_airport_code": itin.arrival_airport_code,
         "departure_time": _format_clock(itin.departure_time),
@@ -312,7 +319,6 @@ def _itin_to_dict(itin, currency: Optional[str] = None) -> dict:
         "layovers": layovers,
         "carbon_emissions": emissions,
     }
-    return result
 
 
 def format_search_json(
@@ -423,7 +429,7 @@ def format_search_brief(
     currency = result.currency
     for i, option in enumerate(all_options, 1):
         price = _format_price(option.price, option.currency or currency)
-        print(f"{i:<3} {price:<8} {_trip_summary(option)}")
+        print(f"{i:<3} {price:<12} {_trip_summary(option)}")
 
     if all_options:
         console = _stdout_console()
