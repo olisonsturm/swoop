@@ -13,7 +13,7 @@ import pytest
 
 from swoop.builders import ItinerarySummary, TFSData, SearchLeg, Passengers
 from swoop.decoder import decode_result, _decode_flight, _safe_get
-from swoop.rpc import _build_f_req
+from swoop.rpc import _build_filters_from_legs, _normalize_rpc_leg, _encode_f_req_payload
 
 
 class TestAirportNesting:
@@ -23,11 +23,10 @@ class TestAirportNesting:
     """
 
     def test_outbound_airport_is_3_levels(self):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15")
-        decoded = urllib.parse.unquote(encoded)
-        outer = json.loads(decoded)
-        inner = json.loads(outer[1])
-        segments = inner[1][13]
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+        ])
+        segments = filters[1][13]
         dep = segments[0][0]
         # Must be [[[code, 0]]] — exactly 3 levels
         assert dep == [[["JFK", 0]]]
@@ -35,11 +34,11 @@ class TestAirportNesting:
         assert not isinstance(dep[0][0][0], list)
 
     def test_return_airport_is_3_levels(self):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15", return_date="2026-03-22")
-        decoded = urllib.parse.unquote(encoded)
-        outer = json.loads(decoded)
-        inner = json.loads(outer[1])
-        segments = inner[1][13]
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+            _normalize_rpc_leg("LAX", "JFK", "2026-03-22"),
+        ])
+        segments = filters[1][13]
         # Return segment has reversed airports
         dep = segments[1][0]
         arr = segments[1][1]
@@ -89,7 +88,10 @@ class TestPrimpContentBytes:
 
     def test_f_req_body_is_encoded_to_bytes(self):
         """The encoded body passed to _http_post must be bytes."""
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15")
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+        ])
+        encoded = _encode_f_req_payload(filters)
         body = f"f.req={encoded}"
         body_bytes = body.encode()
         assert isinstance(body_bytes, bytes)

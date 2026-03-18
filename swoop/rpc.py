@@ -213,144 +213,11 @@ def _build_filters_from_legs(
     return filters
 
 
-def _build_filters(
-    origin: str,
-    destination: str,
-    date: str,
-    cabin: str = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
-    sort: int = SORT_TOP,
-    max_stops: Optional[int] = None,
-    airlines: Optional[list[str]] = None,
-    earliest_departure: Optional[int] = None,
-    latest_departure: Optional[int] = None,
-    earliest_arrival: Optional[int] = None,
-    latest_arrival: Optional[int] = None,
-    return_date: Optional[str] = None,
-    return_earliest_departure: Optional[int] = None,
-    return_latest_departure: Optional[int] = None,
-    selected_outbound_legs: Optional[list[list[Any]]] = None,
-    exclude_basic_economy: bool = False,
-) -> list[Any]:
-    """Build nested filters payload used by shopping/booking RPC calls.
-
-    Args:
-        origin: Origin airport IATA code (e.g., "JFK")
-        destination: Destination airport IATA code (e.g., "LAX")
-        date: Departure date in YYYY-MM-DD format
-        cabin: Cabin class (economy, premium-economy, business, first)
-        adults: Number of adult passengers
-        sort: Sort order (use SORT_* constants)
-        max_stops: Maximum stops (None=any, 0=nonstop, 1=one stop, 2=two stops)
-        airlines: List of airline codes to filter by (e.g., ["DL"])
-        earliest_departure: Earliest departure hour (0-23)
-        latest_departure: Latest departure hour (1-24)
-        earliest_arrival: Earliest arrival hour (0-23)
-        latest_arrival: Latest arrival hour (1-24)
-        return_date: Return date in YYYY-MM-DD format (makes it a roundtrip search)
-        return_earliest_departure: Earliest return departure hour (0-23)
-        return_latest_departure: Latest return departure hour (1-24)
-        selected_outbound_legs: Pre-selected outbound legs for roundtrip expansion.
-            Each leg must be [dep_airport, dep_date, arr_airport, None, airline_code, flight_number].
-    """
-    legs = [
-        _normalize_rpc_leg(
-            origin,
-            destination,
-            date,
-            max_stops=max_stops,
-            airlines=airlines,
-            earliest_departure=earliest_departure,
-            latest_departure=latest_departure,
-            earliest_arrival=earliest_arrival,
-            latest_arrival=latest_arrival,
-            selected_legs=selected_outbound_legs if return_date is not None else None,
-        )
-    ]
-    if return_date is not None:
-        legs.append(
-            _normalize_rpc_leg(
-                destination,
-                origin,
-                return_date,
-                max_stops=max_stops,
-                airlines=airlines,
-                earliest_departure=return_earliest_departure,
-                latest_departure=return_latest_departure,
-            )
-        )
-
-    return _build_filters_from_legs(
-        legs,
-        cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
-        sort=sort,
-        exclude_basic_economy=exclude_basic_economy,
-    )
-
-
 def _encode_f_req_payload(payload: list[Any]) -> str:
     """Encode payload to the URL-escaped `f.req` value."""
     payload_json = json.dumps(payload, separators=(",", ":"))
     wrapped = json.dumps([None, payload_json], separators=(",", ":"))
     return urllib.parse.quote(wrapped)
-
-
-def _build_f_req(
-    origin: str,
-    destination: str,
-    date: str,
-    cabin: str = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
-    sort: int = SORT_TOP,
-    max_stops: Optional[int] = None,
-    airlines: Optional[list[str]] = None,
-    earliest_departure: Optional[int] = None,
-    latest_departure: Optional[int] = None,
-    earliest_arrival: Optional[int] = None,
-    latest_arrival: Optional[int] = None,
-    return_date: Optional[str] = None,
-    return_earliest_departure: Optional[int] = None,
-    return_latest_departure: Optional[int] = None,
-    selected_outbound_legs: Optional[list[list[Any]]] = None,
-    exclude_basic_economy: bool = False,
-) -> str:
-    """Build the f.req body for the GetShoppingResults RPC endpoint."""
-    filters = _build_filters(
-        origin=origin,
-        destination=destination,
-        date=date,
-        cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
-        sort=sort,
-        max_stops=max_stops,
-        airlines=airlines,
-        earliest_departure=earliest_departure,
-        latest_departure=latest_departure,
-        earliest_arrival=earliest_arrival,
-        latest_arrival=latest_arrival,
-        return_date=return_date,
-        return_earliest_departure=return_earliest_departure,
-        return_latest_departure=return_latest_departure,
-        selected_outbound_legs=selected_outbound_legs,
-        exclude_basic_economy=exclude_basic_economy,
-    )
-    # Encoding: JSON -> wrap in [None, json_string] -> URL-encode.
-    # The double-JSON pattern (stringify, then wrap in array and stringify again)
-    # mirrors how the Google Flights web app encodes its RPC requests.
-    return _encode_f_req_payload(filters)
 
 
 def _search_from_legs(
@@ -610,46 +477,35 @@ def search_raw(
         origin, destination, date, cabin, adults,
     )
 
-    encoded_body = _build_f_req(
-        origin=origin,
-        destination=destination,
-        date=date,
-        cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
-        sort=sort,
-        max_stops=max_stops,
-        airlines=airlines,
-        earliest_departure=earliest_departure,
-        latest_departure=latest_departure,
-        earliest_arrival=earliest_arrival,
-        latest_arrival=latest_arrival,
-        return_date=return_date,
-        return_earliest_departure=return_earliest_departure,
-        return_latest_departure=return_latest_departure,
-        selected_outbound_legs=selected_outbound_legs,
-        exclude_basic_economy=exclude_basic_economy,
-    )
-
-    # primp's content param requires bytes, not str — passing str silently fails
-    res = _http_post(
-        SHOPPING_RPC_URL,
-        content=f"f.req={encoded_body}".encode(),
-        timeout=timeout,
-        retries=retries,
-        country=country,
-        proxy=proxy,
-    )
-
-    result = _parse_rpc_response(res.text)
-    if result is not None and hasattr(result, "best"):
-        logger.info(
-            "search_raw found %d best + %d other itineraries",
-            len(result.best), len(result.other),
+    legs = [
+        _normalize_rpc_leg(
+            origin, destination, date,
+            max_stops=max_stops, airlines=airlines,
+            earliest_departure=earliest_departure,
+            latest_departure=latest_departure,
+            earliest_arrival=earliest_arrival,
+            latest_arrival=latest_arrival,
+            selected_legs=selected_outbound_legs if return_date else None,
         )
-    return result
+    ]
+    if return_date:
+        legs.append(
+            _normalize_rpc_leg(
+                destination, origin, return_date,
+                max_stops=max_stops, airlines=airlines,
+                earliest_departure=return_earliest_departure,
+                latest_departure=return_latest_departure,
+            )
+        )
+
+    return _search_from_legs(
+        legs, cabin=cabin, adults=adults,
+        children=children, infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
+        sort=sort, timeout=timeout, retries=retries,
+        exclude_basic_economy=exclude_basic_economy,
+        country=country, proxy=proxy,
+    )
 
 
 def _build_selected_legs(itinerary: Itinerary) -> list[list[Any]]:
@@ -745,22 +601,21 @@ def get_booking_results(
         origin, destination, date, len(selected_legs),
     )
 
-    filters = _build_filters(
-        origin=origin,
-        destination=destination,
-        date=date,
-        cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
+    legs = [
+        _normalize_rpc_leg(
+            origin, destination, date,
+            max_stops=max_stops, airlines=airlines,
+            earliest_departure=earliest_departure,
+            latest_departure=latest_departure,
+            earliest_arrival=earliest_arrival,
+            latest_arrival=latest_arrival,
+        )
+    ]
+    filters = _build_filters_from_legs(
+        legs, cabin=cabin, adults=adults,
+        children=children, infants_in_seat=infants_in_seat,
         infants_on_lap=infants_on_lap,
         sort=SORT_DEPARTURE_TIME,
-        max_stops=max_stops,
-        airlines=airlines,
-        earliest_departure=earliest_departure,
-        latest_departure=latest_departure,
-        earliest_arrival=earliest_arrival,
-        latest_arrival=latest_arrival,
     )
     filter_block = filters[1]
     encoded_body = _build_booking_f_req(booking_token, filter_block, selected_legs)

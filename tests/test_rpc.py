@@ -1,8 +1,8 @@
-"""Tests for _build_f_req in the RPC client.
+"""Tests for RPC request building and booking helpers.
 
-_build_f_req is a pure function that constructs the URL-encoded protobuf request
-body for Google Flights' GetShoppingResults RPC endpoint. We decode the output
-and verify the nested structure matches expectations.
+Tests verify the nested structure produced by _build_filters_from_legs and
+_normalize_rpc_leg, which are the sole code path for constructing Google
+Flights RPC payloads.
 """
 
 from __future__ import annotations
@@ -19,8 +19,8 @@ import swoop._booking as _booking
 import swoop.rpc as rpc
 from swoop.rpc import (
     _build_booking_f_req,
-    _build_f_req,
     _build_filters_from_legs,
+    _encode_f_req_payload,
     _normalize_rpc_leg,
     _parse_booking_rpc_response,
     CABIN_CLASS_MAP,
@@ -30,7 +30,6 @@ from swoop.rpc import (
 from swoop import flights_pb2 as PB
 
 from tests.factories import (
-    decode_f_req,
     encode_rpc_outer,
     make_brand_block,
     make_booking_option,
@@ -43,8 +42,9 @@ class TestBuildFReqOneWay:
     """One-way flight request tests."""
 
     def test_one_way_baseline(self):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15")
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+        ])
 
         # Trip type = 2 (one-way)
         assert filters[1][2] == 2
@@ -62,8 +62,9 @@ class TestBuildFReqOneWay:
 
     def test_airport_nesting_is_3_level(self):
         """Verify airports use exactly 3 levels of nesting, not 4."""
-        encoded = _build_f_req("SFO", "ORD", "2026-06-01")
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("SFO", "ORD", "2026-06-01"),
+        ])
         segments = filters[1][13]
         dep = segments[0][0]
         # Must be [[[code, 0]]] — exactly 3 levels
@@ -74,8 +75,9 @@ class TestBuildFReqOneWay:
         assert len(dep[0][0]) == 2  # [code, 0]
 
     def test_no_time_restrictions(self):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15")
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+        ])
         segments = filters[1][13]
         # time_restrictions should be None when no time params
         assert segments[0][2] is None
@@ -85,8 +87,10 @@ class TestBuildFReqRoundtrip:
     """Roundtrip flight request tests."""
 
     def test_roundtrip_with_return_date(self):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15", return_date="2026-03-22")
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+            _normalize_rpc_leg("LAX", "JFK", "2026-03-22"),
+        ])
 
         # Trip type = 1 (roundtrip)
         assert filters[1][2] == 1
@@ -96,8 +100,10 @@ class TestBuildFReqRoundtrip:
         assert len(segments) == 2
 
     def test_return_segment_has_reversed_airports(self):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15", return_date="2026-03-22")
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+            _normalize_rpc_leg("LAX", "JFK", "2026-03-22"),
+        ])
         segments = filters[1][13]
 
         # Return segment: departure = LAX, arrival = JFK (reversed)
@@ -105,77 +111,25 @@ class TestBuildFReqRoundtrip:
         assert segments[1][1] == [[["JFK", 0]]]
 
     def test_return_segment_date(self):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15", return_date="2026-03-22")
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+            _normalize_rpc_leg("LAX", "JFK", "2026-03-22"),
+        ])
         segments = filters[1][13]
         assert segments[1][6] == "2026-03-22"
 
     def test_selected_outbound_legs_attached_for_roundtrip_expansion(self):
         selected = [["JFK", "2026-03-15", "LAX", None, "DL", "4938"]]
-        encoded = _build_f_req(
-            "JFK",
-            "LAX",
-            "2026-03-15",
-            return_date="2026-03-22",
-            selected_outbound_legs=selected,
-        )
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg(
+                "JFK", "LAX", "2026-03-15",
+                selected_legs=selected,
+            ),
+            _normalize_rpc_leg("LAX", "JFK", "2026-03-22"),
+        ])
         segments = filters[1][13]
         assert segments[0][8] == selected
         assert segments[1][8] is None
-
-
-class TestBuildFiltersFromLegs:
-    """Leg-normalized filter builder should preserve legacy request shapes."""
-
-    def test_one_way_matches_legacy_builder(self):
-        legacy = decode_f_req(_build_f_req("JFK", "LAX", "2026-03-15"))
-        normalized = _build_filters_from_legs([
-            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
-        ])
-        assert normalized == legacy
-
-    def test_roundtrip_matches_legacy_builder(self):
-        selected = [["JFK", "2026-03-15", "LAX", None, "DL", "4938"]]
-        legacy = decode_f_req(_build_f_req(
-            "JFK",
-            "LAX",
-            "2026-03-15",
-            cabin="business",
-            adults=2,
-            sort=rpc.SORT_CHEAPEST,
-            max_stops=1,
-            airlines=["DL"],
-            earliest_departure=6,
-            latest_departure=10,
-            return_date="2026-03-22",
-            return_earliest_departure=14,
-            return_latest_departure=18,
-            selected_outbound_legs=selected,
-            exclude_basic_economy=True,
-        ))
-        normalized = _build_filters_from_legs([
-            _normalize_rpc_leg(
-                "JFK",
-                "LAX",
-                "2026-03-15",
-                max_stops=1,
-                airlines=["DL"],
-                earliest_departure=6,
-                latest_departure=10,
-                selected_legs=selected,
-            ),
-            _normalize_rpc_leg(
-                "LAX",
-                "JFK",
-                "2026-03-22",
-                max_stops=1,
-                airlines=["DL"],
-                earliest_departure=14,
-                latest_departure=18,
-            ),
-        ], cabin="business", adults=2, sort=rpc.SORT_CHEAPEST, exclude_basic_economy=True)
-        assert normalized == legacy
 
 
 class TestBuildFReqCabinAndStops:
@@ -188,8 +142,9 @@ class TestBuildFReqCabinAndStops:
         ("premium-economy", 2),
     ])
     def test_cabin_mapping(self, cabin, expected):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15", cabin=cabin)
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+        ], cabin=cabin)
         assert filters[1][5] == expected
 
     @pytest.mark.parametrize("max_stops,expected_val", [
@@ -199,8 +154,9 @@ class TestBuildFReqCabinAndStops:
         (2, 3),      # 2 stops -> 2+1 = 3
     ])
     def test_max_stops_mapping(self, max_stops, expected_val):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15", max_stops=max_stops)
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15", max_stops=max_stops),
+        ])
         segments = filters[1][13]
         assert segments[0][3] == expected_val
 
@@ -209,32 +165,36 @@ class TestBuildFReqFilters:
     """Airlines and time filter tests."""
 
     def test_airlines_filter_sorted(self):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15", airlines=["UA", "DL", "AA"])
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15", airlines=["UA", "DL", "AA"]),
+        ])
         segments = filters[1][13]
         assert segments[0][4] == ["AA", "DL", "UA"]
 
     def test_outbound_time_restrictions(self):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15", earliest_departure=6, latest_departure=10)
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15", earliest_departure=6, latest_departure=10),
+        ])
         segments = filters[1][13]
         assert segments[0][2] == [6, 10, None, None]
 
     def test_return_time_restrictions(self):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15", return_date="2026-03-22",
-                               return_earliest_departure=14, return_latest_departure=18)
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+            _normalize_rpc_leg("LAX", "JFK", "2026-03-22", earliest_departure=14, latest_departure=18),
+        ])
         segments = filters[1][13]
         assert segments[1][2] == [14, 18, None, None]
 
     def test_adults_count(self):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15", adults=2)
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+        ], adults=2)
         assert filters[1][6] == [2, 0, 0, 0]
 
 
 class TestBuildFReqAirportPairs:
-    """Verify f.req construction with various airport pairs."""
+    """Verify filter construction with various airport pairs."""
 
     @pytest.mark.parametrize("origin,destination", [
         ("JFK", "LAX"),
@@ -243,8 +203,9 @@ class TestBuildFReqAirportPairs:
         ("ORD", "MIA"),
     ])
     def test_various_airports(self, origin, destination):
-        encoded = _build_f_req(origin, destination, "2026-03-15")
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg(origin, destination, "2026-03-15"),
+        ])
         segments = filters[1][13]
         assert segments[0][0] == [[[origin, 0]]]
         assert segments[0][1] == [[[destination, 0]]]
@@ -252,8 +213,9 @@ class TestBuildFReqAirportPairs:
 
 class TestBookingRequestHelpers:
     def test_build_booking_f_req_sets_selected_legs(self):
-        encoded = _build_f_req("LGA", "BHM", "2026-03-13", airlines=["DL"])
-        filters = decode_f_req(encoded)
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("LGA", "BHM", "2026-03-13", airlines=["DL"]),
+        ])
         selected = [["LGA", "2026-03-13", "BHM", None, "DL", "4938"]]
 
         booking_encoded = _build_booking_f_req("token123", filters[1], selected)
