@@ -161,6 +161,9 @@ def _build_filters_from_legs(
     *,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     sort: int = SORT_TOP,
     exclude_basic_economy: bool = False,
 ) -> list[Any]:
@@ -178,7 +181,7 @@ def _build_filters_from_legs(
             None,                                    # [3] placeholder
             [],                                      # [4] empty array
             seat_type,                               # [5] seat type
-            [adults, 0, 0, 0],                       # [6] passengers
+            [adults, children, infants_in_seat, infants_on_lap],  # [6] passengers
             None,                                    # [7] price limit
             None,                                    # [8-12] placeholders
             None,
@@ -216,6 +219,9 @@ def _build_filters(
     date: str,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     sort: int = SORT_TOP,
     max_stops: Optional[int] = None,
     airlines: Optional[list[str]] = None,
@@ -281,6 +287,9 @@ def _build_filters(
         legs,
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         sort=sort,
         exclude_basic_economy=exclude_basic_economy,
     )
@@ -299,6 +308,9 @@ def _build_f_req(
     date: str,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     sort: int = SORT_TOP,
     max_stops: Optional[int] = None,
     airlines: Optional[list[str]] = None,
@@ -319,6 +331,9 @@ def _build_f_req(
         date=date,
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         sort=sort,
         max_stops=max_stops,
         airlines=airlines,
@@ -343,10 +358,15 @@ def _search_from_legs(
     *,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     sort: int = SORT_DEPARTURE_TIME,
     timeout: int = 90,
     retries: int = 2,
     exclude_basic_economy: bool = False,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[RawSearchResult]:
     """Search Google Flights from normalized leg definitions."""
     encoded_body = _encode_f_req_payload(
@@ -364,6 +384,8 @@ def _search_from_legs(
         content=f"f.req={encoded_body}".encode(),
         timeout=timeout,
         retries=retries,
+        country=country,
+        proxy=proxy,
     )
 
     result = _parse_rpc_response(res.text)
@@ -404,12 +426,89 @@ def _build_booking_f_req(
     return _encode_f_req_payload(inner)
 
 
+_clients: dict[str, Any] = {}
+_default_country: Optional[str] = None
+_default_proxy: Optional[str] = None
+
+
+def set_country(country: Optional[str]) -> None:
+    """Set the default country for all subsequent requests.
+
+    Controls the Google Flights point of sale, which determines currency
+    and available fares.  Uses the ``gl=`` query parameter (ISO 3166-1
+    alpha-2 country code).
+
+    Args:
+        country: Two-letter country code (e.g. ``"US"``, ``"GB"``,
+            ``"JP"``), or ``None`` to let Google auto-detect from IP.
+
+    Example::
+
+        import swoop
+        swoop.set_country("US")  # prices in USD
+    """
+    global _default_country
+    _default_country = country.upper() if country else None
+
+
+def set_proxy(proxy: Optional[str]) -> None:
+    """Set the default proxy for all subsequent requests.
+
+    Useful for routing requests through different servers to use
+    different source IPs (e.g. for rate-limit management).
+
+    Supports HTTP, HTTPS, and SOCKS5 proxy URLs.
+
+    Args:
+        proxy: Proxy URL (e.g. ``"socks5://user:pass@host:port"``,
+            ``"http://host:port"``), or ``None`` to connect directly.
+
+    Example::
+
+        import swoop
+        swoop.set_proxy("socks5://myserver:1080")
+    """
+    global _default_proxy
+    if proxy != _default_proxy:
+        _default_proxy = proxy
+        _clients.clear()  # reset clients so new proxy takes effect
+
+
+def _get_client(proxy: Optional[str] = None) -> Any:
+    """Return a Client for the given proxy, with connection reuse.
+
+    Maintains separate Client instances per proxy so that different
+    proxy routes don't interfere with each other's connection state.
+    """
+    from primp import Client
+
+    effective_proxy = proxy if proxy is not None else _default_proxy
+    key = effective_proxy or ""
+    if key not in _clients:
+        kwargs: dict[str, Any] = {"impersonate": "chrome"}
+        if effective_proxy:
+            kwargs["proxy"] = effective_proxy
+        _clients[key] = Client(**kwargs)
+    return _clients[key]
+
+
+def _apply_country(url: str, country: Optional[str]) -> str:
+    """Append ``?gl=XX`` to the URL if a country is set."""
+    effective = country if country is not None else _default_country
+    if effective:
+        sep = "&" if "?" in url else "?"
+        return f"{url}{sep}gl={effective}"
+    return url
+
+
 def _http_post(
     url: str,
     content: bytes,
     *,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Any:
     """POST with optional retry on 429 and timeout.
 
@@ -431,9 +530,8 @@ def _http_post(
     import random
     import time
 
-    from primp import Client
-
-    client = Client(impersonate="chrome")
+    url = _apply_country(url, country)
+    client = _get_client(proxy)
     headers = {"content-type": "application/x-www-form-urlencoded;charset=UTF-8"}
 
     for attempt in range(1 + retries):
@@ -457,6 +555,9 @@ def search_raw(
     date: str,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     sort: int = SORT_DEPARTURE_TIME,
     max_stops: Optional[int] = None,
     airlines: Optional[list[str]] = None,
@@ -471,6 +572,8 @@ def search_raw(
     timeout: int = 90,
     retries: int = 2,
     exclude_basic_economy: bool = False,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[RawSearchResult]:
     """Search Google Flights via RPC endpoint and return decoded results.
 
@@ -482,6 +585,8 @@ def search_raw(
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 with exponential backoff
             and jitter (default 2).
+        country: Two-letter country code (e.g. ``"US"``) for point of sale.
+            Overrides the module-level default set via :func:`set_country`.
     """
     logger.debug(
         "search_raw %s->%s on %s (cabin=%s, adults=%d)",
@@ -494,6 +599,9 @@ def search_raw(
         date=date,
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         sort=sort,
         max_stops=max_stops,
         airlines=airlines,
@@ -514,6 +622,8 @@ def search_raw(
         content=f"f.req={encoded_body}".encode(),
         timeout=timeout,
         retries=retries,
+        country=country,
+        proxy=proxy,
     )
 
     result = _parse_rpc_response(res.text)
@@ -558,6 +668,9 @@ def get_booking_results(
     date: str = "",
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     max_stops: Optional[int] = None,
     airlines: Optional[list[str]] = None,
     earliest_departure: Optional[int] = None,
@@ -569,6 +682,8 @@ def get_booking_results(
     required_keys: tuple[str, ...] | None = None,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> list[BookingOption]:
     """Fetch fare options (brand + price) for a specific itinerary.
 
@@ -586,6 +701,8 @@ def get_booking_results(
         required_keys: If provided, warns when any key is missing from parsed options.
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 (default 0).
+        country: Two-letter country code for point of sale.
+        proxy: Proxy URL for this request.
     """
     if isinstance(itinerary_or_token, Itinerary):
         itin = itinerary_or_token
@@ -617,6 +734,9 @@ def get_booking_results(
         date=date,
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         sort=SORT_DEPARTURE_TIME,
         max_stops=max_stops,
         airlines=airlines,
@@ -635,6 +755,8 @@ def get_booking_results(
         content=f"f.req={encoded_body}".encode(),
         timeout=timeout,
         retries=retries,
+        country=country,
+        proxy=proxy,
     )
 
     return _parse_booking_rpc_response(
@@ -650,8 +772,13 @@ def get_trip_booking_results(
     *,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> list[BookingOption]:
     """Fetch booking options for an exact multi-leg trip selection."""
     if not booking_token or not legs:
@@ -661,6 +788,9 @@ def get_trip_booking_results(
         legs,
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         sort=SORT_DEPARTURE_TIME,
     )
     inner = [[None, booking_token], filters[1], None, 0]
@@ -671,6 +801,8 @@ def get_trip_booking_results(
         content=f"f.req={encoded_body}".encode(),
         timeout=timeout,
         retries=retries,
+        country=country,
+        proxy=proxy,
     )
 
     return _parse_booking_rpc_response(res.text)

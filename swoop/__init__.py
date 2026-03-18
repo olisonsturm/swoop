@@ -50,6 +50,8 @@ from .rpc import (
     STOPS_TWO_OR_FEWER,
     get_booking_results,
     search_raw,
+    set_country,
+    set_proxy,
 )
 
 # ---------------------------------------------------------------------------
@@ -147,22 +149,32 @@ def _search_with_normalized_legs(
     *,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
     timeout: int = 90,
     retries: int = 2,
     correct_roundtrip_prices: bool = False,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> SearchResult:
     """Execute a staged trip search from normalized leg definitions."""
     return search_trip_options(
         request_legs,
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         sort=sort,
         include_basic_economy=include_basic_economy,
         correct_prices=correct_roundtrip_prices,
         timeout=timeout,
         retries=retries,
+        country=country,
+        proxy=proxy,
     )
 
 
@@ -171,10 +183,15 @@ def search_legs(
     *,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> SearchResult:
     """Search Google Flights using explicit leg definitions.
 
@@ -189,6 +206,8 @@ def search_legs(
         include_basic_economy: Include basic economy fares (default ``False``).
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 (default 2).
+        country: Two-letter country code for point of sale (e.g. ``"US"``).
+            Overrides the default set via :func:`set_country`.
 
     Returns:
         A trip-level :class:`SearchResult` with shopping totals.
@@ -210,10 +229,15 @@ def search_legs(
         request_legs,
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         sort=sort,
         include_basic_economy=include_basic_economy,
         timeout=timeout,
         retries=retries,
+        country=country,
+        proxy=proxy,
     )
 
 
@@ -225,6 +249,9 @@ def search(
     return_date: Optional[str] = None,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     max_stops: Optional[int] = None,
     sort: int = SORT_DEPARTURE_TIME,
     airlines: Optional[list[str]] = None,
@@ -238,6 +265,8 @@ def search(
     return_latest_departure: Optional[int] = None,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> SearchResult:
     """Search Google Flights and return decoded results.
 
@@ -269,6 +298,9 @@ def search(
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 with exponential backoff
             and jitter (default 2).
+        country: Two-letter country code for point of sale (e.g. ``"US"``,
+            ``"GB"``). Controls currency and available fares. Overrides the
+            default set via :func:`set_country`.
 
     Returns:
         A trip-level :class:`SearchResult` with shopping totals.
@@ -349,11 +381,16 @@ def search(
         request_legs,
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         sort=sort,
         include_basic_economy=include_basic_economy,
         correct_roundtrip_prices=False,
         timeout=timeout,
         retries=retries,
+        country=country,
+        proxy=proxy,
     )
 
     if parsed_number is not None:
@@ -371,9 +408,14 @@ def price_legs(
     *,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     include_basic_economy: bool = False,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare using explicit leg definitions.
 
@@ -407,6 +449,9 @@ def price_legs(
         [leg.flight_number for leg in legs],
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         timeout=timeout,
         retries=retries,
         exclude_basic_economy=(
@@ -414,6 +459,8 @@ def price_legs(
             and len(legs) == 1
             and not include_basic_economy
         ),
+        country=country,
+        proxy=proxy,
     )
     if not resolved:
         return None
@@ -423,11 +470,16 @@ def price_legs(
         resolved,
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         include_basic_economy=include_basic_economy,
         timeout=timeout,
         retries=retries,
         rpc_calls=rpc_calls,
         selections=selections,
+        country=country,
+        proxy=proxy,
     )
 
 
@@ -436,6 +488,8 @@ def price_selector(
     *,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare for an itinerary selector.
 
@@ -451,7 +505,7 @@ def price_selector(
         A :class:`PriceResult`, or ``None`` if the selected itinerary no
         longer exists.
     """
-    return price_trip_selector(selector, timeout=timeout, retries=retries)
+    return price_trip_selector(selector, timeout=timeout, retries=retries, country=country)
 
 
 def check_price(
@@ -464,10 +518,15 @@ def check_price(
     return_date: Optional[str] = None,
     cabin: str = "economy",
     adults: int = 1,
+    children: int = 0,
+    infants_in_seat: int = 0,
+    infants_on_lap: int = 0,
     max_stops: Optional[int] = None,
     include_basic_economy: bool = False,
     timeout: int = 90,
     retries: int = 2,
+    country: Optional[str] = None,
+    proxy: Optional[str] = None,
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare for a specific flight.
 
@@ -548,6 +607,9 @@ def check_price(
         requested_flights,
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         timeout=timeout,
         retries=retries,
         exclude_basic_economy=(
@@ -555,6 +617,8 @@ def check_price(
             and return_date is None
             and not include_basic_economy
         ),
+        country=country,
+        proxy=proxy,
     )
     if not resolved:
         return None
@@ -564,11 +628,16 @@ def check_price(
         resolved,
         cabin=cabin,
         adults=adults,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         include_basic_economy=include_basic_economy,
         timeout=timeout,
         retries=retries,
         rpc_calls=rpc_calls,
         selections=selections,
+        country=country,
+        proxy=proxy,
     )
 
 
@@ -581,6 +650,8 @@ __all__ = [
     "price_legs",
     "get_booking_results",
     "search_raw",
+    "set_country",
+    "set_proxy",
     "parse_flight_number",
     "itinerary_matches_flight",
     # Types
