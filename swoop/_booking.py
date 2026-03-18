@@ -113,7 +113,7 @@ def _extract_option_index_and_token_price_cents(price_token_b64: str) -> tuple[i
         except (TypeError, ValueError, IndexError):
             option_index = None
 
-    price_cents = int(round((summary.price or 0) * 100)) if summary else None
+    price_cents = int(summary.price or 0) if summary else None
     return option_index, price_cents
 
 

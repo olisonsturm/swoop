@@ -69,24 +69,6 @@ def test_shopping_corpus_currency_fields():
         )
 
 
-def test_shopping_corpus_protobuf_price_agrees_with_direct():
-    """Verify protobuf price (with currency-aware divisor) matches direct_price."""
-    for case in MANIFEST["shopping"]:
-        data = json.loads((FIXTURES / case["path"]).read_text())
-        result = decode_result(data)
-
-        for itin in result.best + result.other:
-            if itin.direct_price is None or itin.price_info is None:
-                continue
-            if itin.price_info.price <= 0:
-                continue
-            diff = abs(itin.direct_price - round(itin.price_info.price))
-            assert diff <= 1, (
-                f"{case['id']}: direct_price={itin.direct_price} vs "
-                f"pb_price={itin.price_info.price} (diff={diff})"
-            )
-
-
 def test_shopping_corpus_structural_invariants():
     """Verify structural invariants hold across all corpus fixtures."""
     for case in MANIFEST["shopping"]:

@@ -452,8 +452,8 @@ def test_token_and_context_decoders(monkeypatch) -> None:
             if token == "explode":
                 raise ValueError("bad token")
             if token == "bad-index":
-                return FakeSummary("options:not-int", 123.45)
-            return FakeSummary("options:7", 123.45)
+                return FakeSummary("options:not-int", 12345)
+            return FakeSummary("options:7", 12345)
 
     monkeypatch.setattr(_booking, "ItinerarySummary", FakeItinerarySummary)
 

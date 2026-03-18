@@ -176,36 +176,14 @@ class TFSData:
         )
 
 
-# Currencies where Google deviates from ISO 4217 precision.
-# Google sends these as whole major units despite ISO saying they have
-# 2 decimal places. Confirmed via live API captures.
-_GOOGLE_PRECISION_OVERRIDES = {
-    "INR": 0,  # ISO says 2 (paise), but Google sends whole rupees
-}
-
-
-def _currency_divisor(currency: str) -> int:
-    """Return the divisor to convert Google's protobuf price to major unit.
-
-    Uses babel's ISO 4217 currency precision (e.g. USD=2 → 10^2=100,
-    JPY=0 → 10^0=1), with overrides for currencies where Google deviates
-    from the standard.
-    """
-    if currency in _GOOGLE_PRECISION_OVERRIDES:
-        return 10 ** _GOOGLE_PRECISION_OVERRIDES[currency]
-    try:
-        from babel.numbers import get_currency_precision
-        return 10 ** get_currency_precision(currency)
-    except Exception:
-        return 100  # safe fallback if babel unavailable
-
-
 @dataclass
 class ItinerarySummary:
     """Decoded price data from a Google Flights itinerary summary token.
 
-    The ``price`` field is in the response currency's major unit.
-    ``currency`` is the 3-letter ISO 4217 code.
+    The ``currency`` field is the 3-letter ISO 4217 code. The ``price``
+    field stores the raw protobuf value — it is NOT used for display
+    pricing. The authoritative price comes from ``Itinerary.direct_price``
+    (the display integer at ``response[1][0][1]``).
     """
 
     flights: str
@@ -218,7 +196,6 @@ class ItinerarySummary:
             raw = base64.b64decode(b64_string)
             pb = PB.ItinerarySummary()
             pb.ParseFromString(raw)
-            divisor = _currency_divisor(pb.price.currency)
-            return cls(pb.flights, pb.price.price / divisor, pb.price.currency)
+            return cls(pb.flights, pb.price.price, pb.price.currency)
         except Exception:
-            return cls("", 0, "USD")
+            return cls("", 0, "")

@@ -323,13 +323,13 @@ class TestItineraryPrice:
         )
         assert itin.price == 299
 
-    def test_falls_back_to_price_info(self):
+    def test_none_when_no_direct_price(self):
         from swoop.builders import ItinerarySummary
         itin = Itinerary(
             direct_price=None,
-            price_info=ItinerarySummary(flights="", price=298.7, currency="USD"),
+            price_info=ItinerarySummary(flights="", price=29870, currency="USD"),
         )
-        assert itin.price == 299  # rounded
+        assert itin.price is None  # protobuf price is not used
 
     def test_none_when_no_price(self):
         itin = Itinerary()

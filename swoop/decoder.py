@@ -195,12 +195,8 @@ class Itinerary:
 
     @property
     def price(self) -> Optional[int]:
-        """Canonical price in the response currency's major unit. Prefers ``direct_price``, falls back to ``price_info``."""
-        if self.direct_price is not None:
-            return self.direct_price
-        if self.price_info is not None:
-            return round(self.price_info.price)
-        return None
+        """Canonical price in the response currency's major unit."""
+        return self.direct_price
 
 
 @dataclass
