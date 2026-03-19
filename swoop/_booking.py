@@ -309,48 +309,6 @@ def _cabin_bucket_from_brand_block(brand_block: list) -> str:
     return "unknown"
 
 
-def _classify_cabin_bucket(brand_code: str, brand_label: str) -> str:
-    """Classify the requested cabin represented by a booking-option brand.
-
-    Checks run highest-cabin-first so that e.g. "ECONOMY PLUS" matches
-    premium-economy before the broader "ECONOMY" rule in the economy tier.
-    """
-    haystack = f"{brand_code} {brand_label}".upper().strip()
-    if not haystack:
-        return "unknown"
-
-    if any(token in haystack for token in ("FIRST", "LA PREMIERE", "SUITE")):
-        return "first"
-    if any(token in haystack for token in ("BUSINESS", "DELTA ONE", "POLARIS", "UPPER CLASS", "MINT")):
-        return "business"
-    if any(
-        token in haystack
-        for token in (
-            "PREMIUM ECONOMY",
-            "PREMIUM SELECT",
-            "PREMIUM PLUS",
-            "PREM ECON",
-        )
-    ):
-        return "premium-economy"
-    if any(
-        token in haystack
-        for token in (
-            "BASIC",
-            "MAIN CABIN",
-            "MAIN CLASSIC",
-            "MAIN CABIN EXTRA",
-            "ECONOMY",
-            "ECONOMY PLUS",
-            "COMFORT+",
-            "COMFORT PLUS",
-            "COACH",
-            "STANDARD",
-        )
-    ):
-        return "economy"
-    return "unknown"
-
 
 def _infer_rebookability_signal(fare_family: str, *, is_basic: bool) -> str:
     """Infer user-facing rebookability signal for observability."""
@@ -432,8 +390,14 @@ def _parse_booking_rpc_response(
 
         brand_block = _extract_brand_block(option)
         if not brand_block:
-            dropped_missing_brand += 1
-            continue
+            # OTA/codeshare options have option[21] with null brand fields
+            # but still carry cabin class at [6][0][0]. Use it directly.
+            raw_21 = _safe_get(option, [21])
+            if isinstance(raw_21, list):
+                brand_block = raw_21
+            else:
+                dropped_missing_brand += 1
+                continue
 
         brand_label = str(_safe_get(brand_block, [3], "") or "")
         brand_code = str(_safe_get(brand_block, [0, 1], "") or "")
