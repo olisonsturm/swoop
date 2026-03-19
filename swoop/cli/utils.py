@@ -5,6 +5,8 @@ from datetime import date as _date, datetime
 
 import click
 
+from .._formatting import fmt_duration as format_duration
+
 
 class IATACodeType(click.ParamType):
     """Click parameter type for IATA airport codes.
@@ -69,18 +71,6 @@ def format_time(h: int | None, m: int | None) -> str:
     period = "a" if h < 12 else "p"
     display_h = h % 12 or 12
     return f"{display_h}:{m:02d}{period}"
-
-
-def format_duration(minutes: int) -> str:
-    """Format minutes as '5h 15m'."""
-    if minutes <= 0:
-        return "0m"
-    h, m = divmod(minutes, 60)
-    if h and m:
-        return f"{h}h {m:02d}m"
-    if h:
-        return f"{h}h"
-    return f"{m}m"
 
 
 def format_date_display(date_str: str) -> str:

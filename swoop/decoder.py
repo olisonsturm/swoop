@@ -49,6 +49,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, List, Optional, Tuple, Union
 
+from ._formatting import fmt_clock, fmt_duration
 from .builders import ItinerarySummary
 
 logger = logging.getLogger(__name__)
@@ -94,17 +95,9 @@ def _safe_int(value: Any, default: int = 0) -> int:
     return default
 
 
-def _fmt_clock(t: Tuple[int, ...]) -> str:
-    """Format a time tuple like (8, 30) as '08:30'."""
-    h = t[0] if len(t) > 0 else 0
-    m = t[1] if len(t) > 1 else 0
-    return f"{h:02d}:{m:02d}"
-
-
-def _fmt_duration(minutes: int) -> str:
-    """Format minutes as 'Xh Ym'."""
-    h, m = divmod(minutes, 60)
-    return f"{h}h {m:02d}m"
+# Re-export for backward compat (used by models.py and tests)
+_fmt_clock = fmt_clock
+_fmt_duration = fmt_duration
 
 
 def _flight_summary_repr(segments: list) -> str:

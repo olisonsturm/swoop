@@ -49,7 +49,7 @@ class TestSegmentRepr:
 
     def test_defaults(self):
         f = Segment()
-        assert repr(f) == "Segment(00:00-00:00 0h 00m)"
+        assert repr(f) == "Segment(00:00-00:00 0m)"
 
     def test_midnight_time(self):
         f = Segment(
@@ -76,15 +76,15 @@ class TestLayoverRepr:
 
     def test_overnight(self):
         lay = Layover(minutes=120, departure_airport_code="ORD", is_overnight=True)
-        assert repr(lay) == "Layover(2h 00m ORD overnight)"
+        assert repr(lay) == "Layover(2h ORD overnight)"
 
     def test_no_airport(self):
         lay = Layover(minutes=60)
-        assert repr(lay) == "Layover(1h 00m)"
+        assert repr(lay) == "Layover(1h)"
 
     def test_zero_minutes(self):
         lay = Layover(minutes=0, departure_airport_code="ATL")
-        assert repr(lay) == "Layover(0h 00m ATL)"
+        assert repr(lay) == "Layover(0m ATL)"
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ class TestItineraryRepr:
     def test_empty_itinerary(self):
         itin = Itinerary()
         r = repr(itin)
-        assert r == "Itinerary(00:00-00:00 0h 00m nonstop)"
+        assert r == "Itinerary(00:00-00:00 0m nonstop)"
 
     def test_multiple_stops(self):
         segments = [Segment(airline="UA", flight_number=str(i)) for i in range(3)]
