@@ -175,31 +175,36 @@ def _query_legs_from_price_result(result):
 def _search_options(f):
     """Apply common search filter options to a command."""
     options = [
+        # Trip basics
         click.option("-r", "--return", "return_date", type=DATE, default=None, help="Return date (roundtrip)."),
         click.option("-c", "--cabin", type=click.Choice(CABIN_CHOICES, case_sensitive=False), default="economy", show_default=True, help="Cabin class."),
-        click.option("-p", "--passengers", type=int, default=1, show_default=True, help="Number of adults."),
         click.option("-s", "--sort", type=click.Choice(list(SORT_MAP), case_sensitive=False), default="departure", show_default=True, help="Sort order."),
+        click.option("--country", type=str, default=None, help="Point-of-sale country code (e.g. GB, DE). Affects currency and fares."),
+        # Passengers
+        click.option("-p", "--passengers", type=int, default=1, show_default=True, help="Number of adults."),
+        click.option("--children", type=int, default=0, show_default=True, help="Number of children (2-11)."),
+        click.option("--infants-in-seat", type=int, default=0, show_default=True, help="Number of infants in seat."),
+        click.option("--infants-on-lap", type=int, default=0, show_default=True, help="Number of infants on lap."),
+        # Filters
         click.option("-n", "--nonstop", is_flag=True, default=False, help="Nonstop flights only."),
         click.option("--max-stops", type=click.IntRange(0, 2), default=None, help="Max stops (0, 1, or 2)."),
         click.option("-a", "--airline", type=str, multiple=True, help="Filter by airline IATA code (repeatable)."),
         click.option("--flight", "flight_number", type=str, default=None, help="Filter to specific flight number."),
         click.option("--include-basic", is_flag=True, default=False, help="Include basic economy fares."),
+        # Time windows
         click.option("--depart-after", type=click.IntRange(0, 23), default=None, help="Earliest departure hour (0-23)."),
         click.option("--depart-before", type=click.IntRange(1, 24), default=None, help="Latest departure hour (1-24)."),
         click.option("--arrive-after", type=click.IntRange(0, 23), default=None, help="Earliest arrival hour (0-23)."),
         click.option("--arrive-before", type=click.IntRange(1, 24), default=None, help="Latest arrival hour (1-24)."),
         click.option("--return-depart-after", type=click.IntRange(0, 23), default=None, help="Return departure window start."),
         click.option("--return-depart-before", type=click.IntRange(1, 24), default=None, help="Return departure window end."),
-        click.option("--children", type=int, default=0, show_default=True, help="Number of children (2-11)."),
-        click.option("--infants-in-seat", type=int, default=0, show_default=True, help="Number of infants in seat."),
-        click.option("--infants-on-lap", type=int, default=0, show_default=True, help="Number of infants on lap."),
-        click.option("--country", type=str, default=None, help="Point-of-sale country code (e.g. GB, DE). Affects currency and fares."),
-        click.option("--proxy", type=str, default=None, help="HTTP/SOCKS5 proxy URL."),
-        click.option("--timeout", type=int, default=90, show_default=True, help="HTTP timeout in seconds."),
-        click.option("--retries", type=int, default=2, show_default=True, help="Retries on rate limit."),
+        # Advanced
         click.option("--max-results", type=int, default=None, help="Max trip combinations for beam search (multi-city)."),
         click.option("--beam-width", type=int, default=None, help="Beam search width (multi-city)."),
         click.option("--time-budget", type=int, default=None, help="Beam search time budget in seconds (multi-city)."),
+        click.option("--timeout", type=int, default=90, show_default=True, help="HTTP timeout in seconds."),
+        click.option("--retries", type=int, default=2, show_default=True, help="Retries on rate limit."),
+        click.option("--proxy", type=str, default=None, help="HTTP/SOCKS5 proxy URL."),
     ]
     for option in reversed(options):
         f = option(f)
