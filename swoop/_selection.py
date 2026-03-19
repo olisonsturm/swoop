@@ -56,7 +56,7 @@ def _selector_query_leg(leg: dict[str, Any]) -> dict[str, Any]:
         "earliest_arrival",
         "latest_arrival",
     )
-    payload = {key: leg.get(key) for key in keys if leg.get(key) is not None}
+    payload = {key: v for key in keys if (v := leg.get(key)) is not None}
     if payload.get("airlines") is not None:
         payload["airlines"] = list(payload["airlines"])
     return payload
