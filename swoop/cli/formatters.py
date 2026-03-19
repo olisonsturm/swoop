@@ -55,7 +55,13 @@ def _stops_text(itin) -> Text:
     """Colored stop count with layover details."""
     n = itin.stop_count if itin.stop_count is not None else len(itin.layovers)
     if n == 0:
-        return Text("Nonstop", style="green")
+        text = Text("Nonstop", style="green")
+        # Show legroom for nonstop single-segment flights
+        if itin.segments and len(itin.segments) == 1:
+            lr = itin.segments[0].legroom
+            if lr:
+                text.append(f"\n{lr}", style="dim")
+        return text
     label = "1 stop" if n == 1 else f"{n} stops"
     style = "yellow" if n == 1 else "red"
     text = Text(label, style=style)
@@ -234,19 +240,45 @@ def format_search_table(
 
     table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
     table.add_column("#", justify="right", style="dim", width=3)
-    table.add_column("Trip", min_width=36)
+    table.add_column("Flight", no_wrap=True)
+    table.add_column("Dep", width=5)
+    table.add_column("Arr", width=5)
+    table.add_column("Dur", width=7)
+    table.add_column("Stops", min_width=7)
     table.add_column("Price", justify="right", width=8)
     table.add_column("CO2", justify="right", width=5)
 
     currency = result.currency
     for i, option in enumerate(display_options, 1):
-        co2_text = _co2_text(option)
-        table.add_row(
-            str(i),
-            "\n".join(_trip_lines(option)),
-            _price_text(option.price, cheapest, currency),
-            co2_text,
-        )
+        is_multi = len(option.legs) > 1
+        for leg_idx, leg in enumerate(option.legs):
+            is_first = leg_idx == 0
+            itin = leg.itinerary
+            prefix = f"Leg {leg_idx + 1}: " if is_multi else ""
+            if itin is None:
+                table.add_row(
+                    str(i) if is_first else "",
+                    f"{prefix}{leg.origin}->{leg.destination}",
+                    "?", "?", "", Text("—"),
+                    _price_text(option.price, cheapest, currency) if is_first else Text(""),
+                    _co2_text(option) if is_first else Text(""),
+                )
+                continue
+            dep = _format_clock(itin.departure_time) or "?"
+            arr = _format_clock(itin.arrival_time) or "?"
+            has_overnight = any(getattr(seg, "overnight", False) for seg in itin.segments)
+            if has_overnight:
+                arr += "+1"
+            table.add_row(
+                str(i) if is_first else "",
+                f"{prefix}{_flight_summary(itin)}",
+                dep,
+                arr,
+                format_duration(itin.travel_time) if itin.travel_time else "",
+                _stops_text(itin),
+                _price_text(option.price, cheapest, currency) if is_first else Text(""),
+                _co2_text(option) if is_first else Text(""),
+            )
 
     console.print(table)
     console.print()
