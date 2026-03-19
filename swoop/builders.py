@@ -13,8 +13,10 @@ from . import flights_pb2 as PB
 
 AIRLINE_ALLIANCES = ["SKYTEAM", "STAR_ALLIANCE", "ONEWORLD"]
 
+CabinClass = Literal["economy", "premium-economy", "business", "first"]
+
 # Cabin class mapping (matches Google Flights internal Seat enum values)
-CABIN_CLASS_MAP = {
+CABIN_CLASS_MAP: dict[CabinClass, int] = {
     "economy": 1,
     "premium-economy": 2,
     "business": 3,

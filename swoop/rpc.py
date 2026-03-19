@@ -29,7 +29,7 @@ from ._booking import (
     _skip_wire_value,
     parse_booking_payload,
 )
-from .builders import CABIN_CLASS_MAP
+from .builders import CABIN_CLASS_MAP, CabinClass
 from .decoder import BookingOption, RawSearchResult, Itinerary, decode_result, _safe_get
 from .exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
 
@@ -152,7 +152,7 @@ def _build_segment_from_leg(leg: dict[str, Any]) -> list[Any]:
 def _build_filters_from_legs(
     legs: list[dict[str, Any]],
     *,
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -216,7 +216,7 @@ def _encode_f_req_payload(payload: list[Any]) -> str:
 def _search_from_legs(
     legs: list[dict[str, Any]],
     *,
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -433,7 +433,7 @@ def search_raw(
     origin: str,
     destination: str,
     date: str,
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -537,7 +537,7 @@ def get_booking_results(
     origin: str = "",
     destination: str = "",
     date: str = "",
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -640,7 +640,7 @@ def get_trip_booking_results(
     booking_token: str,
     legs: list[dict[str, Any]],
     *,
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     children: int = 0,
     infants_in_seat: int = 0,

@@ -36,7 +36,7 @@ from .decoder import (
     itinerary_matches_flight,
 )
 from .exceptions import SwoopError, SwoopHTTPError, SwoopParseError, SwoopRateLimitError
-from .builders import SearchLeg
+from .builders import CabinClass, SearchLeg
 from .models import PriceResult, ResolvedLeg, SearchResult, SelectedLeg, TripLeg, TripOption
 from .rpc import (
     SORT_ARRIVAL_TIME,
@@ -121,7 +121,7 @@ def _filter_trip_options_by_flight_number(
 def _validate_leg_search_inputs(
     legs: list[SearchLeg],
     *,
-    cabin: str,
+    cabin: CabinClass,
     adults: int,
     leg_time_windows: Optional[list[dict[str, Optional[int]]]] = None,
 ) -> None:
@@ -148,7 +148,7 @@ def _validate_leg_search_inputs(
 def _search_with_normalized_legs(
     request_legs: list[dict[str, object]],
     *,
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -186,7 +186,7 @@ def _search_with_normalized_legs(
 def search_legs(
     legs: list[SearchLeg],
     *,
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -266,7 +266,7 @@ def search(
     date: str,
     *,
     return_date: Optional[str] = None,
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -438,7 +438,7 @@ def search(
 def price_legs(
     legs: list[SelectedLeg],
     *,
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -548,7 +548,7 @@ def check_price(
     date: str,
     return_flight_number: Optional[str] = None,
     return_date: Optional[str] = None,
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -687,6 +687,7 @@ __all__ = [
     "parse_flight_number",
     "itinerary_matches_flight",
     # Types
+    "CabinClass",
     "PriceResult",
     "RawSearchResult",
     "SearchResult",

@@ -9,6 +9,7 @@ import time
 from dataclasses import replace
 from typing import Any, Optional
 
+from .builders import CabinClass
 from ._validate import parse_flight_number
 from .decoder import Itinerary, RawSearchResult, itinerary_matches_flight
 from .exceptions import SwoopHTTPError, SwoopParseError
@@ -73,7 +74,7 @@ def encode_trip_selector(
     *,
     request_legs: list[dict[str, Any]],
     itineraries: list[Itinerary],
-    cabin: str,
+    cabin: CabinClass,
     adults: int,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -160,7 +161,7 @@ def _build_trip_option(
     request_legs: list[dict[str, Any]],
     itineraries: list[Itinerary],
     *,
-    cabin: str,
+    cabin: CabinClass,
     adults: int,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -217,7 +218,7 @@ def fetch_trip_booking_options(
     request_legs: list[dict[str, Any]],
     itineraries: list[Itinerary],
     *,
-    cabin: str,
+    cabin: CabinClass,
     adults: int,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -253,7 +254,7 @@ def _eligible_booking_options(
     options: list,
     include_basic_economy: bool,
     *,
-    cabin: str,
+    cabin: CabinClass,
 ) -> list:
     priced = [option for option in options if option.price > 0]
     if cabin == "economy":
@@ -273,7 +274,7 @@ def _eligible_booking_options(
 def search_trip_options(
     request_legs: list[dict[str, Any]],
     *,
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -467,7 +468,7 @@ def price_selected_trip(
     request_legs: list[dict[str, Any]],
     itineraries: list[Itinerary],
     *,
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     children: int = 0,
     infants_in_seat: int = 0,
@@ -565,7 +566,7 @@ def resolve_selected_trip(
     request_legs: list[dict[str, Any]],
     requested_flights: list[Optional[str]],
     *,
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     children: int = 0,
     infants_in_seat: int = 0,

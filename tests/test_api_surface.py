@@ -48,6 +48,7 @@ class TestFrozenExports:
         "parse_flight_number",
         "itinerary_matches_flight",
         # Types
+        "CabinClass",
         "PriceResult",
         "RawSearchResult",
         "SearchResult",
@@ -379,8 +380,8 @@ class TestConstants:
         assert swoop.STOPS_TWO_OR_FEWER == 3
 
     def test_cabin_class_map_importable(self):
-        """CABIN_CLASS_MAP is no longer in __all__ but still importable."""
-        from swoop.rpc import CABIN_CLASS_MAP
+        """CABIN_CLASS_MAP is importable from builders (canonical) and rpc (re-export)."""
+        from swoop.builders import CABIN_CLASS_MAP
         assert CABIN_CLASS_MAP == {
             "economy": 1,
             "premium-economy": 2,
