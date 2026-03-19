@@ -259,7 +259,7 @@ def _search_from_legs(
     )
 
     result = _parse_rpc_response(res.text)
-    if result is not None and hasattr(result, "best"):
+    if isinstance(result, RawSearchResult):
         logger.info(
             "_search_from_legs found %d best + %d other itineraries",
             len(result.best), len(result.other),
@@ -296,6 +296,7 @@ def _build_booking_f_req(
     return _encode_f_req_payload(inner)
 
 
+_MAX_CLIENTS = 32
 _clients: dict[str, Any] = {}
 _default_country: Optional[str] = None
 _default_proxy: Optional[str] = None
@@ -367,6 +368,10 @@ def _get_client(proxy: Optional[str] = None) -> Any:
     effective_proxy = proxy if proxy is not None else _default_proxy
     key = effective_proxy or ""
     if key not in _clients:
+        # Evict oldest entry if cache is full to prevent unbounded growth
+        # when callers rotate through many proxy URLs.
+        if len(_clients) >= _MAX_CLIENTS:
+            _clients.pop(next(iter(_clients)))
         kwargs: dict[str, Any] = {"impersonate": "chrome"}
         if effective_proxy:
             kwargs["proxy"] = effective_proxy
