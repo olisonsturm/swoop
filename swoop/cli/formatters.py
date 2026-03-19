@@ -240,7 +240,7 @@ def format_search_table(
 
     table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
     table.add_column("#", justify="right", style="dim", width=3)
-    table.add_column("Flight", no_wrap=True)
+    table.add_column("Airline", no_wrap=True)
     table.add_column("Dep", width=5)
     table.add_column("Arr", width=5)
     table.add_column("Dur", width=7)
@@ -269,9 +269,11 @@ def format_search_table(
             has_overnight = any(getattr(seg, "overnight", False) for seg in itin.segments)
             if has_overnight:
                 arr += "+1"
+            airline_text = Text(f"{prefix}{_airline_names(itin)}")
+            airline_text.append(f"\n{_flight_summary(itin)}", style="dim")
             table.add_row(
                 str(i) if is_first else "",
-                f"{prefix}{_flight_summary(itin)}",
+                airline_text,
                 dep,
                 arr,
                 format_duration(itin.travel_time) if itin.travel_time else "",
