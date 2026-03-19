@@ -61,7 +61,8 @@ def _stops_text(itin) -> Text:
     text = Text(label, style=style)
     for lay in itin.layovers:
         airport = lay.departure_airport_code or lay.arrival_airport_code
-        text.append(f"\n{format_duration(lay.minutes)} {airport}", style="dim")
+        overnight = " (overnight)" if getattr(lay, "is_overnight", False) else ""
+        text.append(f"\n{format_duration(lay.minutes)} {airport}{overnight}", style="dim")
     return text
 
 
@@ -131,16 +132,24 @@ def _trip_leg_line(leg) -> str:
         return f"{leg.origin}->{leg.destination} ({leg.date})"
     dep = _format_clock(itinerary.departure_time)
     arr = _format_clock(itinerary.arrival_time)
+    has_overnight = any(getattr(seg, "overnight", False) for seg in itinerary.segments)
+    arr_suffix = "+1" if has_overnight else ""
     duration = format_duration(itinerary.travel_time)
     stops = itinerary.stop_count if itinerary.stop_count is not None else len(itinerary.layovers)
     stop_str = "Nonstop" if stops == 0 else f"{stops} stop{'s' if stops > 1 else ''}"
+    # Show legroom for nonstop flights with a single segment
+    legroom_str = ""
+    if stops == 0 and itinerary.segments and len(itinerary.segments) == 1:
+        lr = itinerary.segments[0].legroom
+        if lr:
+            legroom_str = f"  {lr}"
     route = "->".join(
         [segment.departure_airport_code for segment in itinerary.segments] +
         ([itinerary.segments[-1].arrival_airport_code] if itinerary.segments else [])
     )
     return (
         f"{_flight_summary(itinerary)}  {route or f'{leg.origin}->{leg.destination}'}  "
-        f"{dep or '?'}-{arr or '?'}  {duration}  {stop_str}"
+        f"{dep or '?'}-{arr or '?'}{arr_suffix}  {duration}  {stop_str}{legroom_str}"
     )
 
 
@@ -153,6 +162,21 @@ def _trip_summary(option) -> str:
         _flight_summary(leg.itinerary) if leg.itinerary is not None else f"{leg.origin}->{leg.destination}"
         for leg in option.legs
     )
+
+
+def _co2_text(option) -> Text:
+    """Compact CO2 emissions indicator from the first leg's itinerary."""
+    for leg in option.legs:
+        itin = leg.itinerary
+        if itin and itin.carbon_emissions and itin.carbon_emissions.difference_percent is not None:
+            pct = itin.carbon_emissions.difference_percent
+            if pct < 0:
+                return Text(f"{pct:+d}%", style="green")
+            elif pct == 0:
+                return Text("avg", style="dim")
+            else:
+                return Text(f"+{pct}%", style="yellow" if pct <= 20 else "red")
+    return Text("\u2014", style="dim")
 
 
 def _render_search_price_hint(console, price_commands: Optional[list[str]]) -> None:
@@ -209,13 +233,16 @@ def format_search_table(
     table.add_column("#", justify="right", style="dim", width=3)
     table.add_column("Trip", min_width=36)
     table.add_column("Price", justify="right", width=8)
+    table.add_column("CO2", justify="right", width=5)
 
     currency = result.currency
     for i, option in enumerate(display_options, 1):
+        co2_text = _co2_text(option)
         table.add_row(
             str(i),
             "\n".join(_trip_lines(option)),
             _price_text(option.price, cheapest, currency),
+            co2_text,
         )
 
     console.print(table)
@@ -238,7 +265,7 @@ def format_search_table(
             console.print(f" [dim]{shown} of {total} results shown[/dim]")
 
     if not result.is_complete:
-        console.print(" [dim]Results are truncated to the best complete trips within the CLI expansion budget.[/dim]")
+        console.print(" [dim]Results truncated. Use --max-results or --time-budget to expand (multi-city only).[/dim]")
 
     _render_search_price_hint(console, price_commands)
     console.print()
@@ -381,15 +408,33 @@ def format_search_csv(
 
     writer = csv.writer(sys.stdout)
     writer.writerow([
-        "index", "selector", "price", "currency", "leg_count", "summary",
+        "index", "selector", "price", "currency", "leg_count",
+        "duration_minutes", "stops", "departure_time", "arrival_time",
+        "airlines", "summary",
     ])
     for i, option in enumerate(all_options, 1):
+        first_itin = option.legs[0].itinerary if option.legs else None
+        dur_min = first_itin.travel_time if first_itin and first_itin.travel_time else ""
+        stops = ""
+        dep_time = ""
+        arr_time = ""
+        airlines = ""
+        if first_itin:
+            stops = first_itin.stop_count if first_itin.stop_count is not None else len(first_itin.layovers)
+            dep_time = _format_clock(first_itin.departure_time) or ""
+            arr_time = _format_clock(first_itin.arrival_time) or ""
+            airlines = _airline_names(first_itin)
         writer.writerow([
             i,
             option.selector,
             option.price if option.price is not None else "",
             option.currency or currency or "",
             len(option.legs),
+            dur_min,
+            stops,
+            dep_time,
+            arr_time,
+            airlines,
             _trip_summary(option),
         ])
 
@@ -408,7 +453,15 @@ def format_search_brief(
     currency = result.currency
     for i, option in enumerate(all_options, 1):
         price = _format_price(option.price, option.currency or currency)
-        print(f"{i:<3} {price:<12} {_trip_summary(option)}")
+        # Pull duration and stops from first leg's itinerary
+        dur_str = ""
+        stop_str = ""
+        first_itin = option.legs[0].itinerary if option.legs else None
+        if first_itin:
+            dur_str = format_duration(first_itin.travel_time) if first_itin.travel_time else ""
+            stops = first_itin.stop_count if first_itin.stop_count is not None else len(first_itin.layovers)
+            stop_str = "Nonstop" if stops == 0 else f"{stops} stop{'s' if stops > 1 else ''}"
+        print(f"{i:<3} {price:<12} {dur_str:<8} {stop_str:<10} {_trip_summary(option)}")
 
     if all_options:
         console = _stdout_console()
