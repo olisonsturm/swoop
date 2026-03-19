@@ -12,7 +12,7 @@
         "first_origin": "JFK",
         "first_destination": "LAX",
         "first_price": 35000,
-        "first_flights": 1
+        "first_segments": 1
       }
     },
     {
@@ -26,7 +26,7 @@
         "first_origin": "JFK",
         "first_destination": "LAX",
         "first_price": 317,
-        "first_flights": 1
+        "first_segments": 1
       }
     },
     {
@@ -40,7 +40,7 @@
         "first_origin": "JFK",
         "first_destination": "LAX",
         "first_price": 307,
-        "first_flights": 1
+        "first_segments": 1
       }
     },
     {
@@ -54,7 +54,7 @@
         "first_origin": "JFK",
         "first_destination": "LAX",
         "first_price": 169,
-        "first_flights": 1,
+        "first_segments": 1,
         "currency": "USD"
       }
     },
@@ -69,7 +69,7 @@
         "first_origin": "JFK",
         "first_destination": "LAX",
         "first_price": 337,
-        "first_flights": 1,
+        "first_segments": 1,
         "currency": "USD"
       }
     },
@@ -84,7 +84,7 @@
         "first_origin": "LHR",
         "first_destination": "EDI",
         "first_price": 208,
-        "first_flights": 2,
+        "first_segments": 2,
         "currency": "GBP"
       }
     },
@@ -99,7 +99,7 @@
         "first_origin": "NRT",
         "first_destination": "KIX",
         "first_price": 6040,
-        "first_flights": 1,
+        "first_segments": 1,
         "currency": "JPY"
       }
     },
@@ -114,7 +114,7 @@
         "first_origin": "DEL",
         "first_destination": "BOM",
         "first_price": 6725,
-        "first_flights": 1,
+        "first_segments": 1,
         "currency": "INR"
       }
     },
@@ -129,7 +129,7 @@
         "first_origin": "CDG",
         "first_destination": "FCO",
         "first_price": 151,
-        "first_flights": 1,
+        "first_segments": 1,
         "currency": "EUR"
       }
     },
@@ -144,7 +144,7 @@
         "first_origin": "JFK",
         "first_destination": "LHR",
         "first_price": 389,
-        "first_flights": 1,
+        "first_segments": 1,
         "currency": "USD"
       }
     },
@@ -159,7 +159,7 @@
         "first_origin": "ICN",
         "first_destination": "CJU",
         "first_price": 480900,
-        "first_flights": 3,
+        "first_segments": 3,
         "currency": "KRW"
       }
     },
@@ -174,7 +174,7 @@
         "first_origin": "YYZ",
         "first_destination": "YVR",
         "first_price": 554,
-        "first_flights": 1,
+        "first_segments": 1,
         "currency": "CAD"
       }
     },
@@ -189,7 +189,7 @@
         "first_origin": "SYD",
         "first_destination": "MEL",
         "first_price": 111,
-        "first_flights": 1,
+        "first_segments": 1,
         "currency": "AUD"
       }
     },
@@ -204,7 +204,7 @@
         "first_origin": "GRU",
         "first_destination": "GIG",
         "first_price": 330,
-        "first_flights": 1,
+        "first_segments": 1,
         "currency": "BRL"
       }
     }

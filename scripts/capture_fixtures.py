@@ -236,7 +236,7 @@ def _extract_manifest_entry(scenario: dict, result) -> dict:
             "first_origin": first.departure_airport_code,
             "first_destination": first.arrival_airport_code,
             "first_price": first.price,
-            "first_flights": len(first.flights),
+            "first_segments": len(first.segments),
             "currency": first_currency,
         },
     }
