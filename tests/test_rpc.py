@@ -283,7 +283,7 @@ class TestBookingRequestHelpers:
             option = [None] * 25
             option[7] = [[None, price], _make_price_token(option_index, price * 100)]
             option[19] = json.dumps([_make_context_token(price * 100), [_make_segment_context_token()]])
-            option[21] = [["DL", brand_code], [], flag2, brand_label, None, None, None, None, None, None, None, None, None, None, None, None, flag16]
+            option[21] = [["DL", brand_code], [], flag2, brand_label, None, None, [[1]], None, None, None, None, None, None, None, None, None, flag16]
             option[24] = tail_flag
             return option
 
