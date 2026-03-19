@@ -23,6 +23,7 @@ def _run_search(
     depart_after, depart_before, arrive_after, arrive_before,
     return_depart_after, return_depart_before,
     timeout, retries,
+    max_results, beam_width, time_budget,
 ):
     """Run swoop.search() with the given parameters. Returns the result."""
     import swoop
@@ -54,6 +55,9 @@ def _run_search(
         return_latest_departure=return_depart_before,
         timeout=timeout,
         retries=retries,
+        max_results=max_results,
+        beam_width=beam_width,
+        time_budget=time_budget,
     )
 
 
@@ -69,6 +73,9 @@ def _run_search_legs(
     include_basic,
     timeout,
     retries,
+    max_results,
+    beam_width,
+    time_budget,
 ):
     """Run swoop.search_legs() with global CLI filters applied to each leg."""
     import swoop
@@ -97,6 +104,9 @@ def _run_search_legs(
         include_basic_economy=include_basic,
         timeout=timeout,
         retries=retries,
+        max_results=max_results,
+        beam_width=beam_width,
+        time_budget=time_budget,
     )
 
 
@@ -146,6 +156,9 @@ def _search_options(f):
         click.option("--return-depart-before", type=click.IntRange(1, 24), default=None, help="Return departure window end."),
         click.option("--timeout", type=int, default=90, show_default=True, help="HTTP timeout in seconds."),
         click.option("--retries", type=int, default=2, show_default=True, help="Retries on rate limit."),
+        click.option("--max-results", type=int, default=None, help="Max trip combinations for beam search (multi-city)."),
+        click.option("--beam-width", type=int, default=None, help="Beam search width (multi-city)."),
+        click.option("--time-budget", type=int, default=None, help="Beam search time budget in seconds (multi-city)."),
     ]
     for option in reversed(options):
         f = option(f)
@@ -185,7 +198,8 @@ def search_cmd(
     airline, flight_number, include_basic,
     depart_after, depart_before, arrive_after, arrive_before,
     return_depart_after, return_depart_before,
-    timeout, retries, limit, show_price_commands,
+    timeout, retries, max_results, beam_width, time_budget,
+    limit, show_price_commands,
     output_format, no_color, quiet,
 ):
     """Search for flights.
@@ -261,6 +275,8 @@ def search_cmd(
                         nonstop=nonstop, max_stops=max_stops,
                         airline=airline, include_basic=include_basic,
                         timeout=timeout, retries=retries,
+                        max_results=max_results, beam_width=beam_width,
+                        time_budget=time_budget,
                     )
                 else:
                     result = _run_search(
@@ -274,6 +290,8 @@ def search_cmd(
                         return_depart_after=return_depart_after,
                         return_depart_before=return_depart_before,
                         timeout=timeout, retries=retries,
+                        max_results=max_results, beam_width=beam_width,
+                        time_budget=time_budget,
                     )
             except ValueError as e:
                 err.print(f"[red]Error: {e}[/red]")
