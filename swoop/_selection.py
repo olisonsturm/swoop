@@ -345,9 +345,16 @@ def search_trip_options(
     retries: int = 2,
     country: Optional[str] = None,
     proxy: Optional[str] = None,
+    max_results: Optional[int] = None,
+    beam_width: Optional[int] = None,
+    time_budget: Optional[int] = None,
 ) -> SearchResult:
     if not request_legs:
         return SearchResult()
+
+    max_results = max_results if max_results is not None else TARGET_RESULTS
+    beam_width = beam_width if beam_width is not None else BEAM_WIDTH
+    time_budget = time_budget if time_budget is not None else TIME_BUDGET_SECONDS
 
     exclude_basic = (
         cabin == "economy"
@@ -395,8 +402,8 @@ def search_trip_options(
         )
 
     started_at = time.monotonic()
-    is_complete = len(first_candidates) <= BEAM_WIDTH
-    prefixes = [[itinerary] for itinerary in first_candidates[:BEAM_WIDTH]]
+    is_complete = len(first_candidates) <= beam_width
+    prefixes = [[itinerary] for itinerary in first_candidates[:beam_width]]
 
     for stage_index in range(1, len(request_legs)):
         next_prefixes: list[list[Itinerary]] = []
@@ -404,7 +411,7 @@ def search_trip_options(
             break
 
         for prefix_index, prefix in enumerate(prefixes):
-            if time.monotonic() - started_at >= TIME_BUDGET_SECONDS:
+            if time.monotonic() - started_at >= time_budget:
                 is_complete = False
                 break
 
@@ -432,20 +439,20 @@ def search_trip_options(
             if not stage_candidates:
                 continue
 
-            remaining = BEAM_WIDTH - len(next_prefixes)
+            remaining = beam_width - len(next_prefixes)
             if len(stage_candidates) > remaining:
                 is_complete = False
             for candidate in stage_candidates[:remaining]:
                 next_prefixes.append(prefix + [candidate])
 
-            if len(next_prefixes) >= BEAM_WIDTH:
+            if len(next_prefixes) >= beam_width:
                 if prefix_index < len(prefixes) - 1 or len(stage_candidates) > remaining:
                     is_complete = False
                 break
 
         prefixes = next_prefixes
 
-    if len(prefixes) > TARGET_RESULTS:
+    if len(prefixes) > max_results:
         is_complete = False
 
     options = [
@@ -460,7 +467,7 @@ def search_trip_options(
             include_basic_economy=include_basic_economy,
             sort=sort,
         )
-        for prefix in prefixes[:TARGET_RESULTS]
+        for prefix in prefixes[:max_results]
     ]
     multi_currency = options[0].currency if options else None
     result = SearchResult(results=options, price_range=None, is_complete=is_complete, currency=multi_currency)
