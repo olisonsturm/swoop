@@ -31,9 +31,12 @@ Per booking option list:
   - token 1 contains segment descriptor (origin/date/destination/carrier/flight/aircraft)
 - `option[21]` = brand block:
   - `option[21][0][1]` = brand code
-  - `option[21][3]` = brand label
   - `option[21][1]` = attribute vector
   - `option[21][2]` and `option[21][16]` are useful Basic-economy flags
+  - `option[21][3]` = brand label
+  - `option[21][6][0][0]` = **cabin class** (Seat enum: 1=economy, 2=premium-economy, 3=business, 4=first)
+  - `option[21][6][0][1]` = amenity flags array (same format as `segment[12]`)
+  - `option[21][6][0][2]` = seat type indicator (similar to `segment[13]`)
 - `option[24]` = additional boolean tail flag used with `option[21]` flags.
 
 ## Parser outputs (current)
