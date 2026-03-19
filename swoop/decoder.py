@@ -294,10 +294,6 @@ class RawSearchResult:
         return f"RawSearchResult(best={len(self.best)}, other={len(self.other)})"
 
 
-# Backward-compatible decoder alias for internal/raw callers.
-SearchResult = RawSearchResult
-
-
 @dataclass
 class BookingOption:
     """A single fare option from GetBookingResults."""
