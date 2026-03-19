@@ -234,6 +234,60 @@
       }
     },
     {
+      "id": "booking_aa_economy_v1",
+      "path": "corpus/booking_aa_economy_response.txt",
+      "registry_version": "2026-03-18",
+      "expected": {
+        "prices": [
+          209,
+          264,
+          348,
+          369
+        ],
+        "brands": [
+          "Basic Economy",
+          "Main Cabin",
+          "Main Plus",
+          "Main Select"
+        ],
+        "cabin_buckets": [
+          "economy",
+          "economy",
+          "economy",
+          "economy"
+        ],
+        "fare_families": [
+          "basic",
+          "standard",
+          "enhanced",
+          "enhanced"
+        ]
+      }
+    },
+    {
+      "id": "booking_mideast_business_v1",
+      "path": "corpus/booking_mideast_business_response.txt",
+      "registry_version": "2026-03-18",
+      "expected": {
+        "prices": [
+          1344,
+          5100
+        ],
+        "brands": [
+          "Flexible",
+          "Business Flex"
+        ],
+        "cabin_buckets": [
+          "economy",
+          "business"
+        ],
+        "fare_families": [
+          "unknown",
+          "premium"
+        ]
+      }
+    },
+    {
       "id": "booking_jfk_lax_blue_v2",
       "path": "corpus/booking_jfk_lax_blue_response.txt",
       "registry_version": "2026-03-18",
