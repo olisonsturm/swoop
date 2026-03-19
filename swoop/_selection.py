@@ -257,27 +257,15 @@ def _eligible_booking_options(
 ) -> list:
     priced = [option for option in options if option.price > 0]
     if cabin == "economy":
-        if include_basic_economy:
-            return [
-                option
-                for option in priced
-                if option._cabin_bucket in ("", "economy", "unknown")
-            ]
-        return [
-            option
-            for option in priced
-            if not option.is_basic
-            and option._cabin_bucket in ("", "economy", "unknown")
+        economy_opts = [
+            option for option in priced if option._cabin_bucket in ("", "economy")
         ]
-
-    exact_bucket = [
-        option for option in priced if option._cabin_bucket == cabin
-    ]
-    if exact_bucket:
-        return exact_bucket
+        if not include_basic_economy:
+            economy_opts = [opt for opt in economy_opts if not opt.is_basic]
+        return economy_opts
 
     return [
-        option for option in priced if option._cabin_bucket == "unknown"
+        option for option in priced if option._cabin_bucket == cabin
     ]
 
 

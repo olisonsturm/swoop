@@ -287,6 +287,28 @@ def _classify_fare_family(brand_code: str, brand_label: str, *, is_basic: bool) 
     return "unknown"
 
 
+_CABIN_NUM_TO_BUCKET: dict[int, str] = {
+    1: "economy",
+    2: "premium-economy",
+    3: "business",
+    4: "first",
+}
+
+
+def _cabin_bucket_from_brand_block(brand_block: list) -> str:
+    """Extract cabin bucket from the numeric cabin class field in brand_block[6][0][0].
+
+    Google encodes a per-option cabin class using the same Seat enum as the
+    request filter (1=economy, 2=premium-economy, 3=business, 4=first).
+    This field is present on every observed booking option — including
+    codeshare and OTA options that carry no brand text.
+    """
+    cabin_num = _safe_get(brand_block, [6, 0, 0])
+    if isinstance(cabin_num, int) and cabin_num in _CABIN_NUM_TO_BUCKET:
+        return _CABIN_NUM_TO_BUCKET[cabin_num]
+    return "unknown"
+
+
 def _classify_cabin_bucket(brand_code: str, brand_label: str) -> str:
     """Classify the requested cabin represented by a booking-option brand.
 
@@ -435,7 +457,7 @@ def _parse_booking_rpc_response(
         is_basic_by_text = "BASIC" in f"{brand_label} {brand_code}".upper()
         is_basic = is_basic_by_flags or is_basic_by_text
         fare_family = _classify_fare_family(brand_code, brand_label, is_basic=is_basic)
-        cabin_bucket = _classify_cabin_bucket(brand_code, brand_label)
+        cabin_bucket = _cabin_bucket_from_brand_block(brand_block)
         rebookability_signal = _infer_rebookability_signal(fare_family, is_basic=is_basic)
         attribute_vector = _normalize_attribute_vector(_safe_get(brand_block, [1], []))
 
