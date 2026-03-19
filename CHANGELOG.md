@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-03-18
+
+### Added
+
+- **Multi-currency support** — prices display in the correct currency based on point-of-sale country, with locale-aware formatting via Babel (`$1,234`, `£890`, `¥5,540`)
+- `currency` field on `TripOption`, `PriceResult`, and `SearchResult` (derived property)
+- `--country` flag (or `set_country()`) for point-of-sale control — affects fares and currency returned by Google
+- `--proxy` flag (or `set_proxy()`) for routing requests through HTTP/SOCKS5 proxies
+- `--children`, `--infants-in-seat`, `--infants-on-lap` CLI flags for full passenger breakdown
+- `Passengers` dataclass consolidating adult/child/infant counts
+- `TransportConfig` dataclass consolidating timeout, retries, country, and proxy settings
+- `--max-results`, `--beam-width`, `--time-budget` CLI flags for configurable multi-city beam search
+- CO₂ emissions column in search table — color-coded percentage vs average
+- Legroom display for nonstop single-segment flights
+- Overnight indicators on layovers
+- Airline names in search table with multi-leg labeling
+- `CabinClass` Literal type (`"economy" | "premium-economy" | "business" | "first"`) replacing stringly-typed cabin validation
+- `Segment.legroom`, `Segment.has_premium_ife`, `Segment.amenities`, `Segment.seat_type` fields
+- `Itinerary.stop_count`, `Itinerary.is_budget_carrier`, `Itinerary.quality_signals` fields
+- `BookingOption.fare_family` and `BookingOption.rebookability_signal` fields
+- Human-readable `__repr__` on all public dataclasses (`Segment`, `Itinerary`, `TripOption`, `SearchResult`, `PriceResult`, `ResolvedLeg`, `BookingOption`, `Layover`, `TripLeg`)
+- HTTP connection reuse across requests for keep-alive
+- LRU-evicted client cache (max 32) for proxy rotation without unbounded memory growth
+
+### Fixed
+
+- **Cabin class misidentification** — replaced fragile brand-name text matching with numeric field `brand_block[6][0][0]`; airlines like British Airways ("Upper Class" for business) and Turkish ("Premium Flex") were being silently misclassified
+- **OTA/codeshare booking options dropped** — third-party sellers and codeshare flights with null brand fields were rejected entirely, causing zero booking options on some routes (e.g. SFO→NRT via Philippine Airlines)
+- **Currency-unaware price division** — hardcoded `/100` divisor was wrong for JPY, INR, KRW, and other whole-unit currencies
+- **Roundtrip beam search overhead** — roundtrips were running 16 RPC calls via beam search instead of 1; fast path now covers 1- and 2-leg trips, beam search only triggers for 3+ legs
+- **Midnight departure times** — Google encodes midnight as `hour=None`; now treated as 0
+- **Missing itinerary-level times** — falls back to first/last segment departure/arrival when itinerary-level times are absent
+- **Single-element time tuples** — departure times arriving as `[hour]` without minutes now default minute to 0
+- **`exclude_basic_economy` not propagated** — flag was only sent on single-leg first-pass RPC; now sent to all RPC stages for roundtrip and multi-city
+- **Proxy/children/infants silently dropped** — multiple internal functions accepted these params but didn't forward them to lower-level calls
+- **Currency field lost on flight-number filter** — `_filter_trip_options_by_flight_number()` dropped currency when constructing filtered results
+- **Unbounded client cache** — proxy rotation caused unlimited memory growth; now LRU-evicted at 32 entries
+
+### Changed
+
+- **Breaking:** `Flight` class renamed to `Segment` — `Itinerary.segments` now contains `Segment` objects
+- **Breaking:** `BookingOption` dict-style access removed (`option['price']` → `option.price`); `__getitem__`, `get()`, `keys()`, `values()`, `items()` all removed
+- **Breaking:** `search()`, `check_price()`, and related functions now accept `TransportConfig` and `Passengers` dataclass objects instead of scattered kwargs
+- `SearchResult.currency` is now a derived property (computed from first result) instead of a stored field
+- Search table redesigned with columnar layout for better multi-leg readability
+- CLI options reordered by frequency of use — trip basics first, advanced/transport options last
+- Renamed internal `_cents` fields/functions to `_raw` for clarity
+- Eliminated `_build_filters`/`_build_f_req` redundancy in `rpc.py`
+- Removed backward-compat `SearchResult` alias from `decoder.py`
+- Removed dead `correct_trip_option_prices()` function
+- Single source of truth for `CABIN_CLASS_MAP` in `builders.py`
+- Extracted shared formatting helpers to `_formatting.py`
+
 ## [0.3.1] - 2026-03-12
 
 ### Fixed
