@@ -81,7 +81,7 @@ swoop price --leg JFK LAX 2026-06-15 DL2300 --leg LAX SFO 2026-06-18 UA544 --leg
 swoop search JFK LAX 2026-06-15 -o csv -q > flights.csv
 
 # Search JSON for piping
-swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0] | {selector, price_usd, legs}'
+swoop search JFK LAX 2026-06-15 -o json -q | jq '.results[0] | {selector, price, legs}'
 
 # Filter by airline and time window
 swoop search JFK LAX 2026-06-15 -a DL -a UA --depart-after 8 --depart-before 14
@@ -249,6 +249,9 @@ Search Google Flights and return a `SearchResult`.
 | `return_date` | `str \| None` | `None` | Return date for roundtrip |
 | `cabin` | `str` | `"economy"` | `economy`, `premium-economy`, `business`, `first` |
 | `adults` | `int` | `1` | Number of adults |
+| `children` | `int` | `0` | Number of children (2–11) |
+| `infants_in_seat` | `int` | `0` | Number of infants in seat |
+| `infants_on_lap` | `int` | `0` | Number of infants on lap |
 | `max_stops` | `int \| None` | `None` | `None`=any, `0`=nonstop, `1`=1 stop, `2`=2 stops |
 | `sort` | `int` | `SORT_DEPARTURE_TIME` | Sort order constant |
 | `airlines` | `list[str] \| None` | `None` | Filter by airline codes |
@@ -256,6 +259,11 @@ Search Google Flights and return a `SearchResult`.
 | `include_basic_economy` | `bool` | `False` | Include basic economy fares (excluded by default so prices reflect Main Cabin) |
 | `timeout` | `int` | `90` | HTTP timeout in seconds |
 | `retries` | `int` | `2` | Retries on HTTP 429 with exponential backoff + jitter |
+| `country` | `str \| None` | `None` | Two-letter country code for point of sale (e.g. `"GB"`). Controls currency and available fares |
+| `proxy` | `str \| None` | `None` | Proxy URL for routing requests |
+| `max_results` | `int \| None` | `None` | Max trip combinations for beam search (multi-leg only) |
+| `beam_width` | `int \| None` | `None` | Candidate prefixes per stage (multi-leg only) |
+| `time_budget` | `int \| None` | `None` | Seconds before beam search stops exploring (multi-leg only) |
 
 Returns `SearchResult`. Empty results mean no matches were found. Prices in search results are shopping totals.
 
@@ -288,24 +296,38 @@ Look up the current bookable fare for a specific flight. Optimized for the "what
 | `return_flight_number` | `str \| None` | `None` | Return flight number for roundtrip |
 | `return_date` | `str \| None` | `None` | Return date for roundtrip |
 | `cabin` | `str` | `"economy"` | Cabin class |
+| `adults` | `int` | `1` | Number of adults |
+| `children` | `int` | `0` | Number of children (2–11) |
+| `infants_in_seat` | `int` | `0` | Number of infants in seat |
+| `infants_on_lap` | `int` | `0` | Number of infants on lap |
 | `include_basic_economy` | `bool` | `False` | Include basic economy fares |
 | `timeout` | `int` | `90` | HTTP timeout in seconds |
 | `retries` | `int` | `2` | Retries on HTTP 429 |
+| `country` | `str \| None` | `None` | Two-letter country code for point of sale |
+| `proxy` | `str \| None` | `None` | Proxy URL for routing requests |
 
 Returns `PriceResult | None`. `PriceResult` has `price`, `fare_brand`, `is_basic_economy`, `booking_options`, `itinerary`, `resolved_legs`, `rpc_calls`.
 
 ### `get_booking_results(itinerary_or_token, **kwargs)`
 
-Get fare options for a specific itinerary. Pass an `Itinerary` object directly, or a booking token string with explicit `origin`, `destination`, `date`, and `selected_legs`. Returns `list[BookingOption]` with `price`, `brand_label`, `brand_code`, `fare_family`, etc. `BookingOption` supports both attribute access (`opt.price`) and dict-style access (`opt["price"]`, `opt.get("price")`).
+Get fare options for a specific itinerary. Pass an `Itinerary` object directly, or a booking token string with explicit `origin`, `destination`, `date`, and `selected_legs`. Returns `list[BookingOption]` with `price`, `brand_label`, `brand_code`, `fare_family`, etc.
+
+### `set_country(country_code)`
+
+Set the default country code for all subsequent requests. Controls point of sale, currency, and available fares. Pass `None` to clear.
+
+### `set_proxy(proxy_url)`
+
+Set the default proxy URL for all subsequent requests. Pass `None` to clear.
 
 ### Result types
 
-- **`PriceResult`** — `price: int`, `fare_brand: str | None`, `is_basic_economy: bool`, `booking_options: list[BookingOption]`, `itinerary: Itinerary | None`, `resolved_legs: list[ResolvedLeg]`, `rpc_calls: int`
+- **`PriceResult`** — `price: int`, `currency: str | None`, `fare_brand: str | None`, `is_basic_economy: bool`, `booking_options: list[BookingOption]`, `itinerary: Itinerary | None`, `resolved_legs: list[ResolvedLeg]`, `rpc_calls: int`
 - **`ResolvedLeg`** — `flight_summary: str`, `origin: str`, `destination: str`, `date: str`, `itinerary: Itinerary | None`, `selection: str`
 - **`SelectedLeg`** — `flight_number: str`, `origin: str`, `destination: str`, `date: str`
 - **`SearchLeg`** — `date: str`, `from_airport: str`, `to_airport: str`, `max_stops: int | None`, `airlines: list[str] | None`
-- **`SearchResult`** — `results: list[TripOption]`, `price_range: PriceRange | None`, `is_complete: bool`
-- **`TripOption`** — `selector: str`, `price: int | None`, `legs: list[TripLeg]`
+- **`SearchResult`** — `results: list[TripOption]`, `price_range: PriceRange | None`, `is_complete: bool`, `currency: str | None`
+- **`TripOption`** — `selector: str`, `price: int | None`, `currency: str | None`, `legs: list[TripLeg]`
 - **`TripLeg`** — `origin: str`, `destination: str`, `date: str`, `itinerary: Itinerary | None`
 - **`RawSearchResult`** — low-level `best: list[Itinerary]`, `other: list[Itinerary]`, `price_range: PriceRange | None`
 - **`Itinerary`** — Full itinerary with `price`, `flights`, `layovers`, `travel_time`, `booking_token`, `carbon_emissions`
