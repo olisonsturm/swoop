@@ -32,12 +32,12 @@ class TestGoldenOneWay:
     def test_other_count(self):
         assert len(self.result.other) == 2
 
-    def test_all_itineraries_have_flights(self):
+    def test_all_itineraries_have_segments(self):
         for itin in self.result.best + self.result.other:
-            assert len(itin.flights) >= 1
+            assert len(itin.segments) >= 1
 
     def test_flight_fields_populated(self):
-        flight = self.result.best[0].flights[0]
+        flight = self.result.best[0].segments[0]
         assert flight.airline != ""
         assert flight.flight_number != ""
         assert flight.departure_airport_code != ""
@@ -53,17 +53,17 @@ class TestGoldenOneWay:
 
     def test_connecting_flight_has_layover(self):
         """At least one itinerary should have a connecting flight with layover."""
-        connecting = [it for it in self.result.best + self.result.other if len(it.flights) > 1]
+        connecting = [it for it in self.result.best + self.result.other if len(it.segments) > 1]
         assert len(connecting) >= 1
         for it in connecting:
-            assert len(it.layovers) == len(it.flights) - 1
+            assert len(it.layovers) == len(it.segments) - 1
 
     def test_codeshares_present(self):
         """At least one flight should have codeshares."""
         has_cs = any(
             f.codeshares
             for it in self.result.best + self.result.other
-            for f in it.flights
+            for f in it.segments
         )
         assert has_cs
 
@@ -106,16 +106,16 @@ class TestGoldenOneWay:
         aa = self.result.best[1]
         assert aa.departure_airport_code == "SFO"
         assert aa.arrival_airport_code == "MIA"
-        assert aa.flights[0].departure_airport_code == "SFO"
-        assert aa.flights[0].arrival_airport_code == "ORD"
-        assert aa.flights[0].arrival_airport_name == "O'Hare International Airport"
-        assert aa.flights[1].departure_airport_code == "ORD"
-        assert aa.flights[1].arrival_airport_code == "MIA"
-        assert aa.flights[1].arrival_airport_name == "Miami International Airport"
+        assert aa.segments[0].departure_airport_code == "SFO"
+        assert aa.segments[0].arrival_airport_code == "ORD"
+        assert aa.segments[0].arrival_airport_name == "O'Hare International Airport"
+        assert aa.segments[1].departure_airport_code == "ORD"
+        assert aa.segments[1].arrival_airport_code == "MIA"
+        assert aa.segments[1].arrival_airport_name == "Miami International Airport"
 
     def test_codeshare_details(self):
         """Codeshare on DL flight should have correct airline info."""
-        dl_flight = self.result.best[0].flights[0]
+        dl_flight = self.result.best[0].segments[0]
         assert len(dl_flight.codeshares) == 1
         cs = dl_flight.codeshares[0]
         assert cs.airline_code == "VS"
@@ -133,13 +133,13 @@ class TestGoldenRoundtrip:
 
     def test_flights_populated(self):
         for itin in self.result.best + self.result.other:
-            for flight in itin.flights:
+            for flight in itin.segments:
                 assert flight.airline != ""
 
     def test_overnight_flag(self):
         """JFK->LHR evening flight should be marked overnight."""
         dl = self.result.best[0]
-        assert dl.flights[0].overnight is True
+        assert dl.segments[0].overnight is True
 
     def test_different_airlines(self):
         """Best and other should have different airlines."""

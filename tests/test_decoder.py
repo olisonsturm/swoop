@@ -14,13 +14,13 @@ from swoop.decoder import (
     AmenityFlags,
     Codeshare,
     RawSearchResult,
-    Flight,
+    Segment,
     Itinerary,
     Layover,
     QualitySignals,
     _decode_amenities,
     _decode_codeshare,
-    _decode_flight,
+    _decode_segment,
     _decode_itinerary,
     _decode_layover,
     _safe_get,
@@ -147,15 +147,15 @@ class TestDecodeEdgeCases:
         assert cs.airline_code == "AA"
         assert cs.flight_number == ""
 
-    def test_flight_malformed_returns_empty(self):
-        flight = _decode_flight("not a list")
-        assert flight is not None
-        assert flight.airline == ""
+    def test_segment_malformed_returns_empty(self):
+        segment = _decode_segment("not a list")
+        assert segment is not None
+        assert segment.airline == ""
 
-    def test_flight_empty_list(self):
-        flight = _decode_flight([])
-        assert flight is not None
-        assert flight.airline == ""
+    def test_segment_empty_list(self):
+        segment = _decode_segment([])
+        assert segment is not None
+        assert segment.airline == ""
 
     def test_amenities_empty_array(self):
         el = [None] * 33
@@ -196,8 +196,8 @@ class TestDecodeEdgeCases:
 # ---------------------------------------------------------------------------
 
 
-class TestDecodeFlightFromFixtures:
-    """Flight segment decoding against real data."""
+class TestDecodeSegmentFromFixtures:
+    """Segment decoding against real data."""
 
     @pytest.fixture(params=FIXTURE_FILES)
     def segments(self, request):
@@ -209,40 +209,40 @@ class TestDecodeFlightFromFixtures:
 
     def test_all_segments_decode_successfully(self, segments):
         for seg in segments:
-            flight = _decode_flight(seg)
-            assert flight is not None
+            segment = _decode_segment(seg)
+            assert segment is not None
 
-    def test_all_flights_have_airline(self, segments):
+    def test_all_segments_have_airline(self, segments):
         for seg in segments:
-            flight = _decode_flight(seg)
-            assert flight.airline != "", "Flight missing airline code"
+            segment = _decode_segment(seg)
+            assert segment.airline != "", "Segment missing airline code"
 
-    def test_all_flights_have_flight_number(self, segments):
+    def test_all_segments_have_flight_number(self, segments):
         for seg in segments:
-            flight = _decode_flight(seg)
-            assert flight.flight_number != "", "Flight missing flight number"
+            segment = _decode_segment(seg)
+            assert segment.flight_number != "", "Segment missing flight number"
 
-    def test_all_flights_have_airports(self, segments):
+    def test_all_segments_have_airports(self, segments):
         for seg in segments:
-            flight = _decode_flight(seg)
-            assert len(flight.departure_airport_code) == 3
-            assert len(flight.arrival_airport_code) == 3
+            segment = _decode_segment(seg)
+            assert len(segment.departure_airport_code) == 3
+            assert len(segment.arrival_airport_code) == 3
 
-    def test_all_flights_have_positive_travel_time(self, segments):
+    def test_all_segments_have_positive_travel_time(self, segments):
         for seg in segments:
-            flight = _decode_flight(seg)
-            assert flight.travel_time > 0
+            segment = _decode_segment(seg)
+            assert segment.travel_time > 0
 
-    def test_all_flights_have_times(self, segments):
+    def test_all_segments_have_times(self, segments):
         for seg in segments:
-            flight = _decode_flight(seg)
-            assert len(flight.departure_time) == 2
-            assert len(flight.arrival_time) == 2
+            segment = _decode_segment(seg)
+            assert len(segment.departure_time) == 2
+            assert len(segment.arrival_time) == 2
 
-    def test_all_flights_have_valid_dates(self, segments):
+    def test_all_segments_have_valid_dates(self, segments):
         for seg in segments:
-            flight = _decode_flight(seg)
-            y, mo, d = flight.departure_date
+            segment = _decode_segment(seg)
+            y, mo, d = segment.departure_date
             assert y >= 2024
             assert 1 <= mo <= 12
             assert 1 <= d <= 31
@@ -290,9 +290,9 @@ class TestDecodeItineraryFromFixtures:
             pytest.skip(f"No itineraries in {fixture_name}")
         return itins
 
-    def test_all_itineraries_have_flights(self, itineraries):
+    def test_all_itineraries_have_segments(self, itineraries):
         for itin in itineraries:
-            assert len(itin.flights) >= 1
+            assert len(itin.segments) >= 1
 
     def test_all_itineraries_have_airline_code(self, itineraries):
         for itin in itineraries:
@@ -309,12 +309,12 @@ class TestDecodeItineraryFromFixtures:
 
     def test_layover_count_matches_connections(self, itineraries):
         for itin in itineraries:
-            if len(itin.flights) > 1:
-                assert len(itin.layovers) == len(itin.flights) - 1
+            if len(itin.segments) > 1:
+                assert len(itin.layovers) == len(itin.segments) - 1
 
     def test_stop_count_consistent(self, itineraries):
         for itin in itineraries:
-            expected = len(itin.flights) - 1
+            expected = len(itin.segments) - 1
             if itin.stop_count is not None:
                 assert itin.stop_count == expected
 
@@ -327,8 +327,8 @@ class TestDecodeItineraryFromFixtures:
 
     def test_codeshares_are_valid(self, itineraries):
         for itin in itineraries:
-            for flight in itin.flights:
-                for cs in flight.codeshares:
+            for segment in itin.segments:
+                for cs in segment.codeshares:
                     assert cs.airline_code != ""
                     assert cs.flight_number != ""
 

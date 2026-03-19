@@ -12,7 +12,7 @@ import urllib.parse
 import pytest
 
 from swoop.builders import ItinerarySummary, TFSData, SearchLeg, Passengers
-from swoop.decoder import decode_result, _decode_flight, _safe_get
+from swoop.decoder import decode_result, _decode_segment, _safe_get
 from swoop.rpc import _build_filters_from_legs, _normalize_rpc_leg, _encode_f_req_payload
 
 
@@ -151,11 +151,11 @@ class TestDecoderGracefulDegradation:
     Fix: All decoder functions use try/except and return None/defaults.
     """
 
-    def test_decode_flight_with_non_list_returns_flight_not_none(self):
-        """Malformed flight data should return a Flight with defaults."""
-        flight = _decode_flight("not a list")
-        assert flight is not None
-        assert flight.airline == ""
+    def test_decode_segment_with_non_list_returns_segment_not_none(self):
+        """Malformed segment data should return a Segment with defaults."""
+        segment = _decode_segment("not a list")
+        assert segment is not None
+        assert segment.airline == ""
 
     def test_decode_result_skips_malformed_itineraries(self):
         """Malformed itineraries in the response should be skipped."""

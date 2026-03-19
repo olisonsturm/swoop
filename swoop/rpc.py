@@ -515,20 +515,20 @@ def _build_selected_legs(itinerary: Itinerary) -> list[list[Any]]:
     — no airport normalization needed since decoder outputs clean codes.
     """
     selected: list[list[Any]] = []
-    for flight in itinerary.flights or []:
-        dep_date = getattr(flight, "departure_date", None) or (0, 0, 0)
+    for segment in itinerary.segments or []:
+        dep_date = getattr(segment, "departure_date", None) or (0, 0, 0)
         if not isinstance(dep_date, (list, tuple)) or len(dep_date) < 3:
             continue
         year, month, day = dep_date[0], dep_date[1], dep_date[2]
         if not year or not month or not day:
             continue
         selected.append([
-            flight.departure_airport_code,
+            segment.departure_airport_code,
             f"{year:04d}-{month:02d}-{day:02d}",
-            flight.arrival_airport_code,
+            segment.arrival_airport_code,
             None,
-            flight.airline,
-            str(flight.flight_number or ""),
+            segment.airline,
+            str(segment.flight_number or ""),
         ])
     return selected
 

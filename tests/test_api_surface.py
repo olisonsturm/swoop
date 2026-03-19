@@ -15,7 +15,7 @@ from swoop.decoder import (
     BookingOption,
     CarbonEmissions,
     Codeshare,
-    Flight,
+    Segment,
     Itinerary,
     Layover,
     PriceRange,
@@ -57,7 +57,7 @@ class TestFrozenExports:
         "TripLeg",
         "TripOption",
         "Itinerary",
-        "Flight",
+        "Segment",
         "BookingOption",
         "Codeshare",
         "Layover",
@@ -108,7 +108,7 @@ class TestFrozenDataclassFields:
     def _field_names(cls):
         return {f.name for f in fields(cls)}
 
-    def test_flight_fields(self):
+    def test_segment_fields(self):
         expected = {
             "airline", "airline_name", "flight_number", "operator",
             "codeshares", "aircraft",
@@ -119,11 +119,11 @@ class TestFrozenDataclassFields:
             "travel_time", "seat_pitch_short", "legroom", "co2_grams",
             "overnight", "has_premium_ife", "amenities", "seat_type",
         }
-        assert self._field_names(Flight) == expected
+        assert self._field_names(Segment) == expected
 
     def test_itinerary_fields(self):
         expected = {
-            "airline_code", "airline_names", "flights", "layovers",
+            "airline_code", "airline_names", "segments", "layovers",
             "travel_time", "departure_airport_code", "arrival_airport_code",
             "departure_date", "arrival_date", "departure_time", "arrival_time",
             "price_info", "direct_price", "booking_token", "carbon_emissions",

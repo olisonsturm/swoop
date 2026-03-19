@@ -154,10 +154,10 @@ class TestStagedTripSearch:
         assert len(result.results) == 1
         assert len(result.results[0].legs) == 2
         assert result.results[0].legs[0].itinerary is not None
-        assert result.results[0].legs[0].itinerary.flights[0].flight_number == "2300"
+        assert result.results[0].legs[0].itinerary.segments[0].flight_number == "2300"
         assert result.results[0].legs[0].itinerary.price is None
         assert result.results[0].legs[1].itinerary is not None
-        assert result.results[0].legs[1].itinerary.flights[0].flight_number == "1145"
+        assert result.results[0].legs[1].itinerary.segments[0].flight_number == "1145"
         assert result.results[0].legs[1].itinerary.price is None
 
     def test_search_trip_options_marks_incomplete_when_beam_width_truncates(self, monkeypatch):

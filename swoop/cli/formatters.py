@@ -69,8 +69,8 @@ def _stops_text(itin) -> Text:
 def _airline_names(itin) -> str:
     """Comma-separated airline names, truncated."""
     names = itin.airline_names or []
-    if not names and itin.flights:
-        names = list(dict.fromkeys(f.airline_name for f in itin.flights if f.airline_name))
+    if not names and itin.segments:
+        names = list(dict.fromkeys(f.airline_name for f in itin.segments if f.airline_name))
     return ", ".join(names) if names else itin.airline_code or ""
 
 
@@ -83,20 +83,20 @@ def _flight_summary(itin) -> str:
     - 3+ segments: "UA 1234 +2"
     - No flights: ""
     """
-    flights = itin.flights or []
-    if not flights:
+    segments = itin.segments or []
+    if not segments:
         return ""
-    first = flights[0]
+    first = segments[0]
     first_str = f"{first.airline} {first.flight_number}" if first.airline and first.flight_number else str(first.flight_number or "")
-    if len(flights) == 1:
+    if len(segments) == 1:
         return first_str
-    if len(flights) == 2:
-        second = flights[1]
+    if len(segments) == 2:
+        second = segments[1]
         if first.airline and second.airline and first.airline == second.airline:
             return f"{first.airline} {first.flight_number} / {second.flight_number}"
         second_str = f"{second.airline} {second.flight_number}" if second.airline and second.flight_number else str(second.flight_number or "")
         return f"{first_str} / {second_str}"
-    return f"{first_str} +{len(flights) - 1}"
+    return f"{first_str} +{len(segments) - 1}"
 
 
 def _price_text(price: Optional[int], cheapest: Optional[int], currency: Optional[str] = None) -> Text:
@@ -156,8 +156,8 @@ def _trip_leg_line(leg) -> str:
     stops = itinerary.stop_count if itinerary.stop_count is not None else len(itinerary.layovers)
     stop_str = "Nonstop" if stops == 0 else f"{stops} stop{'s' if stops > 1 else ''}"
     route = "->".join(
-        [flight.departure_airport_code for flight in itinerary.flights] +
-        ([itinerary.flights[-1].arrival_airport_code] if itinerary.flights else [])
+        [segment.departure_airport_code for segment in itinerary.segments] +
+        ([itinerary.segments[-1].arrival_airport_code] if itinerary.segments else [])
     )
     return (
         f"{_flight_summary(itinerary)}  {route or f'{leg.origin}->{leg.destination}'}  "
@@ -267,9 +267,9 @@ def format_search_table(
 
 def _itin_to_dict(itin, currency: Optional[str] = None) -> dict:
     """Convert an itinerary to a JSON-serializable dict."""
-    flights = []
-    for f in itin.flights:
-        flight_dict = {
+    segments = []
+    for f in itin.segments:
+        segment_dict = {
             "airline": f.airline,
             "airline_name": f.airline_name,
             "flight_number": f.flight_number,
@@ -284,7 +284,7 @@ def _itin_to_dict(itin, currency: Optional[str] = None) -> dict:
             "legroom": f.legroom or None,
             "co2_grams": f.co2_grams,
         }
-        flights.append(flight_dict)
+        segments.append(segment_dict)
 
     layovers = []
     for lay in itin.layovers:
@@ -315,7 +315,7 @@ def _itin_to_dict(itin, currency: Optional[str] = None) -> dict:
         "duration_minutes": itin.travel_time,
         "stops": itin.stop_count if itin.stop_count is not None else len(itin.layovers),
         "is_budget_carrier": itin.is_budget_carrier,
-        "flights": flights,
+        "segments": segments,
         "layovers": layovers,
         "carbon_emissions": emissions,
     }
@@ -449,8 +449,8 @@ def _render_resolved_legs(console, resolved_legs) -> None:
         console.print(f"  [bold]{label}[/bold] · {leg.selection}")
 
         itin = leg.itinerary
-        if itin and itin.flights:
-            for fi, flight in enumerate(itin.flights):
+        if itin and itin.segments:
+            for fi, flight in enumerate(itin.segments):
                 fid = f"{flight.airline} {flight.flight_number}" if flight.airline else str(flight.flight_number or "")
                 dep = format_time(flight.departure_time[0], flight.departure_time[1])
                 arr = format_time(flight.arrival_time[0], flight.arrival_time[1])

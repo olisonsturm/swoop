@@ -11,7 +11,7 @@ import pytest
 
 import swoop
 import swoop.rpc as rpc
-from swoop.decoder import BookingOption, Flight, Itinerary
+from swoop.decoder import BookingOption, Segment, Itinerary
 from swoop.exceptions import SwoopHTTPError, SwoopRateLimitError
 
 from tests.factories import FakeHTTPResponse
@@ -169,7 +169,7 @@ def test_price_legs_accepts_more_than_two_legs(monkeypatch):
         lambda *args, **kwargs: (
             [
                 Itinerary(
-                    flights=[Flight(
+                    segments=[Segment(
                         airline="DL",
                         flight_number="2300",
                         departure_airport_code="JFK",
@@ -180,7 +180,7 @@ def test_price_legs_accepts_more_than_two_legs(monkeypatch):
                     booking_token="token-1",
                 ),
                 Itinerary(
-                    flights=[Flight(
+                    segments=[Segment(
                         airline="UA",
                         flight_number="500",
                         departure_airport_code="LAX",
@@ -191,7 +191,7 @@ def test_price_legs_accepts_more_than_two_legs(monkeypatch):
                     booking_token="token-2",
                 ),
                 Itinerary(
-                    flights=[Flight(
+                    segments=[Segment(
                         airline="DL",
                         flight_number="2301",
                         departure_airport_code="SFO",
@@ -278,8 +278,8 @@ def test_get_booking_results_with_itinerary(monkeypatch):
         arrival_airport_code="LAX",
         departure_date=(2026, 6, 15),
         booking_token="test-token",
-        flights=[
-            Flight(
+        segments=[
+            Segment(
                 departure_airport_code="JFK",
                 arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15),
@@ -315,15 +315,15 @@ def test_get_booking_results_string_still_works(monkeypatch):
 
 def test_build_selected_legs():
     itin = Itinerary(
-        flights=[
-            Flight(
+        segments=[
+            Segment(
                 departure_airport_code="JFK",
                 arrival_airport_code="ORD",
                 departure_date=(2026, 6, 15),
                 airline="AA",
                 flight_number="100",
             ),
-            Flight(
+            Segment(
                 departure_airport_code="ORD",
                 arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15),
@@ -340,8 +340,8 @@ def test_build_selected_legs():
 
 def test_build_selected_legs_skips_bad_dates():
     itin = Itinerary(
-        flights=[
-            Flight(departure_airport_code="JFK", arrival_airport_code="LAX", departure_date=(0, 0, 0)),
+        segments=[
+            Segment(departure_airport_code="JFK", arrival_airport_code="LAX", departure_date=(0, 0, 0)),
         ],
     )
     assert rpc._build_selected_legs(itin) == []

@@ -119,7 +119,7 @@ def _resolved_leg_from_itinerary(
     date: str,
     selection: str,
 ) -> ResolvedLeg:
-    first = itinerary.flights[0] if itinerary.flights else None
+    first = itinerary.segments[0] if itinerary.segments else None
     flight_summary = ""
     if first is not None:
         flight_summary = (

@@ -103,9 +103,9 @@ def _iata_or_short(code: str) -> str:
 def format_route(itin) -> str:
     """Format itinerary route as 'JFK -> ORD -> LAX'."""
     # Prefer itinerary-level departure/arrival (always IATA codes)
-    if len(itin.flights) <= 1:
-        dep = itin.departure_airport_code or (itin.flights[0].departure_airport_code if itin.flights else "")
-        arr = itin.arrival_airport_code or (itin.flights[0].arrival_airport_code if itin.flights else "")
+    if len(itin.segments) <= 1:
+        dep = itin.departure_airport_code or (itin.segments[0].departure_airport_code if itin.segments else "")
+        arr = itin.arrival_airport_code or (itin.segments[0].arrival_airport_code if itin.segments else "")
         return f"{_iata_or_short(dep)} -> {_iata_or_short(arr)}"
     # Multi-segment: use itinerary endpoints + layover airports
     airports = [_iata_or_short(itin.departure_airport_code)]

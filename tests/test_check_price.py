@@ -9,7 +9,7 @@ import pytest
 
 import swoop
 from swoop import check_price, PriceResult
-from swoop.decoder import BookingOption, Flight, Itinerary, RawSearchResult
+from swoop.decoder import BookingOption, Segment, Itinerary, RawSearchResult
 from swoop.exceptions import SwoopRateLimitError
 
 from tests.factories import (
@@ -116,7 +116,7 @@ class TestCheckPriceRoundtrip:
     def test_roundtrip_makes_multiple_rpc_calls(self):
         """Roundtrip check_price resolves two search stages plus exact booking."""
         outbound_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2300",
                 departure_airport_code="JFK", arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15), departure_time=(8, 30),
@@ -126,7 +126,7 @@ class TestCheckPriceRoundtrip:
             booking_token="outbound-token",
         )
         return_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2301",
                 departure_airport_code="LAX", arrival_airport_code="JFK",
                 departure_date=(2026, 6, 22), departure_time=(14, 0),
@@ -174,7 +174,7 @@ class TestCheckPriceRoundtrip:
     def test_roundtrip_return_expansion_has_no_airline_filter(self):
         """Return-stage search should use the return carrier, not the outbound one."""
         outbound_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2300",
                 departure_airport_code="JFK", arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15), departure_time=(8, 30),
@@ -184,7 +184,7 @@ class TestCheckPriceRoundtrip:
             booking_token="outbound-token",
         )
         return_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="UA", flight_number="456",
                 departure_airport_code="LAX", arrival_airport_code="JFK",
                 departure_date=(2026, 6, 22), departure_time=(14, 0),
@@ -219,7 +219,7 @@ class TestCheckPriceRoundtrip:
     def test_roundtrip_include_basic_economy(self):
         """With include_basic_economy=True, basic fares are eligible."""
         outbound_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2300",
                 departure_airport_code="JFK", arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15), departure_time=(8, 30),
@@ -229,7 +229,7 @@ class TestCheckPriceRoundtrip:
             booking_token="outbound-token",
         )
         return_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2301",
                 departure_airport_code="LAX", arrival_airport_code="JFK",
                 departure_date=(2026, 6, 22), departure_time=(14, 0),
@@ -266,7 +266,7 @@ class TestCheckPriceRoundtrip:
     def test_roundtrip_business_does_not_downshift_to_economy(self):
         """Business pricing should ignore cheaper lower-cabin booking options."""
         outbound_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2300",
                 departure_airport_code="JFK", arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15), departure_time=(8, 30),
@@ -276,7 +276,7 @@ class TestCheckPriceRoundtrip:
             booking_token="outbound-token",
         )
         return_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2301",
                 departure_airport_code="LAX", arrival_airport_code="JFK",
                 departure_date=(2026, 6, 22), departure_time=(14, 0),
@@ -324,7 +324,7 @@ class TestCheckPriceRoundtrip:
     def test_roundtrip_falls_back_on_booking_failure(self):
         """Falls back to direct_price when GetBookingResults fails."""
         outbound_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2300",
                 departure_airport_code="JFK", arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15), departure_time=(8, 30),
@@ -334,7 +334,7 @@ class TestCheckPriceRoundtrip:
             booking_token="outbound-token",
         )
         return_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2301",
                 departure_airport_code="LAX", arrival_airport_code="JFK",
                 departure_date=(2026, 6, 22), departure_time=(14, 0),

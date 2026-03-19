@@ -107,28 +107,28 @@ def _fmt_duration(minutes: int) -> str:
     return f"{h}h {m:02d}m"
 
 
-def _flight_summary_repr(flights: list) -> str:
+def _flight_summary_repr(segments: list) -> str:
     """Compact flight number summary for repr.
 
     - Nonstop: "DL 2300"
     - 2 segments same carrier: "DL 2300 / 5678"
     - 2 segments diff carrier: "DL 2300 / AA 200"
     - 3+ segments: "DL 2300 +2"
-    - No flights: ""
+    - No segments: ""
     """
-    if not flights:
+    if not segments:
         return ""
-    first = flights[0]
+    first = segments[0]
     first_str = f"{first.airline} {first.flight_number}" if first.airline and first.flight_number else str(first.flight_number or "")
-    if len(flights) == 1:
+    if len(segments) == 1:
         return first_str
-    if len(flights) == 2:
-        second = flights[1]
+    if len(segments) == 2:
+        second = segments[1]
         if first.airline and second.airline and first.airline == second.airline:
             return f"{first.airline} {first.flight_number} / {second.flight_number}"
         second_str = f"{second.airline} {second.flight_number}" if second.airline and second.flight_number else str(second.flight_number or "")
         return f"{first_str} / {second_str}"
-    return f"{first_str} +{len(flights) - 1}"
+    return f"{first_str} +{len(segments) - 1}"
 
 
 @dataclass
@@ -156,7 +156,7 @@ class QualitySignals:
 
 
 @dataclass
-class Flight:
+class Segment:
     airline: str = ""
     airline_name: str = ""
     flight_number: str = ""
@@ -190,7 +190,7 @@ class Flight:
             parts.append(f"{dep}->{arr}")
         parts.append(f"{_fmt_clock(self.departure_time)}-{_fmt_clock(self.arrival_time)}")
         parts.append(_fmt_duration(self.travel_time))
-        return f"Flight({' '.join(parts)})"
+        return f"Segment({' '.join(parts)})"
 
 
 @dataclass
@@ -226,7 +226,7 @@ class CarbonEmissions:
 class Itinerary:
     airline_code: str = ""
     airline_names: List[str] = field(default_factory=list)
-    flights: List[Flight] = field(default_factory=list)
+    segments: List[Segment] = field(default_factory=list)
     layovers: List[Layover] = field(default_factory=list)
     travel_time: int = 0
     departure_airport_code: str = ""
@@ -257,7 +257,7 @@ class Itinerary:
 
     def __repr__(self) -> str:
         parts = []
-        summary = _flight_summary_repr(self.flights)
+        summary = _flight_summary_repr(self.segments)
         if summary:
             parts.append(summary)
         dep = self.departure_airport_code
@@ -355,7 +355,7 @@ def _decode_amenities(el: list) -> Optional[AmenityFlags]:
     )
 
 
-def _decode_flight(el: list) -> Optional[Flight]:
+def _decode_segment(el: list) -> Optional[Segment]:
     """Decode a single flight segment from nested list data."""
     try:
         # Codeshares at index 15
@@ -388,7 +388,7 @@ def _decode_flight(el: list) -> Optional[Flight]:
         seat_type_raw = _safe_get(el, [13])
         seat_type = seat_type_raw if isinstance(seat_type_raw, int) else None
 
-        return Flight(
+        return Segment(
             operator=str(_safe_get(el, [2], "") or ""),
             departure_airport_code=str(_safe_get(el, [3], "") or ""),
             departure_airport_name=str(_safe_get(el, [4], "") or ""),
@@ -413,7 +413,7 @@ def _decode_flight(el: list) -> Optional[Flight]:
             seat_type=seat_type,
         )
     except Exception as e:
-        logger.warning("Failed to decode flight segment: %s", e)
+        logger.warning("Failed to decode segment: %s", e)
         return None
 
 
@@ -464,15 +464,15 @@ def _decode_itinerary(el: list) -> Optional[Itinerary]:
         if not isinstance(itin_data, list):
             return None
 
-        # Flights at [0, 2]
-        flights_raw = _safe_get(itin_data, [2])
-        flights = []
-        if isinstance(flights_raw, list):
-            for f in flights_raw:
+        # Segments at [0, 2]
+        segments_raw = _safe_get(itin_data, [2])
+        segments = []
+        if isinstance(segments_raw, list):
+            for f in segments_raw:
                 if isinstance(f, list):
-                    flight = _decode_flight(f)
-                    if flight is not None:
-                        flights.append(flight)
+                    segment = _decode_segment(f)
+                    if segment is not None:
+                        segments.append(segment)
 
         # Layovers at [0, 13]
         layovers_raw = _safe_get(itin_data, [13])
@@ -521,7 +521,7 @@ def _decode_itinerary(el: list) -> Optional[Itinerary]:
                 )
 
         # Stop count: number of layovers = number of stops
-        stop_count = len(layovers) if layovers else (len(flights) - 1 if flights else 0)
+        stop_count = len(layovers) if layovers else (len(segments) - 1 if segments else 0)
 
         # Budget carrier flag at root[3] (sibling of itin_data, NOT inside it)
         budget_raw = _safe_get(root, [3])
@@ -541,7 +541,7 @@ def _decode_itinerary(el: list) -> Optional[Itinerary]:
         return Itinerary(
             airline_code=str(_safe_get(itin_data, [0], "") or ""),
             airline_names=_safe_get(itin_data, [1], []) or [],
-            flights=flights,
+            segments=segments,
             layovers=layovers,
             departure_airport_code=str(_safe_get(itin_data, [3], "") or ""),
             departure_date=_safe_tuple(_safe_get(itin_data, [4]), 3, [0, 0, 0]),
@@ -595,13 +595,13 @@ def itinerary_matches_flight(
 
     Returns ``True`` on the first match across any segment.
     """
-    for flight in itinerary.flights:
+    for segment in itinerary.segments:
         # Operating flight
-        if flight.flight_number == number:
-            if carrier is None or flight.airline == carrier:
+        if segment.flight_number == number:
+            if carrier is None or segment.airline == carrier:
                 return True
         # Codeshares
-        for cs in flight.codeshares:
+        for cs in segment.codeshares:
             if cs.flight_number == number:
                 if carrier is None or cs.airline_code == carrier:
                     return True

@@ -45,7 +45,7 @@ def test_shopping_corpus_cases_decode_critical_fields():
         assert first.departure_airport_code == expected["first_origin"], f"{case['id']}: origin"
         assert first.arrival_airport_code == expected["first_destination"], f"{case['id']}: dest"
         assert first.price == expected["first_price"], f"{case['id']}: price"
-        assert len(first.flights) == expected["first_flights"], f"{case['id']}: flights"
+        assert len(first.segments) == expected["first_segments"], f"{case['id']}: flights"
 
 
 def test_shopping_corpus_currency_fields():
@@ -77,18 +77,18 @@ def test_shopping_corpus_structural_invariants():
 
         for itin in result.best + result.other:
             # Every itinerary must have at least one flight
-            assert itin.flights, f"{case['id']}: itinerary has no flights"
+            assert itin.segments, f"{case['id']}: itinerary has no flights"
             # Every flight must have airline info
-            for flight in itin.flights:
-                assert flight.flight_number, f"{case['id']}: flight missing number"
-                assert flight.departure_airport_code, f"{case['id']}: flight missing dep"
-                assert flight.arrival_airport_code, f"{case['id']}: flight missing arr"
+            for segment in itin.segments:
+                assert segment.flight_number, f"{case['id']}: segment missing number"
+                assert segment.departure_airport_code, f"{case['id']}: segment missing dep"
+                assert segment.arrival_airport_code, f"{case['id']}: segment missing arr"
             # Travel time must be positive
             assert itin.travel_time > 0, f"{case['id']}: travel_time={itin.travel_time}"
             # Layover count = flights - 1
-            if len(itin.flights) > 1:
-                assert len(itin.layovers) == len(itin.flights) - 1, (
-                    f"{case['id']}: {len(itin.layovers)} layovers for {len(itin.flights)} flights"
+            if len(itin.segments) > 1:
+                assert len(itin.layovers) == len(itin.segments) - 1, (
+                    f"{case['id']}: {len(itin.layovers)} layovers for {len(itin.segments)} flights"
                 )
 
 

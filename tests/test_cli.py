@@ -12,7 +12,7 @@ from swoop.cli.utils import format_time, format_duration, format_date_display, f
 from swoop.decoder import (
     BookingOption,
     CarbonEmissions,
-    Flight,
+    Segment,
     Itinerary,
     Layover,
     PriceRange,
@@ -24,7 +24,7 @@ from swoop.decoder import (
 # ---------------------------------------------------------------------------
 
 
-def _make_flight(**overrides) -> Flight:
+def _make_segment(**overrides) -> Segment:
     defaults = dict(
         airline="DL",
         airline_name="Delta Air Lines",
@@ -40,15 +40,15 @@ def _make_flight(**overrides) -> Flight:
         legroom="32 inches",
     )
     defaults.update(overrides)
-    return Flight(**defaults)
+    return Segment(**defaults)
 
 
 def _make_itinerary(**overrides) -> Itinerary:
-    flight = _make_flight()
+    flight = _make_segment()
     defaults = dict(
         airline_code="DL",
         airline_names=["Delta Air Lines"],
-        flights=[flight],
+        segments=[flight],
         layovers=[],
         travel_time=315,
         departure_airport_code="JFK",
@@ -66,13 +66,13 @@ def _make_itinerary(**overrides) -> Itinerary:
 
 
 def _make_connecting_itinerary() -> Itinerary:
-    f1 = _make_flight(
+    f1 = _make_segment(
         airline="UA", airline_name="United Airlines", flight_number="1234",
         departure_airport_code="JFK", arrival_airport_code="ORD",
         departure_time=(10, 15), arrival_time=(12, 20),
         travel_time=125,
     )
-    f2 = _make_flight(
+    f2 = _make_segment(
         airline="UA", airline_name="United Airlines", flight_number="5678",
         departure_airport_code="ORD", arrival_airport_code="LAX",
         departure_time=(14, 20), arrival_time=(15, 20),
@@ -85,7 +85,7 @@ def _make_connecting_itinerary() -> Itinerary:
     return Itinerary(
         airline_code="UA",
         airline_names=["United Airlines"],
-        flights=[f1, f2],
+        segments=[f1, f2],
         layovers=[lay],
         travel_time=485,
         departure_airport_code="JFK",
@@ -126,7 +126,7 @@ def _make_search_result(n: int = 3) -> SearchResult:
             departure_time=(9, 0),
             arrival_time=(12, 30),
             travel_time=330,
-            flights=[_make_flight(
+            segments=[_make_segment(
                 airline="B6", airline_name="JetBlue", flight_number="524",
                 departure_time=(9, 0), arrival_time=(12, 30), travel_time=330,
             )],

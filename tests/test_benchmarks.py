@@ -11,7 +11,7 @@ import pytest
 pytest.importorskip("pytest_benchmark")
 pytestmark = pytest.mark.benchmark
 
-from swoop.decoder import _decode_flight, _decode_itinerary, decode_result
+from swoop.decoder import _decode_segment, _decode_itinerary, decode_result
 from swoop.rpc import _build_filters_from_legs, _normalize_rpc_leg, _encode_f_req_payload
 from tests.factories import make_flight_segment, make_itinerary_element, make_full_response
 
@@ -21,7 +21,7 @@ class TestDecoderBenchmarks:
 
     def test_decode_single_flight(self, benchmark):
         segment = make_flight_segment()
-        benchmark(_decode_flight, segment)
+        benchmark(_decode_segment, segment)
 
     def test_decode_single_itinerary(self, benchmark):
         segment = make_flight_segment()

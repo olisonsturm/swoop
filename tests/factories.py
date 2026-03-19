@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import urllib.parse
 
-from swoop.decoder import Flight, Itinerary, RawSearchResult
+from swoop.decoder import Segment, Itinerary, RawSearchResult
 
 
 # ---------------------------------------------------------------------------
@@ -182,9 +182,9 @@ def make_booking_option(*, price: object | None = 250, brand_code: str | None = 
 # ---------------------------------------------------------------------------
 
 
-def make_itinerary(*flights: Flight) -> Itinerary:
-    """Build an Itinerary with the given flights (defaults for everything else)."""
-    return Itinerary(flights=list(flights))
+def make_itinerary(*segments: Segment) -> Itinerary:
+    """Build an Itinerary with the given segments (defaults for everything else)."""
+    return Itinerary(segments=list(segments))
 
 
 def make_simple_itinerary(
@@ -199,7 +199,7 @@ def make_simple_itinerary(
 ) -> Itinerary:
     """Build a complete single-flight Itinerary from simple parameters."""
     year, month, day = [int(p) for p in date.split("-")]
-    flight = Flight(
+    segment = Segment(
         airline=airline,
         airline_name=airline,
         flight_number=flight_number,
@@ -214,7 +214,7 @@ def make_simple_itinerary(
     return Itinerary(
         airline_code=airline,
         airline_names=[airline],
-        flights=[flight],
+        segments=[segment],
         travel_time=195,
         departure_airport_code=origin,
         arrival_airport_code=destination,

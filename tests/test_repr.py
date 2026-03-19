@@ -2,7 +2,7 @@
 
 from swoop.decoder import (
     BookingOption,
-    Flight,
+    Segment,
     Itinerary,
     Layover,
     PriceRange,
@@ -19,13 +19,13 @@ from tests.factories import make_simple_itinerary
 
 
 # ---------------------------------------------------------------------------
-# Flight
+# Segment
 # ---------------------------------------------------------------------------
 
 
-class TestFlightRepr:
+class TestSegmentRepr:
     def test_basic(self):
-        f = Flight(
+        f = Segment(
             airline="DL",
             flight_number="2300",
             departure_airport_code="JFK",
@@ -34,10 +34,10 @@ class TestFlightRepr:
             arrival_time=(11, 45),
             travel_time=315,
         )
-        assert repr(f) == "Flight(DL 2300 JFK->LAX 08:30-11:45 5h 15m)"
+        assert repr(f) == "Segment(DL 2300 JFK->LAX 08:30-11:45 5h 15m)"
 
     def test_no_airline(self):
-        f = Flight(
+        f = Segment(
             flight_number="100",
             departure_airport_code="SFO",
             arrival_airport_code="ORD",
@@ -45,14 +45,14 @@ class TestFlightRepr:
             arrival_time=(20, 30),
             travel_time=390,
         )
-        assert repr(f) == "Flight(100 SFO->ORD 14:00-20:30 6h 30m)"
+        assert repr(f) == "Segment(100 SFO->ORD 14:00-20:30 6h 30m)"
 
     def test_defaults(self):
-        f = Flight()
-        assert repr(f) == "Flight(00:00-00:00 0h 00m)"
+        f = Segment()
+        assert repr(f) == "Segment(00:00-00:00 0h 00m)"
 
     def test_midnight_time(self):
-        f = Flight(
+        f = Segment(
             airline="UA",
             flight_number="1",
             departure_airport_code="EWR",
@@ -61,7 +61,7 @@ class TestFlightRepr:
             arrival_time=(12, 0),
             travel_time=415,
         )
-        assert repr(f) == "Flight(UA 1 EWR->LHR 00:05-12:00 6h 55m)"
+        assert repr(f) == "Segment(UA 1 EWR->LHR 00:05-12:00 6h 55m)"
 
 
 # ---------------------------------------------------------------------------
@@ -99,11 +99,11 @@ class TestItineraryRepr:
         assert r == "Itinerary(DL 2300 JFK->LAX 08:00-11:15 3h 15m nonstop price=299)"
 
     def test_one_stop(self):
-        f1 = Flight(airline="DL", flight_number="2300", departure_airport_code="JFK", arrival_airport_code="ORD")
-        f2 = Flight(airline="DL", flight_number="2301", departure_airport_code="ORD", arrival_airport_code="LAX")
+        f1 = Segment(airline="DL", flight_number="2300", departure_airport_code="JFK", arrival_airport_code="ORD")
+        f2 = Segment(airline="DL", flight_number="2301", departure_airport_code="ORD", arrival_airport_code="LAX")
         lay = Layover(minutes=90, departure_airport_code="ORD")
         itin = Itinerary(
-            flights=[f1, f2],
+            segments=[f1, f2],
             layovers=[lay],
             departure_airport_code="JFK",
             arrival_airport_code="LAX",
@@ -126,9 +126,9 @@ class TestItineraryRepr:
         assert r == "Itinerary(00:00-00:00 0h 00m nonstop)"
 
     def test_multiple_stops(self):
-        flights = [Flight(airline="UA", flight_number=str(i)) for i in range(3)]
+        segments = [Segment(airline="UA", flight_number=str(i)) for i in range(3)]
         lays = [Layover(minutes=60), Layover(minutes=45)]
-        itin = Itinerary(flights=flights, layovers=lays, travel_time=480)
+        itin = Itinerary(segments=segments, layovers=lays, travel_time=480)
         assert "2 stops" in repr(itin)
 
 
@@ -203,7 +203,7 @@ class TestTripLegRepr:
         leg = TripLeg(origin="JFK", destination="LAX", date="2026-06-15", itinerary=itin)
         assert repr(leg) == "TripLeg(JFK->LAX 2026-06-15 DL 2300)"
 
-    def test_itinerary_no_flights(self):
+    def test_itinerary_no_segments(self):
         leg = TripLeg(origin="SFO", destination="ORD", date="2026-07-01", itinerary=Itinerary())
         assert repr(leg) == "TripLeg(SFO->ORD 2026-07-01)"
 

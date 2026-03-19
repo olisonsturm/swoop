@@ -17,8 +17,8 @@ class TripLeg:
 
     def __repr__(self) -> str:
         parts = [f"{self.origin}->{self.destination}", self.date]
-        if self.itinerary and self.itinerary.flights:
-            parts.append(_flight_summary_repr(self.itinerary.flights))
+        if self.itinerary and self.itinerary.segments:
+            parts.append(_flight_summary_repr(self.itinerary.segments))
         return f"TripLeg({' '.join(parts)})"
 
 
@@ -42,8 +42,8 @@ class TripOption:
         if len(self.legs) == 1:
             leg = self.legs[0]
             parts.append(f"{leg.origin}->{leg.destination}")
-            if leg.itinerary and leg.itinerary.flights:
-                parts.append(_flight_summary_repr(leg.itinerary.flights))
+            if leg.itinerary and leg.itinerary.segments:
+                parts.append(_flight_summary_repr(leg.itinerary.segments))
         elif self.legs:
             parts.append(f"{len(self.legs)} legs")
         return f"TripOption({' '.join(parts)})"
