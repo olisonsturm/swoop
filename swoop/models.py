@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from .decoder import BookingOption, Itinerary, PriceRange, _flight_summary_repr, _fmt_duration
+from .decoder import BookingOption, Itinerary, PriceRange, _flight_summary_repr
 
 
 @dataclass

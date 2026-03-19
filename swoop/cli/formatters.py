@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
+from ..decoder import _flight_summary_repr
 from .utils import format_date_display, format_duration, format_time
 
 
@@ -59,10 +60,8 @@ def _stops_text(itin) -> Text:
     style = "yellow" if n == 1 else "red"
     text = Text(label, style=style)
     for lay in itin.layovers:
-        h, m = divmod(lay.minutes, 60)
-        dur = f"{h}h" if not m else f"{h}h{m:02d}m" if h else f"{m}m"
         airport = lay.departure_airport_code or lay.arrival_airport_code
-        text.append(f"\n{dur} {airport}", style="dim")
+        text.append(f"\n{format_duration(lay.minutes)} {airport}", style="dim")
     return text
 
 
@@ -75,28 +74,8 @@ def _airline_names(itin) -> str:
 
 
 def _flight_summary(itin) -> str:
-    """Compact flight number summary for an itinerary.
-
-    - Nonstop: "DL 2300"
-    - 2 segments same carrier: "UA 1234 / 5678"
-    - 2 segments diff carrier: "UA 1234 / AA 200"
-    - 3+ segments: "UA 1234 +2"
-    - No flights: ""
-    """
-    segments = itin.segments or []
-    if not segments:
-        return ""
-    first = segments[0]
-    first_str = f"{first.airline} {first.flight_number}" if first.airline and first.flight_number else str(first.flight_number or "")
-    if len(segments) == 1:
-        return first_str
-    if len(segments) == 2:
-        second = segments[1]
-        if first.airline and second.airline and first.airline == second.airline:
-            return f"{first.airline} {first.flight_number} / {second.flight_number}"
-        second_str = f"{second.airline} {second.flight_number}" if second.airline and second.flight_number else str(second.flight_number or "")
-        return f"{first_str} / {second_str}"
-    return f"{first_str} +{len(segments) - 1}"
+    """Compact flight number summary for an itinerary."""
+    return _flight_summary_repr(itin.segments or [])
 
 
 def _price_text(price: Optional[int], cheapest: Optional[int], currency: Optional[str] = None) -> Text:
@@ -469,10 +448,8 @@ def _render_resolved_legs(console, resolved_legs) -> None:
                 # Show layover after this segment (if not last segment)
                 if fi < len(itin.layovers):
                     lay = itin.layovers[fi]
-                    h, m = divmod(lay.minutes, 60)
-                    lay_dur = f"{h}h {m:02d}m" if h and m else (f"{h}h" if h else f"{m}m")
                     airport = lay.departure_airport_code or lay.arrival_airport_code or ""
-                    console.print(f"  [dim]  Layover: {lay_dur} {airport}[/dim]")
+                    console.print(f"  [dim]  Layover: {format_duration(lay.minutes)} {airport}[/dim]")
         else:
             console.print(f"  {leg.flight_summary}  {leg.origin} -> {leg.destination}")
         console.print()
