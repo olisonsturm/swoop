@@ -314,6 +314,8 @@ def search_cmd(
                     nonstop=nonstop, max_stops=max_stops,
                     airline=airline, include_basic=include_basic,
                     timeout=timeout, retries=retries,
+                    max_results=max_results, beam_width=beam_width,
+                    time_budget=time_budget,
                 )
             else:
                 result = _run_search(
@@ -327,6 +329,8 @@ def search_cmd(
                     return_depart_after=return_depart_after,
                     return_depart_before=return_depart_before,
                     timeout=timeout, retries=retries,
+                    max_results=max_results, beam_width=beam_width,
+                    time_budget=time_budget,
                 )
         except ValueError as e:
             err.print(f"[red]Error: {e}[/red]")
