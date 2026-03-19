@@ -45,6 +45,9 @@ class TestSearchCommandBranches:
             return_depart_before=18,
             timeout=45,
             retries=4,
+            max_results=None,
+            beam_width=None,
+            time_budget=None,
         )
 
         assert result is sentinel
@@ -68,6 +71,9 @@ class TestSearchCommandBranches:
             "return_latest_departure": 18,
             "timeout": 45,
             "retries": 4,
+            "max_results": None,
+            "beam_width": None,
+            "time_budget": None,
         }
 
     def test_run_search_legs_builds_search_leg_objects(self, monkeypatch):
@@ -95,6 +101,9 @@ class TestSearchCommandBranches:
             include_basic=False,
             timeout=30,
             retries=5,
+            max_results=None,
+            beam_width=None,
+            time_budget=None,
         )
 
         assert result is sentinel
@@ -117,6 +126,9 @@ class TestSearchCommandBranches:
             "include_basic_economy": False,
             "timeout": 30,
             "retries": 5,
+            "max_results": None,
+            "beam_width": None,
+            "time_budget": None,
         }
 
     def test_build_price_selector_command_shell_quotes_input(self):
