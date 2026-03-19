@@ -101,7 +101,6 @@ def test_search_delegates_to_leg_search_core(monkeypatch):
     assert captured["cabin"] == "business"
     assert captured["adults"] == 2
     assert captured["sort"] == swoop.SORT_CHEAPEST
-    assert captured["correct_prices"] is False
     assert captured["timeout"] == 60
     assert captured["retries"] == 3
 
@@ -139,7 +138,6 @@ def test_search_legs_uses_per_leg_filters(monkeypatch):
     assert captured["legs"][1]["origin"] == "NRT"
     assert captured["legs"][1]["max_stops"] == 1
     assert captured["legs"][1]["airlines"] == ["JL"]
-    assert captured["correct_prices"] is False
 
 
 def test_search_legs_accepts_more_than_two_legs(monkeypatch):

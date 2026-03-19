@@ -217,7 +217,6 @@ class TestSearchFlightNumberParam:
         monkeypatch.setattr(swoop, "search_trip_options", fake_search_trip_options)
         swoop.search("JFK", "LAX", "2026-06-01", flight_number="DL 171")
         assert captured["legs"][0]["airlines"] == ["DL"]
-        assert captured["correct_prices"] is False
 
     def test_preserves_existing_airlines_filter(self, monkeypatch):
         captured = {}

@@ -46,5 +46,4 @@ class TestSearchUsesShoppingPrices:
                 flight_number="DL2300",
             )
 
-        assert mock_search_trip_options.call_args.kwargs["correct_prices"] is False
         assert [option.selector for option in output.results] == ["selector-2"]

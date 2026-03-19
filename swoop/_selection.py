@@ -281,54 +281,6 @@ def _eligible_booking_options(
     ]
 
 
-def correct_trip_option_prices(
-    result: SearchResult,
-    *,
-    request_legs: list[dict[str, Any]],
-    include_basic_economy: bool,
-    cabin: str,
-    adults: int,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
-) -> None:
-    if cabin != "economy" or not result.results:
-        return
-
-    for option in result.results:
-        itineraries = [leg.itinerary for leg in option.legs if leg.itinerary is not None]
-        if len(itineraries) != len(request_legs):
-            continue
-        try:
-            booking_options = fetch_trip_booking_options(
-                request_legs,
-                itineraries,
-                cabin=cabin,
-                adults=adults,
-                children=children,
-                infants_in_seat=infants_in_seat,
-                infants_on_lap=infants_on_lap,
-                timeout=timeout,
-                retries=retries,
-                country=country,
-                proxy=proxy,
-            )
-        except (SwoopHTTPError, SwoopParseError) as exc:
-            logger.debug("Trip booking correction failed: %s", exc)
-            continue
-        eligible = _eligible_booking_options(
-            booking_options,
-            include_basic_economy,
-            cabin=cabin,
-        )
-        if not eligible:
-            continue
-        option.price = min(eligible, key=lambda booking_option: booking_option.price).price
-
 
 def search_trip_options(
     request_legs: list[dict[str, Any]],
@@ -340,7 +292,6 @@ def search_trip_options(
     infants_on_lap: int = 0,
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
-    correct_prices: bool = False,
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
@@ -356,11 +307,7 @@ def search_trip_options(
     beam_width = beam_width if beam_width is not None else BEAM_WIDTH
     time_budget = time_budget if time_budget is not None else TIME_BUDGET_SECONDS
 
-    exclude_basic = (
-        cabin == "economy"
-        and len(request_legs) == 1
-        and not include_basic_economy
-    )
+    exclude_basic = cabin == "economy" and not include_basic_economy
     first_pass = _search_from_legs(
         request_legs,
         cabin=cabin,
@@ -431,7 +378,7 @@ def search_trip_options(
                 sort=sort,
                 timeout=timeout,
                 retries=retries,
-                exclude_basic_economy=False,
+                exclude_basic_economy=exclude_basic,
                 country=country,
                 proxy=proxy,
             )
@@ -472,22 +419,6 @@ def search_trip_options(
     multi_currency = options[0].currency if options else None
     result = SearchResult(results=options, price_range=None, is_complete=is_complete, currency=multi_currency)
 
-    if cabin == "economy" and not include_basic_economy and correct_prices:
-        correct_trip_option_prices(
-            result,
-            request_legs=request_legs,
-            include_basic_economy=include_basic_economy,
-            cabin=cabin,
-            adults=adults,
-            children=children,
-            infants_in_seat=infants_in_seat,
-            infants_on_lap=infants_on_lap,
-            timeout=timeout,
-            retries=retries,
-            country=country,
-            proxy=proxy,
-        )
-
     return result
 
 
@@ -516,11 +447,7 @@ def resolve_trip_selector(
     rpc_calls = 0
 
     replay_sort = payload.get("sort", SORT_DEPARTURE_TIME)
-    exclude_basic = (
-        payload["cabin"] == "economy"
-        and len(request_legs) == 1
-        and not payload["include_basic_economy"]
-    )
+    exclude_basic = payload["cabin"] == "economy" and not payload["include_basic_economy"]
 
     for index in range(len(request_legs)):
         staged_legs = _with_selected_prefix(request_legs, selected_legs[:index])
@@ -534,7 +461,7 @@ def resolve_trip_selector(
             sort=replay_sort,
             timeout=timeout,
             retries=retries,
-            exclude_basic_economy=exclude_basic if index == 0 else False,
+            exclude_basic_economy=exclude_basic,
             country=country,
             proxy=proxy,
         )
@@ -680,7 +607,7 @@ def resolve_selected_trip(
             sort=SORT_DEPARTURE_TIME,
             timeout=timeout,
             retries=retries,
-            exclude_basic_economy=exclude_basic_economy if index == 0 else False,
+            exclude_basic_economy=exclude_basic_economy,
             country=country,
             proxy=proxy,
         )
