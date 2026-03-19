@@ -302,7 +302,11 @@ def search_trip_options(
         return SearchResult()
 
     first_candidates = _iter_raw_itineraries(first_pass)
-    if len(request_legs) == 1:
+    if len(request_legs) <= 2:
+        # One-way and roundtrip: first pass already returns full prices.
+        # For roundtrip, Google prices both legs in one call — the itinerary
+        # price is the roundtrip total.  Beam search is only needed for
+        # 3+ leg multi-city trips.
         return SearchResult(
             results=[
                 _build_trip_option(

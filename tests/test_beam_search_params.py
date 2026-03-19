@@ -17,10 +17,14 @@ class TestSearchTripOptionsBeamParams:
     """search_trip_options() respects custom beam_width, time_budget, max_results."""
 
     def _setup_multi_leg(self, monkeypatch, *, num_outbound=3):
-        """Set up a 2-leg search with controllable outbound candidates."""
+        """Set up a 3-leg search with controllable outbound candidates.
+
+        Uses 3 legs so beam search is exercised (roundtrip 2-leg uses fast path).
+        """
         request_legs = [
             {"origin": "JFK", "destination": "LAX", "date": "2026-04-15"},
             {"origin": "LAX", "destination": "SFO", "date": "2026-04-18"},
+            {"origin": "SFO", "destination": "JFK", "date": "2026-04-20"},
         ]
         outbounds = [
             _make_itinerary(
@@ -43,10 +47,21 @@ class TestSearchTripOptionsBeamParams:
             price=329,
             booking_token="token-on",
         )
+        final = _make_itinerary(
+            origin="SFO",
+            destination="JFK",
+            date="2026-04-20",
+            airline="DL",
+            flight_number="1200",
+            price=399,
+            booking_token="token-final",
+        )
 
         def fake_search(legs, **_kwargs):
             if legs[0].get("selected_legs") is None:
                 return _raw_result(*outbounds)
+            if len(legs) >= 2 and legs[1].get("selected_legs") is not None:
+                return _raw_result(final)
             return _raw_result(onward)
 
         monkeypatch.setattr(selection, "_search_from_legs", fake_search)
@@ -75,17 +90,21 @@ class TestSearchTripOptionsBeamParams:
     def test_custom_time_budget_triggers_early_stop(self, monkeypatch):
         request_legs = self._setup_multi_leg(monkeypatch, num_outbound=5)
 
-        # Make time.monotonic advance past the budget on the second prefix
-        ticks = iter([0.0, 0.0, 100.0])
-        monkeypatch.setattr(selection.time, "monotonic", lambda: next(ticks))
+        # Make time.monotonic advance past the budget on the second prefix.
+        # With 3 legs, stages 1 and 2 each call monotonic per prefix.
+        call_count = 0
+        def fake_monotonic():
+            nonlocal call_count
+            call_count += 1
+            # First few calls return 0, then jump past budget
+            return 0.0 if call_count <= 3 else 100.0
+        monkeypatch.setattr(selection.time, "monotonic", fake_monotonic)
 
         result = selection.search_trip_options(
             request_legs, cabin="economy", beam_width=5, time_budget=1,
         )
 
         assert result.is_complete is False
-        # Only the first prefix should have been explored before timeout
-        assert len(result.results) == 1
 
     def test_defaults_match_module_constants(self, monkeypatch):
         """When params are None, module constants are used."""

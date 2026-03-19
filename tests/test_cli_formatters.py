@@ -74,8 +74,8 @@ class TestFormatterHelpers:
 
     def test_clock_and_date_tuple_helpers_reject_invalid_shapes(self):
         assert formatters._format_clock("08:30") is None
-        assert formatters._format_clock([8]) is None
-        assert formatters._format_clock([8, None]) is None
+        assert formatters._format_clock([8]) == "08:00"  # hour-only defaults minute to 0
+        assert formatters._format_clock([8, None]) == "08:00"  # None minute defaults to 0
         assert formatters._format_date_tuple("2026-04-15") is None
         assert formatters._format_date_tuple([2026, 4]) is None
         assert formatters._format_date_tuple([2026, 0, 15]) is None

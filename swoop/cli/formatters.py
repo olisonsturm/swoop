@@ -96,12 +96,13 @@ def _price_text(price: Optional[int], cheapest: Optional[int], currency: Optiona
 
 
 def _format_clock(value) -> Optional[str]:
-    if not isinstance(value, (list, tuple)) or len(value) < 2:
+    if not isinstance(value, (list, tuple)) or len(value) < 1:
         return None
-    hour, minute = value[0], value[1]
-    if hour is None or minute is None:
+    hour = value[0]
+    minute = value[1] if len(value) >= 2 else 0
+    if hour is None:
         return None
-    return f"{int(hour):02d}:{int(minute):02d}"
+    return f"{int(hour):02d}:{int(minute or 0):02d}"
 
 
 def _format_date_tuple(value) -> Optional[str]:
