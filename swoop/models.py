@@ -7,6 +7,16 @@ from .decoder import BookingOption, Itinerary, PriceRange, _flight_summary_repr
 
 
 @dataclass
+class Passengers:
+    """Passenger counts for a flight search."""
+
+    adults: int = 1
+    children: int = 0
+    infants_in_seat: int = 0
+    infants_on_lap: int = 0
+
+
+@dataclass
 class TripLeg:
     """A single requested leg paired with its resolved itinerary."""
 

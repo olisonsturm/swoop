@@ -13,7 +13,7 @@ from .builders import CabinClass
 from ._validate import parse_flight_number
 from .decoder import Itinerary, RawSearchResult, itinerary_matches_flight
 from .exceptions import SwoopHTTPError, SwoopParseError
-from .models import PriceResult, ResolvedLeg, SearchResult, TripLeg, TripOption
+from .models import Passengers, PriceResult, ResolvedLeg, SearchResult, TripLeg, TripOption
 from .rpc import (
     SORT_DEPARTURE_TIME,
     _build_selected_legs,
@@ -75,10 +75,7 @@ def encode_trip_selector(
     request_legs: list[dict[str, Any]],
     itineraries: list[Itinerary],
     cabin: CabinClass,
-    adults: int,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     include_basic_economy: bool,
     sort: int = SORT_DEPARTURE_TIME,
 ) -> str:
@@ -87,10 +84,12 @@ def encode_trip_selector(
         "query_legs": [_selector_query_leg(leg) for leg in request_legs],
         "selected_legs": [_build_selected_legs(itinerary) for itinerary in itineraries],
         "cabin": cabin,
-        "adults": adults,
-        "children": children,
-        "infants_in_seat": infants_in_seat,
-        "infants_on_lap": infants_on_lap,
+        "passengers": {
+            "adults": passengers.adults,
+            "children": passengers.children,
+            "infants_in_seat": passengers.infants_in_seat,
+            "infants_on_lap": passengers.infants_on_lap,
+        },
         "include_basic_economy": include_basic_economy,
         "sort": sort,
         "booking_token_hint": itineraries[-1].booking_token or None,
@@ -109,6 +108,23 @@ def decode_trip_selector(selector: str) -> dict[str, Any]:
         raise ValueError("invalid selector payload") from exc
     if payload.get("v") != 1:
         raise ValueError("unsupported selector version")
+    # Reconstruct Passengers with backward compat for old selectors
+    if "passengers" in payload:
+        pax = payload["passengers"]
+        payload["passengers"] = Passengers(
+            adults=pax.get("adults", 1),
+            children=pax.get("children", 0),
+            infants_in_seat=pax.get("infants_in_seat", 0),
+            infants_on_lap=pax.get("infants_on_lap", 0),
+        )
+    else:
+        # Old selectors with flat keys
+        payload["passengers"] = Passengers(
+            adults=payload.pop("adults", 1),
+            children=payload.pop("children", 0),
+            infants_in_seat=payload.pop("infants_in_seat", 0),
+            infants_on_lap=payload.pop("infants_on_lap", 0),
+        )
     return payload
 
 
@@ -162,10 +178,7 @@ def _build_trip_option(
     itineraries: list[Itinerary],
     *,
     cabin: CabinClass,
-    adults: int,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     include_basic_economy: bool,
     sort: int = SORT_DEPARTURE_TIME,
 ) -> TripOption:
@@ -174,10 +187,7 @@ def _build_trip_option(
             request_legs=request_legs,
             itineraries=itineraries,
             cabin=cabin,
-            adults=adults,
-            children=children,
-            infants_in_seat=infants_in_seat,
-            infants_on_lap=infants_on_lap,
+            passengers=passengers,
             include_basic_economy=include_basic_economy,
             sort=sort,
         ),
@@ -219,10 +229,7 @@ def fetch_trip_booking_options(
     itineraries: list[Itinerary],
     *,
     cabin: CabinClass,
-    adults: int,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
@@ -239,10 +246,7 @@ def fetch_trip_booking_options(
         final_token,
         staged_legs,
         cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
+        passengers=passengers,
         timeout=timeout,
         retries=retries,
         country=country,
@@ -275,10 +279,7 @@ def search_trip_options(
     request_legs: list[dict[str, Any]],
     *,
     cabin: CabinClass = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
     timeout: int = 90,
@@ -300,10 +301,7 @@ def search_trip_options(
     first_pass = _search_from_legs(
         request_legs,
         cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
+        passengers=passengers,
         sort=sort,
         timeout=timeout,
         retries=retries,
@@ -323,10 +321,7 @@ def search_trip_options(
                     request_legs,
                     [itinerary],
                     cabin=cabin,
-                    adults=adults,
-                    children=children,
-                    infants_in_seat=infants_in_seat,
-                    infants_on_lap=infants_on_lap,
+                    passengers=passengers,
                     include_basic_economy=include_basic_economy,
                     sort=sort,
                 )
@@ -359,10 +354,7 @@ def search_trip_options(
             stage_result = _search_from_legs(
                 staged_legs,
                 cabin=cabin,
-                adults=adults,
-                children=children,
-                infants_in_seat=infants_in_seat,
-                infants_on_lap=infants_on_lap,
+                passengers=passengers,
                 sort=sort,
                 timeout=timeout,
                 retries=retries,
@@ -396,10 +388,7 @@ def search_trip_options(
             request_legs,
             prefix,
             cabin=cabin,
-            adults=adults,
-            children=children,
-            infants_in_seat=infants_in_seat,
-            infants_on_lap=infants_on_lap,
+            passengers=passengers,
             include_basic_economy=include_basic_economy,
             sort=sort,
         )
@@ -442,10 +431,7 @@ def resolve_trip_selector(
         stage_result = _search_from_legs(
             staged_legs,
             cabin=payload["cabin"],
-            adults=payload["adults"],
-            children=payload.get("children", 0),
-            infants_in_seat=payload.get("infants_in_seat", 0),
-            infants_on_lap=payload.get("infants_on_lap", 0),
+            passengers=payload["passengers"],
             sort=replay_sort,
             timeout=timeout,
             retries=retries,
@@ -456,7 +442,11 @@ def resolve_trip_selector(
         )
         rpc_calls += 1
         candidates = _iter_raw_itineraries(stage_result)
-        itinerary = _match_itinerary_by_selected_segments(candidates, selected_legs[index])
+        if index < len(selected_legs):
+            itinerary = _match_itinerary_by_selected_segments(candidates, selected_legs[index])
+        else:
+            # Auto-select first candidate (e.g. return leg from roundtrip fast path)
+            itinerary = candidates[0] if candidates else None
         if itinerary is None:
             raise ValueError("selector itinerary no longer available")
         resolved.append(itinerary)
@@ -469,10 +459,7 @@ def price_selected_trip(
     itineraries: list[Itinerary],
     *,
     cabin: CabinClass = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     include_basic_economy: bool = False,
     timeout: int = 90,
     retries: int = 2,
@@ -516,10 +503,7 @@ def price_selected_trip(
             request_legs,
             itineraries,
             cabin=cabin,
-            adults=adults,
-            children=children,
-            infants_in_seat=infants_in_seat,
-            infants_on_lap=infants_on_lap,
+            passengers=passengers,
             timeout=timeout,
             retries=retries,
             country=country,
@@ -567,10 +551,7 @@ def resolve_selected_trip(
     requested_flights: list[Optional[str]],
     *,
     cabin: CabinClass = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     timeout: int = 90,
     retries: int = 2,
     exclude_basic_economy: bool = False,
@@ -589,10 +570,7 @@ def resolve_selected_trip(
         stage_result = _search_from_legs(
             staged_legs,
             cabin=cabin,
-            adults=adults,
-            children=children,
-            infants_in_seat=infants_in_seat,
-            infants_on_lap=infants_on_lap,
+            passengers=passengers,
             sort=SORT_DEPARTURE_TIME,
             timeout=timeout,
             retries=retries,
@@ -648,10 +626,7 @@ def price_trip_selector(
         request_legs,
         itineraries,
         cabin=payload["cabin"],
-        adults=payload["adults"],
-        children=payload.get("children", 0),
-        infants_in_seat=payload.get("infants_in_seat", 0),
-        infants_on_lap=payload.get("infants_on_lap", 0),
+        passengers=payload["passengers"],
         include_basic_economy=payload["include_basic_economy"],
         timeout=timeout,
         retries=retries,

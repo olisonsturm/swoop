@@ -187,9 +187,10 @@ class TestBuildFReqFilters:
         assert segments[1][2] == [14, 18, None, None]
 
     def test_adults_count(self):
+        from swoop.models import Passengers
         filters = _build_filters_from_legs([
             _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
-        ], adults=2)
+        ], passengers=Passengers(adults=2))
         assert filters[1][6] == [2, 0, 0, 0]
 
 

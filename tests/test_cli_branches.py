@@ -59,32 +59,31 @@ class TestSearchCommandBranches:
         assert captured["origin"] == "JFK"
         assert captured["destination"] == "LAX"
         assert captured["date"] == "2026-06-15"
-        assert captured["kwargs"] == {
-            "return_date": "2026-06-22",
-            "cabin": "business",
-            "adults": 2,
-            "children": 0,
-            "infants_in_seat": 0,
-            "infants_on_lap": 0,
-            "sort": commands.SORT_MAP["duration"],
-            "max_stops": 0,
-            "airlines": ["DL", "AF"],
-            "flight_number": "DL10",
-            "include_basic_economy": True,
-            "earliest_departure": 8,
-            "latest_departure": 12,
-            "earliest_arrival": 10,
-            "latest_arrival": 16,
-            "return_earliest_departure": 9,
-            "return_latest_departure": 18,
-            "timeout": 45,
-            "retries": 4,
-            "country": None,
-            "proxy": None,
-            "max_results": None,
-            "beam_width": None,
-            "time_budget": None,
-        }
+        assert captured["kwargs"]["return_date"] == "2026-06-22"
+        assert captured["kwargs"]["cabin"] == "business"
+        pax = captured["kwargs"]["passengers"]
+        assert pax.adults == 2
+        assert pax.children == 0
+        assert pax.infants_in_seat == 0
+        assert pax.infants_on_lap == 0
+        assert captured["kwargs"]["sort"] == commands.SORT_MAP["duration"]
+        assert captured["kwargs"]["max_stops"] == 0
+        assert captured["kwargs"]["airlines"] == ["DL", "AF"]
+        assert captured["kwargs"]["flight_number"] == "DL10"
+        assert captured["kwargs"]["include_basic_economy"] is True
+        assert captured["kwargs"]["earliest_departure"] == 8
+        assert captured["kwargs"]["latest_departure"] == 12
+        assert captured["kwargs"]["earliest_arrival"] == 10
+        assert captured["kwargs"]["latest_arrival"] == 16
+        assert captured["kwargs"]["return_earliest_departure"] == 9
+        assert captured["kwargs"]["return_latest_departure"] == 18
+        assert captured["kwargs"]["timeout"] == 45
+        assert captured["kwargs"]["retries"] == 4
+        assert captured["kwargs"]["country"] is None
+        assert captured["kwargs"]["proxy"] is None
+        assert captured["kwargs"]["max_results"] is None
+        assert captured["kwargs"]["beam_width"] is None
+        assert captured["kwargs"]["time_budget"] is None
 
     def test_run_search_legs_builds_search_leg_objects(self, monkeypatch):
         captured = {}
@@ -134,22 +133,21 @@ class TestSearchCommandBranches:
         assert second_leg.to_airport == "SFO"
         assert second_leg.max_stops == 1
         assert second_leg.airlines == ["DL"]
-        assert captured["kwargs"] == {
-            "cabin": "economy",
-            "adults": 3,
-            "children": 0,
-            "infants_in_seat": 0,
-            "infants_on_lap": 0,
-            "sort": commands.SORT_MAP["cheapest"],
-            "include_basic_economy": False,
-            "timeout": 30,
-            "retries": 5,
-            "country": None,
-            "proxy": None,
-            "max_results": None,
-            "beam_width": None,
-            "time_budget": None,
-        }
+        assert captured["kwargs"]["cabin"] == "economy"
+        pax = captured["kwargs"]["passengers"]
+        assert pax.adults == 3
+        assert pax.children == 0
+        assert pax.infants_in_seat == 0
+        assert pax.infants_on_lap == 0
+        assert captured["kwargs"]["sort"] == commands.SORT_MAP["cheapest"]
+        assert captured["kwargs"]["include_basic_economy"] is False
+        assert captured["kwargs"]["timeout"] == 30
+        assert captured["kwargs"]["retries"] == 5
+        assert captured["kwargs"]["country"] is None
+        assert captured["kwargs"]["proxy"] is None
+        assert captured["kwargs"]["max_results"] is None
+        assert captured["kwargs"]["beam_width"] is None
+        assert captured["kwargs"]["time_budget"] is None
 
     def test_build_price_selector_command_shell_quotes_input(self):
         selector = "sel'ector with space"

@@ -50,7 +50,7 @@ def test_search_validates_date():
 
 def test_search_validates_adults():
     with pytest.raises(ValueError, match="adults"):
-        swoop.search("JFK", "LAX", "2026-06-01", adults=0)
+        swoop.search("JFK", "LAX", "2026-06-01", passengers=swoop.Passengers(adults=0))
 
 
 def test_search_accepts_valid_cabins(fake_primp):
@@ -78,7 +78,7 @@ def test_search_delegates_to_leg_search_core(monkeypatch):
         "SFO", "NRT", "2026-07-01",
         return_date="2026-07-15",
         cabin="business",
-        adults=2,
+        passengers=swoop.Passengers(adults=2),
         max_stops=1,
         sort=swoop.SORT_CHEAPEST,
         airlines=["NH"],
@@ -99,7 +99,7 @@ def test_search_delegates_to_leg_search_core(monkeypatch):
     assert captured["legs"][1]["destination"] == "SFO"
     assert captured["legs"][1]["date"] == "2026-07-15"
     assert captured["cabin"] == "business"
-    assert captured["adults"] == 2
+    assert captured["passengers"].adults == 2
     assert captured["sort"] == swoop.SORT_CHEAPEST
     assert captured["timeout"] == 60
     assert captured["retries"] == 3
@@ -130,7 +130,7 @@ def test_search_legs_uses_per_leg_filters(monkeypatch):
             max_stops=1,
             airlines=["JL"],
         ),
-    ], cabin="business", adults=2)
+    ], cabin="business", passengers=swoop.Passengers(adults=2))
 
     assert captured["legs"][0]["origin"] == "SFO"
     assert captured["legs"][0]["max_stops"] == 0
@@ -237,14 +237,14 @@ def test_search_raw_rate_limit_raises_specific_error(fake_primp):
 
 
 def test_passengers_validation():
-    """Passengers should raise ValueError, not AssertionError."""
-    from swoop.builders import Passengers
+    """_PBPassengers should raise ValueError, not AssertionError."""
+    from swoop.builders import _PBPassengers
 
     with pytest.raises(ValueError, match="Too many passengers"):
-        Passengers(adults=8, children=2)
+        _PBPassengers(adults=8, children=2)
 
     with pytest.raises(ValueError, match="infant"):
-        Passengers(adults=1, infants_on_lap=2)
+        _PBPassengers(adults=1, infants_on_lap=2)
 
 
 def test_exception_hierarchy():

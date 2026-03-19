@@ -78,7 +78,7 @@ class SearchLeg:
             data.airlines.extend(self.airlines)
 
 
-class Passengers:
+class _PBPassengers:
     def __init__(
         self,
         *,
@@ -120,7 +120,7 @@ class TFSData:
         flight_data: List[SearchLeg],
         seat: int,
         trip: int,
-        passengers: Passengers,
+        passengers: _PBPassengers,
         max_stops: Optional[int] = None,
         exclude_basic_economy: bool = False,
     ):
@@ -160,7 +160,7 @@ class TFSData:
         *,
         flight_data: List[SearchLeg],
         trip: Literal["round-trip", "one-way", "multi-city"],
-        passengers: Passengers,
+        passengers: _PBPassengers,
         seat: Literal["economy", "premium-economy", "business", "first"],
         max_stops: Optional[int] = None,
         exclude_basic_economy: bool = False,

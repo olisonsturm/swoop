@@ -20,6 +20,8 @@ Basic usage::
         print(bookable.price)
 """
 
+from __future__ import annotations
+
 __version__ = "0.4.0"
 
 from .decoder import (
@@ -37,7 +39,7 @@ from .decoder import (
 )
 from .exceptions import SwoopError, SwoopHTTPError, SwoopParseError, SwoopRateLimitError
 from .builders import CabinClass, SearchLeg
-from .models import PriceResult, ResolvedLeg, SearchResult, SelectedLeg, TripLeg, TripOption
+from .models import Passengers, PriceResult, ResolvedLeg, SearchResult, SelectedLeg, TripLeg, TripOption
 from .rpc import (
     SORT_ARRIVAL_TIME,
     SORT_CHEAPEST,
@@ -121,7 +123,7 @@ def _validate_leg_search_inputs(
     legs: list[SearchLeg],
     *,
     cabin: CabinClass,
-    adults: int,
+    passengers: Passengers = Passengers(),
     leg_time_windows: Optional[list[dict[str, Optional[int]]]] = None,
 ) -> None:
     """Validate a list of explicit search legs."""
@@ -129,7 +131,7 @@ def _validate_leg_search_inputs(
         raise ValueError("at least one leg is required")
 
     validate_cabin(cabin)
-    validate_adults(adults)
+    validate_adults(passengers.adults)
 
     for idx, leg in enumerate(legs):
         validate_iata_code(leg.from_airport, f"legs[{idx}].from_airport")
@@ -148,10 +150,7 @@ def _search_with_normalized_legs(
     request_legs: list[dict[str, object]],
     *,
     cabin: CabinClass = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
     timeout: int = 90,
@@ -166,10 +165,7 @@ def _search_with_normalized_legs(
     return search_trip_options(
         request_legs,
         cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
+        passengers=passengers,
         sort=sort,
         include_basic_economy=include_basic_economy,
         timeout=timeout,
@@ -186,10 +182,7 @@ def search_legs(
     legs: list[SearchLeg],
     *,
     cabin: CabinClass = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
     timeout: int = 90,
@@ -208,7 +201,7 @@ def search_legs(
     Args:
         legs: List of :class:`SearchLeg` objects (1 or more).
         cabin: Cabin class (default ``"economy"``).
-        adults: Number of adult passengers (default 1).
+        passengers: Passenger counts (default ``Passengers()``).
         sort: Sort order constant (default ``SORT_DEPARTURE_TIME``).
         include_basic_economy: Include basic economy fares (default ``False``).
         timeout: HTTP request timeout in seconds (default 90).
@@ -227,7 +220,7 @@ def search_legs(
     Returns:
         A trip-level :class:`SearchResult` with shopping totals.
     """
-    _validate_leg_search_inputs(legs, cabin=cabin, adults=adults)
+    _validate_leg_search_inputs(legs, cabin=cabin, passengers=passengers)
 
     request_legs = [
         _normalize_rpc_leg(
@@ -243,10 +236,7 @@ def search_legs(
     return _search_with_normalized_legs(
         request_legs,
         cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
+        passengers=passengers,
         sort=sort,
         include_basic_economy=include_basic_economy,
         timeout=timeout,
@@ -266,10 +256,7 @@ def search(
     *,
     return_date: Optional[str] = None,
     cabin: CabinClass = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     max_stops: Optional[int] = None,
     sort: int = SORT_DEPARTURE_TIME,
     airlines: Optional[list[str]] = None,
@@ -298,7 +285,7 @@ def search(
         return_date: Return date for roundtrip searches. Omit for one-way.
         cabin: Cabin class — ``"economy"``, ``"premium-economy"``,
             ``"business"``, or ``"first"``.
-        adults: Number of adult passengers (default 1).
+        passengers: Passenger counts (default ``Passengers()``).
         max_stops: Maximum stops. ``None`` = any, ``0`` = nonstop,
             ``1`` = one stop, ``2`` = two stops.
         sort: Sort order. Use ``SORT_TOP``, ``SORT_CHEAPEST``,
@@ -364,7 +351,7 @@ def search(
         date,
         return_date=return_date,
         cabin=cabin,
-        adults=adults,
+        adults=passengers.adults,
         earliest_departure=earliest_departure,
         latest_departure=latest_departure,
         earliest_arrival=earliest_arrival,
@@ -409,10 +396,7 @@ def search(
     result = _search_with_normalized_legs(
         request_legs,
         cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
+        passengers=passengers,
         sort=sort,
         include_basic_economy=include_basic_economy,
         timeout=timeout,
@@ -438,10 +422,7 @@ def price_legs(
     legs: list[SelectedLeg],
     *,
     cabin: CabinClass = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     include_basic_economy: bool = False,
     timeout: int = 90,
     retries: int = 2,
@@ -453,7 +434,7 @@ def price_legs(
     Args:
         legs: List of :class:`SelectedLeg` objects (1 or more).
         cabin: Cabin class (default ``"economy"``).
-        adults: Number of adult passengers (default 1).
+        passengers: Passenger counts (default ``Passengers()``).
         include_basic_economy: Include basic economy fares (default ``False``).
         timeout: HTTP request timeout in seconds (default 90).
         retries: Number of retries on HTTP 429 (default 2).
@@ -465,7 +446,7 @@ def price_legs(
         raise ValueError("at least one leg is required")
 
     validate_cabin(cabin)
-    validate_adults(adults)
+    validate_adults(passengers.adults)
     carrier_filters: list[Optional[str]] = []
     for index, leg in enumerate(legs):
         validate_iata_code(leg.origin, f"legs[{index}].origin")
@@ -479,10 +460,7 @@ def price_legs(
         request_legs,
         [leg.flight_number for leg in legs],
         cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
+        passengers=passengers,
         timeout=timeout,
         retries=retries,
         exclude_basic_economy=(
@@ -500,10 +478,7 @@ def price_legs(
         request_legs,
         resolved,
         cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
+        passengers=passengers,
         include_basic_economy=include_basic_economy,
         timeout=timeout,
         retries=retries,
@@ -548,10 +523,7 @@ def check_price(
     return_flight_number: Optional[str] = None,
     return_date: Optional[str] = None,
     cabin: CabinClass = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     max_stops: Optional[int] = None,
     include_basic_economy: bool = False,
     timeout: int = 90,
@@ -573,7 +545,7 @@ def check_price(
         return_flight_number: Return flight number for roundtrip.
         return_date: Return date for roundtrip.
         cabin: Cabin class (default ``"economy"``).
-        adults: Number of adult passengers (default 1).
+        passengers: Passenger counts (default ``Passengers()``).
         max_stops: Maximum stops (default any).
         include_basic_economy: Include basic economy fares (default ``False``).
         timeout: HTTP request timeout in seconds (default 90).
@@ -608,7 +580,7 @@ def check_price(
 
     validate_search_params(
         origin, destination, date,
-        return_date=return_date, cabin=cabin, adults=adults,
+        return_date=return_date, cabin=cabin, adults=passengers.adults,
     )
 
     request_legs = [
@@ -637,10 +609,7 @@ def check_price(
         request_legs,
         requested_flights,
         cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
+        passengers=passengers,
         timeout=timeout,
         retries=retries,
         exclude_basic_economy=(
@@ -658,10 +627,7 @@ def check_price(
         request_legs,
         resolved,
         cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
+        passengers=passengers,
         include_basic_economy=include_basic_economy,
         timeout=timeout,
         retries=retries,
@@ -687,6 +653,7 @@ __all__ = [
     "itinerary_matches_flight",
     # Types
     "CabinClass",
+    "Passengers",
     "PriceResult",
     "RawSearchResult",
     "SearchResult",

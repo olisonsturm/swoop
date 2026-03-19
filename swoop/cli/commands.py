@@ -39,16 +39,20 @@ def _run_search(
     sort_val = SORT_MAP.get(sort, swoop.SORT_DEPARTURE_TIME)
     airlines = list(airline) if airline else None
 
+    pax = swoop.Passengers(
+        adults=passengers,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
+    )
+
     return swoop.search(
         origin,
         destination,
         date,
         return_date=return_date,
         cabin=cabin,
-        adults=passengers,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
+        passengers=pax,
         sort=sort_val,
         max_stops=stops,
         airlines=airlines,
@@ -110,13 +114,18 @@ def _run_search_legs(
         )
         for leg_origin, leg_destination, leg_date in legs
     ]
-    return swoop.search_legs(
-        search_legs,
-        cabin=cabin,
+
+    pax = swoop.Passengers(
         adults=passengers,
         children=children,
         infants_in_seat=infants_in_seat,
         infants_on_lap=infants_on_lap,
+    )
+
+    return swoop.search_legs(
+        search_legs,
+        cabin=cabin,
+        passengers=pax,
         sort=sort_val,
         include_basic_economy=include_basic,
         timeout=timeout,
@@ -516,6 +525,12 @@ def price_cmd(
             if has_selector:
                 result = swoop.price_selector(selector, timeout=timeout, retries=retries, country=country, proxy=proxy)
             elif has_leg:
+                pax = swoop.Passengers(
+                    adults=passengers,
+                    children=children,
+                    infants_in_seat=infants_in_seat,
+                    infants_on_lap=infants_on_lap,
+                )
                 result = swoop.price_legs(
                     [
                         swoop.SelectedLeg(
@@ -527,10 +542,7 @@ def price_cmd(
                         for leg_origin, leg_dest, leg_date, leg_flight in leg
                     ],
                     cabin=cabin,
-                    adults=passengers,
-                    children=children,
-                    infants_in_seat=infants_in_seat,
-                    infants_on_lap=infants_on_lap,
+                    passengers=pax,
                     include_basic_economy=include_basic,
                     timeout=timeout,
                     retries=retries,
@@ -538,6 +550,12 @@ def price_cmd(
                     proxy=proxy,
                 )
             else:
+                pax = swoop.Passengers(
+                    adults=passengers,
+                    children=children,
+                    infants_in_seat=infants_in_seat,
+                    infants_on_lap=infants_on_lap,
+                )
                 result = swoop.check_price(
                     depart[1],
                     origin=origin,
@@ -546,10 +564,7 @@ def price_cmd(
                     return_flight_number=return_leg[1] if has_return else None,
                     return_date=return_leg[0] if has_return else None,
                     cabin=cabin,
-                    adults=passengers,
-                    children=children,
-                    infants_in_seat=infants_in_seat,
-                    infants_on_lap=infants_on_lap,
+                    passengers=pax,
                     max_stops=max_stops,
                     include_basic_economy=include_basic,
                     timeout=timeout,

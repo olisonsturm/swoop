@@ -32,6 +32,7 @@ from ._booking import (
 from .builders import CABIN_CLASS_MAP, CabinClass
 from .decoder import BookingOption, RawSearchResult, Itinerary, decode_result, _safe_get
 from .exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
+from .models import Passengers
 
 logger = logging.getLogger(__name__)
 
@@ -153,10 +154,7 @@ def _build_filters_from_legs(
     legs: list[dict[str, Any]],
     *,
     cabin: CabinClass = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     sort: int = SORT_TOP,
     exclude_basic_economy: bool = False,
 ) -> list[Any]:
@@ -174,7 +172,7 @@ def _build_filters_from_legs(
             None,                                    # [3] placeholder
             [],                                      # [4] empty array
             seat_type,                               # [5] seat type
-            [adults, children, infants_in_seat, infants_on_lap],  # [6] passengers
+            [passengers.adults, passengers.children, passengers.infants_in_seat, passengers.infants_on_lap],  # [6] passengers
             None,                                    # [7] price limit
             None,                                    # [8-12] placeholders
             None,
@@ -217,10 +215,7 @@ def _search_from_legs(
     legs: list[dict[str, Any]],
     *,
     cabin: CabinClass = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
     timeout: int = 90,
     retries: int = 2,
@@ -234,10 +229,7 @@ def _search_from_legs(
         _build_filters_from_legs(
             legs,
             cabin=cabin,
-            adults=adults,
-            children=children,
-            infants_in_seat=infants_in_seat,
-            infants_on_lap=infants_on_lap,
+            passengers=passengers,
             sort=sort,
             exclude_basic_economy=exclude_basic_economy,
         )
@@ -437,10 +429,7 @@ def search_raw(
     destination: str,
     date: str,
     cabin: CabinClass = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
     max_stops: Optional[int] = None,
     airlines: Optional[list[str]] = None,
@@ -475,7 +464,7 @@ def search_raw(
     """
     logger.debug(
         "search_raw %s->%s on %s (cabin=%s, adults=%d)",
-        origin, destination, date, cabin, adults,
+        origin, destination, date, cabin, passengers.adults,
     )
 
     legs = [
@@ -500,9 +489,7 @@ def search_raw(
         )
 
     return _search_from_legs(
-        legs, cabin=cabin, adults=adults,
-        children=children, infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
+        legs, cabin=cabin, passengers=passengers,
         sort=sort, timeout=timeout, retries=retries,
         exclude_basic_economy=exclude_basic_economy,
         country=country, proxy=proxy,
@@ -541,10 +528,7 @@ def get_booking_results(
     destination: str = "",
     date: str = "",
     cabin: CabinClass = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     max_stops: Optional[int] = None,
     airlines: Optional[list[str]] = None,
     earliest_departure: Optional[int] = None,
@@ -613,9 +597,7 @@ def get_booking_results(
         )
     ]
     filters = _build_filters_from_legs(
-        legs, cabin=cabin, adults=adults,
-        children=children, infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
+        legs, cabin=cabin, passengers=passengers,
         sort=SORT_DEPARTURE_TIME,
     )
     filter_block = filters[1]
@@ -644,10 +626,7 @@ def get_trip_booking_results(
     legs: list[dict[str, Any]],
     *,
     cabin: CabinClass = "economy",
-    adults: int = 1,
-    children: int = 0,
-    infants_in_seat: int = 0,
-    infants_on_lap: int = 0,
+    passengers: Passengers = Passengers(),
     timeout: int = 90,
     retries: int = 2,
     country: Optional[str] = None,
@@ -660,10 +639,7 @@ def get_trip_booking_results(
     filters = _build_filters_from_legs(
         legs,
         cabin=cabin,
-        adults=adults,
-        children=children,
-        infants_in_seat=infants_in_seat,
-        infants_on_lap=infants_on_lap,
+        passengers=passengers,
         sort=SORT_DEPARTURE_TIME,
     )
     inner = [[None, booking_token], filters[1], None, 0]

@@ -8,7 +8,7 @@ import base64
 
 import pytest
 
-from swoop.builders import ItinerarySummary, TFSData, SearchLeg, Passengers
+from swoop.builders import ItinerarySummary, TFSData, SearchLeg, _PBPassengers as Passengers
 from swoop import flights_pb2 as PB
 
 

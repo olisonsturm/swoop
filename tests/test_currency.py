@@ -93,7 +93,6 @@ class TestBuildTripOptionCurrency:
             request_legs,
             [itin],
             cabin="economy",
-            adults=1,
             include_basic_economy=False,
         )
         assert option.currency == "GBP"
@@ -113,7 +112,6 @@ class TestBuildTripOptionCurrency:
             request_legs,
             [itin],
             cabin="economy",
-            adults=1,
             include_basic_economy=False,
         )
         assert option.currency is None

@@ -9,6 +9,7 @@ import pytest
 import swoop._selection as selection
 import swoop.rpc as rpc
 from swoop.decoder import Itinerary, RawSearchResult
+from swoop.models import Passengers
 from tests.factories import make_simple_itinerary as _make_itinerary, make_raw_result as _raw_result
 
 
@@ -188,25 +189,23 @@ class TestGetClient:
 class TestPassengerTypePropagation:
     def test_build_filters_from_legs_includes_all_passenger_types(self):
         legs = [rpc._normalize_rpc_leg("JFK", "LAX", "2026-06-15")]
+        pax = Passengers(adults=2, children=1, infants_in_seat=1, infants_on_lap=1)
         filters = rpc._build_filters_from_legs(
             legs,
             cabin="economy",
-            adults=2,
-            children=1,
-            infants_in_seat=1,
-            infants_on_lap=1,
+            passengers=pax,
         )
-        passengers = filters[1][6]
-        assert passengers == [2, 1, 1, 1]
+        pax_array = filters[1][6]
+        assert pax_array == [2, 1, 1, 1]
 
     def test_build_filters_from_legs_defaults_to_zero(self):
         legs = [rpc._normalize_rpc_leg("JFK", "LAX", "2026-06-15")]
-        filters = rpc._build_filters_from_legs(legs, adults=1)
-        passengers = filters[1][6]
-        assert passengers == [1, 0, 0, 0]
+        filters = rpc._build_filters_from_legs(legs, passengers=Passengers(adults=1))
+        pax_array = filters[1][6]
+        assert pax_array == [1, 0, 0, 0]
 
     def test_search_from_legs_passes_passenger_types_to_filters(self, monkeypatch):
-        """Verify _search_from_legs passes children/infants to the filter builder."""
+        """Verify _search_from_legs passes passengers to the filter builder."""
         captured = {}
 
         original = rpc._build_filters_from_legs
@@ -219,36 +218,32 @@ class TestPassengerTypePropagation:
         monkeypatch.setattr(rpc, "_http_post", lambda *a, **kw: MagicMock(text=""))
         monkeypatch.setattr(rpc, "_parse_rpc_response", lambda text: None)
 
+        pax = Passengers(adults=2, children=1, infants_in_seat=1, infants_on_lap=1)
         rpc._search_from_legs(
             [rpc._normalize_rpc_leg("JFK", "LAX", "2026-06-15")],
-            adults=2,
-            children=1,
-            infants_in_seat=1,
-            infants_on_lap=1,
+            passengers=pax,
         )
 
-        assert captured["children"] == 1
-        assert captured["infants_in_seat"] == 1
-        assert captured["infants_on_lap"] == 1
+        assert captured["passengers"].children == 1
+        assert captured["passengers"].infants_in_seat == 1
+        assert captured["passengers"].infants_on_lap == 1
 
     def test_selector_round_trips_passenger_types(self):
         itin = _make_itinerary()
         request_legs = [{"origin": "JFK", "destination": "LAX", "date": "2026-06-15"}]
 
+        pax = Passengers(adults=2, children=1, infants_in_seat=1, infants_on_lap=1)
         selector = selection.encode_trip_selector(
             request_legs=request_legs,
             itineraries=[itin],
             cabin="economy",
-            adults=2,
-            children=1,
-            infants_in_seat=1,
-            infants_on_lap=1,
+            passengers=pax,
             include_basic_economy=False,
         )
         payload = selection.decode_trip_selector(selector)
-        assert payload["children"] == 1
-        assert payload["infants_in_seat"] == 1
-        assert payload["infants_on_lap"] == 1
+        assert payload["passengers"].children == 1
+        assert payload["passengers"].infants_in_seat == 1
+        assert payload["passengers"].infants_on_lap == 1
 
     def test_old_selector_without_passenger_types_defaults_to_zero(self):
         """Selectors created before passenger types should get 0 defaults."""
@@ -259,14 +254,14 @@ class TestPassengerTypePropagation:
             request_legs=request_legs,
             itineraries=[itin],
             cabin="economy",
-            adults=1,
+            passengers=Passengers(adults=1),
             include_basic_economy=False,
         )
         payload = selection.decode_trip_selector(selector)
         # Default passenger types should be 0
-        assert payload.get("children", 0) == 0
-        assert payload.get("infants_in_seat", 0) == 0
-        assert payload.get("infants_on_lap", 0) == 0
+        assert payload["passengers"].children == 0
+        assert payload["passengers"].infants_in_seat == 0
+        assert payload["passengers"].infants_on_lap == 0
 
 
 # ---------------------------------------------------------------------------
@@ -333,7 +328,7 @@ class TestProxyPropagation:
             request_legs=request_legs,
             itineraries=[itin],
             cabin="economy",
-            adults=1,
+            passengers=Passengers(adults=1),
             include_basic_economy=False,
         )
         call_kwargs: list[dict] = []
@@ -390,7 +385,7 @@ class TestProxyPropagation:
             request_legs=request_legs,
             itineraries=[itin],
             cabin="economy",
-            adults=1,
+            passengers=Passengers(adults=1),
             include_basic_economy=False,
         )
         resolve_kwargs: list[dict] = []
@@ -415,7 +410,7 @@ class TestProxyPropagation:
 
 class TestPassengerPropagation:
     def test_search_trip_options_passes_passengers_to_stage_searches(self, monkeypatch):
-        """Verify children/infants propagate to stage searches."""
+        """Verify passengers propagate to stage searches."""
         request_legs = [
             {"origin": "JFK", "destination": "LAX", "date": "2026-06-15"},
             {"origin": "LAX", "destination": "SFO", "date": "2026-06-18"},
@@ -432,19 +427,17 @@ class TestPassengerPropagation:
 
         monkeypatch.setattr(selection, "_search_from_legs", spy)
 
+        pax = Passengers(adults=2, children=1, infants_in_seat=1, infants_on_lap=1)
         selection.search_trip_options(
             request_legs,
-            adults=2,
-            children=1,
-            infants_in_seat=1,
-            infants_on_lap=1,
+            passengers=pax,
         )
 
-        # Both first pass and stage search should get passenger types
+        # Both first pass and stage search should get passengers object
         for kw in call_kwargs:
-            assert kw["children"] == 1
-            assert kw["infants_in_seat"] == 1
-            assert kw["infants_on_lap"] == 1
+            assert kw["passengers"].children == 1
+            assert kw["passengers"].infants_in_seat == 1
+            assert kw["passengers"].infants_on_lap == 1
 
     def test_resolve_selected_trip_passes_passengers(self, monkeypatch):
         itin = _make_itinerary()
@@ -456,14 +449,13 @@ class TestPassengerPropagation:
 
         monkeypatch.setattr(selection, "_search_from_legs", spy)
 
+        pax = Passengers(adults=1, children=1, infants_in_seat=2, infants_on_lap=1)
         selection.resolve_selected_trip(
             [{"origin": "JFK", "destination": "LAX", "date": "2026-06-15"}],
             [None],
-            children=1,
-            infants_in_seat=2,
-            infants_on_lap=1,
+            passengers=pax,
         )
 
-        assert call_kwargs[0]["children"] == 1
-        assert call_kwargs[0]["infants_in_seat"] == 2
-        assert call_kwargs[0]["infants_on_lap"] == 1
+        assert call_kwargs[0]["passengers"].children == 1
+        assert call_kwargs[0]["passengers"].infants_in_seat == 2
+        assert call_kwargs[0]["passengers"].infants_on_lap == 1

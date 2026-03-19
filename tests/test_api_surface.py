@@ -10,7 +10,7 @@ from dataclasses import fields
 import pytest
 
 import swoop
-from swoop import PriceResult, ResolvedLeg, SearchLeg, SearchResult, SelectedLeg, TripLeg, TripOption
+from swoop import Passengers, PriceResult, ResolvedLeg, SearchLeg, SearchResult, SelectedLeg, TripLeg, TripOption
 from swoop.decoder import (
     BookingOption,
     CarbonEmissions,
@@ -49,6 +49,7 @@ class TestFrozenExports:
         "itinerary_matches_flight",
         # Types
         "CabinClass",
+        "Passengers",
         "PriceResult",
         "RawSearchResult",
         "SearchResult",
@@ -209,6 +210,10 @@ class TestFrozenDataclassFields:
         expected = {"origin", "destination", "date", "itinerary"}
         assert self._field_names(TripLeg) == expected
 
+    def test_passengers_fields(self):
+        expected = {"adults", "children", "infants_in_seat", "infants_on_lap"}
+        assert self._field_names(Passengers) == expected
+
     def test_trip_option_fields(self):
         expected = {"selector", "price", "currency", "legs"}
         assert self._field_names(TripOption) == expected
@@ -222,8 +227,7 @@ class TestSearchSignature:
         param_names = list(sig.parameters.keys())
         expected = [
             "origin", "destination", "date",
-            "return_date", "cabin", "adults",
-            "children", "infants_in_seat", "infants_on_lap",
+            "return_date", "cabin", "passengers",
             "max_stops", "sort",
             "airlines", "flight_number", "include_basic_economy",
             "earliest_departure", "latest_departure",
@@ -240,8 +244,7 @@ class TestSearchSignature:
         param_names = list(sig.parameters.keys())
         expected = [
             "origin", "destination", "date",
-            "cabin", "adults",
-            "children", "infants_in_seat", "infants_on_lap",
+            "cabin", "passengers",
             "sort", "max_stops", "airlines",
             "earliest_departure", "latest_departure",
             "earliest_arrival", "latest_arrival",
@@ -259,8 +262,7 @@ class TestSearchSignature:
         expected = [
             "flight_number", "origin", "destination", "date",
             "return_flight_number", "return_date",
-            "cabin", "adults",
-            "children", "infants_in_seat", "infants_on_lap",
+            "cabin", "passengers",
             "max_stops", "include_basic_economy",
             "timeout", "retries",
             "country", "proxy",
@@ -271,8 +273,7 @@ class TestSearchSignature:
         sig = inspect.signature(swoop.search_legs)
         param_names = list(sig.parameters.keys())
         expected = [
-            "legs", "cabin", "adults",
-            "children", "infants_in_seat", "infants_on_lap",
+            "legs", "cabin", "passengers",
             "sort",
             "include_basic_economy", "timeout", "retries",
             "country", "proxy",
@@ -284,8 +285,7 @@ class TestSearchSignature:
         sig = inspect.signature(swoop.price_legs)
         param_names = list(sig.parameters.keys())
         expected = [
-            "legs", "cabin", "adults",
-            "children", "infants_in_seat", "infants_on_lap",
+            "legs", "cabin", "passengers",
             "include_basic_economy", "timeout", "retries",
             "country", "proxy",
         ]

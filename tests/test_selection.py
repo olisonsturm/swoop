@@ -9,6 +9,7 @@ import pytest
 
 import swoop._selection as selection
 from swoop.decoder import BookingOption, Itinerary, RawSearchResult
+from swoop.models import Passengers
 from tests.factories import make_simple_itinerary as _make_itinerary, make_raw_result as _raw_result
 
 
@@ -69,7 +70,7 @@ class TestSelectorEncoding:
             request_legs=request_legs,
             itineraries=[outbound, onward],
             cabin="business",
-            adults=2,
+            passengers=Passengers(adults=2),
             include_basic_economy=False,
         )
         payload = selection.decode_trip_selector(selector_value)
@@ -94,7 +95,7 @@ class TestSelectorEncoding:
             selection._build_selected_legs(onward),
         ]
         assert payload["cabin"] == "business"
-        assert payload["adults"] == 2
+        assert payload["passengers"].adults == 2
         assert payload["include_basic_economy"] is False
         assert payload["booking_token_hint"] == "token-on"
 
@@ -297,7 +298,7 @@ class TestSelectorReplay:
             request_legs=request_legs,
             itineraries=[outbound, expected_onward],
             cabin="economy",
-            adults=1,
+            passengers=Passengers(adults=1),
             include_basic_economy=False,
         )
 

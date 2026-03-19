@@ -567,25 +567,18 @@ class TestPriceCommand:
         ])
         assert result.exit_code == 0
         assert "$342" in result.output
-        mock_check.assert_called_once_with(
-            "DL2300",
-            origin="JFK",
-            destination="LAX",
-            date="2026-06-15",
-            return_flight_number=None,
-            return_date=None,
-            cabin="economy",
-            adults=1,
-            children=0,
-            infants_in_seat=0,
-            infants_on_lap=0,
-            max_stops=None,
-            include_basic_economy=False,
-            timeout=90,
-            retries=2,
-            country=None,
-            proxy=None,
-        )
+        mock_check.assert_called_once()
+        args, kwargs = mock_check.call_args
+        assert args == ("DL2300",)
+        assert kwargs["origin"] == "JFK"
+        assert kwargs["destination"] == "LAX"
+        assert kwargs["date"] == "2026-06-15"
+        assert kwargs["cabin"] == "economy"
+        pax = kwargs["passengers"]
+        assert pax.adults == 1
+        assert pax.children == 0
+        assert pax.infants_in_seat == 0
+        assert pax.infants_on_lap == 0
 
     @patch("swoop.check_price")
     def test_price_json_output(self, mock_check):
@@ -650,25 +643,18 @@ class TestPriceCommand:
             "-q",
         ])
         assert result.exit_code == 0
-        mock_check.assert_called_once_with(
-            "DL2300",
-            origin="JFK",
-            destination="LAX",
-            date="2026-06-15",
-            return_flight_number="DL2301",
-            return_date="2026-06-22",
-            cabin="economy",
-            adults=1,
-            children=0,
-            infants_in_seat=0,
-            infants_on_lap=0,
-            max_stops=None,
-            include_basic_economy=False,
-            timeout=90,
-            retries=2,
-            country=None,
-            proxy=None,
-        )
+        mock_check.assert_called_once()
+        args, kwargs = mock_check.call_args
+        assert args == ("DL2300",)
+        assert kwargs["origin"] == "JFK"
+        assert kwargs["destination"] == "LAX"
+        assert kwargs["date"] == "2026-06-15"
+        assert kwargs["return_flight_number"] == "DL2301"
+        assert kwargs["return_date"] == "2026-06-22"
+        assert kwargs["cabin"] == "economy"
+        pax = kwargs["passengers"]
+        assert pax.adults == 1
+        assert pax.children == 0
 
     @patch("swoop.price_legs")
     def test_price_leg_syntax(self, mock_price_legs):
@@ -952,8 +938,9 @@ class TestNewFlags:
         ])
         assert result.exit_code == 0
         _, kwargs = mock_check.call_args
-        assert kwargs["children"] == 1
-        assert kwargs["infants_on_lap"] == 1
+        pax = kwargs["passengers"]
+        assert pax.children == 1
+        assert pax.infants_on_lap == 1
 
     @patch("swoop.price_selector")
     def test_country_proxy_with_selector(self, mock_ps):

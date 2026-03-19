@@ -11,7 +11,7 @@ import urllib.parse
 
 import pytest
 
-from swoop.builders import ItinerarySummary, TFSData, SearchLeg, Passengers
+from swoop.builders import ItinerarySummary, TFSData, SearchLeg, _PBPassengers as Passengers
 from swoop.decoder import decode_result, _decode_segment, _safe_get
 from swoop.rpc import _build_filters_from_legs, _normalize_rpc_leg, _encode_f_req_payload
 
