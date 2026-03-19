@@ -13,7 +13,7 @@ from swoop.decoder import (
     _decode_itinerary,
     _decode_layover,
     decode_result,
-    SearchResult,
+    RawSearchResult,
 )
 from tests.factories import make_flight_segment, make_itinerary_element, make_full_response
 
@@ -122,36 +122,36 @@ class TestCorruptFullResponse:
         corrupted = copy.deepcopy(valid_response)
         corrupted[index] = None
         result = decode_result(corrupted)
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
 
     def test_best_list_is_string(self, valid_response):
         corrupted = copy.deepcopy(valid_response)
         corrupted[2] = "not a list"
         result = decode_result(corrupted)
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
         assert result.best == []
 
     def test_best_list_is_empty(self, valid_response):
         corrupted = copy.deepcopy(valid_response)
         corrupted[2] = [[]]
         result = decode_result(corrupted)
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
         assert result.best == []
 
     def test_all_none(self):
         result = decode_result([None, None, None, None])
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
         assert result.best == []
         assert result.other == []
 
     def test_empty_list(self):
         result = decode_result([])
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
         assert result.best == []
 
     def test_nested_nones(self):
         result = decode_result([None, None, [[None, None, None]], [[None]]])
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
 
 
 class TestCorruptLayover:

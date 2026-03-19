@@ -13,7 +13,7 @@ import pytest
 from swoop.decoder import (
     AmenityFlags,
     Codeshare,
-    SearchResult,
+    RawSearchResult,
     Flight,
     Itinerary,
     Layover,
@@ -175,7 +175,7 @@ class TestDecodeEdgeCases:
 
     def test_decode_result_empty(self):
         result = decode_result([None, None, None, None])
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
         assert len(result.best) == 0
         assert len(result.other) == 0
 
@@ -183,7 +183,7 @@ class TestDecodeEdgeCases:
         """Malformed itinerary elements in the list are skipped, not fatal."""
         data = [None, None, [["not a real itinerary"]], None]
         result = decode_result(data)
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
 
     def test_decode_result_preserves_raw(self):
         data = [None, None, None, None]
@@ -358,7 +358,7 @@ class TestDecodeResultFromFixtures:
         return decode_result(data)
 
     def test_returns_search_result(self, result):
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
 
     def test_has_itineraries(self, result, fixture_name):
         if fixture_name == "shopping_empty.json":

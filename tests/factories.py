@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import urllib.parse
 
-from swoop.decoder import Flight, Itinerary, RawSearchResult, SearchResult
+from swoop.decoder import Flight, Itinerary, RawSearchResult
 
 
 # ---------------------------------------------------------------------------
@@ -232,9 +232,9 @@ def make_raw_result(*itineraries: Itinerary) -> RawSearchResult:
     return RawSearchResult(_raw=[], best=list(itineraries), other=[])
 
 
-def make_search_result(best=None, other=None) -> SearchResult:
-    """Build a SearchResult with defaults."""
-    return SearchResult(_raw=[], best=best or [], other=other or [])
+def make_search_result(best=None, other=None) -> RawSearchResult:
+    """Build a RawSearchResult with defaults."""
+    return RawSearchResult(_raw=[], best=best or [], other=other or [])
 
 
 # ---------------------------------------------------------------------------

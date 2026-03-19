@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from swoop.decoder import decode_result, SearchResult
+from swoop.decoder import decode_result, RawSearchResult
 
 
 FIXTURES = Path(__file__).parent / "fixtures" / "responses"
@@ -24,7 +24,7 @@ class TestGoldenOneWay:
         self.result = decode_result(self.data)
 
     def test_returns_search_result(self):
-        assert isinstance(self.result, SearchResult)
+        assert isinstance(self.result, RawSearchResult)
 
     def test_best_count(self):
         assert len(self.result.best) == 2
@@ -161,7 +161,7 @@ class TestGoldenEmpty:
 
     def test_empty_returns_search_result(self):
         result = decode_result(_load_fixture("shopping_empty.json"))
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
 
     def test_empty_price_range_is_none(self):
         result = decode_result(_load_fixture("shopping_empty.json"))

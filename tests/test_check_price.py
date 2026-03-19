@@ -9,7 +9,7 @@ import pytest
 
 import swoop
 from swoop import check_price, PriceResult
-from swoop.decoder import BookingOption, Flight, Itinerary, SearchResult
+from swoop.decoder import BookingOption, Flight, Itinerary, RawSearchResult
 from swoop.exceptions import SwoopRateLimitError
 
 from tests.factories import (
@@ -136,8 +136,8 @@ class TestCheckPriceRoundtrip:
             booking_token="return-token",
         )
 
-        outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
-        return_result = SearchResult(_raw=[], best=[return_itin], other=[])
+        outbound_result = RawSearchResult(_raw=[], best=[outbound_itin], other=[])
+        return_result = RawSearchResult(_raw=[], best=[return_itin], other=[])
         booking_options = [
             BookingOption(price=684, brand_label="Main Cabin", is_basic=False, _cabin_bucket="economy"),
             BookingOption(price=580, brand_label="Basic Economy", is_basic=True, _cabin_bucket="economy"),
@@ -193,8 +193,8 @@ class TestCheckPriceRoundtrip:
             direct_price=700,
             booking_token="return-token",
         )
-        outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
-        return_result = SearchResult(_raw=[], best=[return_itin], other=[])
+        outbound_result = RawSearchResult(_raw=[], best=[outbound_itin], other=[])
+        return_result = RawSearchResult(_raw=[], best=[return_itin], other=[])
 
         search_calls = []
 
@@ -239,8 +239,8 @@ class TestCheckPriceRoundtrip:
             booking_token="return-token",
         )
 
-        outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
-        return_result = SearchResult(_raw=[], best=[return_itin], other=[])
+        outbound_result = RawSearchResult(_raw=[], best=[outbound_itin], other=[])
+        return_result = RawSearchResult(_raw=[], best=[return_itin], other=[])
         booking_options = [
             BookingOption(price=684, brand_label="Main Cabin", is_basic=False, _cabin_bucket="economy"),
             BookingOption(price=580, brand_label="Basic Economy", is_basic=True, _cabin_bucket="economy"),
@@ -285,8 +285,8 @@ class TestCheckPriceRoundtrip:
             direct_price=1400,
             booking_token="return-token",
         )
-        outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
-        return_result = SearchResult(_raw=[], best=[return_itin], other=[])
+        outbound_result = RawSearchResult(_raw=[], best=[outbound_itin], other=[])
+        return_result = RawSearchResult(_raw=[], best=[return_itin], other=[])
         booking_options = [
             BookingOption(price=520, brand_label="Main Cabin", is_basic=False, _cabin_bucket="economy"),
             BookingOption(price=1450, brand_label="Delta One", is_basic=False, _cabin_bucket="business"),
@@ -311,7 +311,7 @@ class TestCheckPriceRoundtrip:
 
     def test_roundtrip_returns_none_when_outbound_not_found(self):
         """Returns None if outbound flight not found."""
-        empty_result = SearchResult(_raw=[], best=[], other=[])
+        empty_result = RawSearchResult(_raw=[], best=[], other=[])
 
         with patch("swoop._selection._search_from_legs", return_value=empty_result):
             result = check_price(
@@ -344,8 +344,8 @@ class TestCheckPriceRoundtrip:
             booking_token="return-token",
         )
 
-        outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
-        return_result = SearchResult(_raw=[], best=[return_itin], other=[])
+        outbound_result = RawSearchResult(_raw=[], best=[outbound_itin], other=[])
+        return_result = RawSearchResult(_raw=[], best=[return_itin], other=[])
 
         def mock_search_from_legs(legs, **kwargs):
             if legs[0].get("selected_legs") is not None:

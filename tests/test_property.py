@@ -16,7 +16,7 @@ from swoop.decoder import (
     Itinerary,
     Layover,
     decode_result,
-    SearchResult,
+    RawSearchResult,
 )
 from swoop._validate import (
     validate_cabin,
@@ -118,13 +118,13 @@ class TestDecodeLayoverProperty:
 
 
 class TestDecodeResultProperty:
-    """decode_result must always return a SearchResult."""
+    """decode_result must always return a RawSearchResult."""
 
     @given(data=nested_lists)
     @settings(max_examples=100, suppress_health_check=[HealthCheck.too_slow])
     def test_always_returns_search_result(self, data):
         result = decode_result(data)
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
         assert isinstance(result.best, list)
         assert isinstance(result.other, list)
         assert all(isinstance(itinerary, Itinerary) for itinerary in result.best + result.other)
