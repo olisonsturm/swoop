@@ -122,7 +122,7 @@ class TestSearchFormatters:
         out = capsys.readouterr().out
         assert "JFK -> LAX" in out
         assert "LAX -> SFO" in out
-        assert "Results are truncated" in out
+        assert "Results truncated" in out
         assert "swoop price --selector 'selector-1'" in out
 
 

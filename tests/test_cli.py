@@ -879,6 +879,272 @@ class TestCurrencyDisplay:
 
 
 # ---------------------------------------------------------------------------
+# New flag tests
+# ---------------------------------------------------------------------------
+
+
+class TestNewFlags:
+    @patch("swoop.cli.commands._run_search")
+    def test_country_flag_search(self, mock_search):
+        mock_search.return_value = _make_search_result(1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "--country", "GB", "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        _, kwargs = mock_search.call_args
+        assert kwargs["country"] == "GB"
+
+    @patch("swoop.cli.commands._run_search")
+    def test_proxy_flag_search(self, mock_search):
+        mock_search.return_value = _make_search_result(1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "--proxy", "socks5://localhost:1080", "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        _, kwargs = mock_search.call_args
+        assert kwargs["proxy"] == "socks5://localhost:1080"
+
+    @patch("swoop.cli.commands._run_search")
+    def test_children_flag_search(self, mock_search):
+        mock_search.return_value = _make_search_result(1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "--children", "2", "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        _, kwargs = mock_search.call_args
+        assert kwargs["children"] == 2
+
+    @patch("swoop.cli.commands._run_search")
+    def test_infants_flags_search(self, mock_search):
+        mock_search.return_value = _make_search_result(1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15",
+            "--infants-in-seat", "1", "--infants-on-lap", "1",
+            "-o", "json", "-q",
+        ])
+        assert result.exit_code == 0
+        _, kwargs = mock_search.call_args
+        assert kwargs["infants_in_seat"] == 1
+        assert kwargs["infants_on_lap"] == 1
+
+    @patch("swoop.check_price")
+    def test_country_flag_price(self, mock_check):
+        mock_check.return_value = PriceResult(price=342, currency="GBP", fare_brand="Main Cabin", rpc_calls=1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300",
+            "--country", "GB", "-q",
+        ])
+        assert result.exit_code == 0
+        _, kwargs = mock_check.call_args
+        assert kwargs["country"] == "GB"
+
+    @patch("swoop.check_price")
+    def test_children_flag_price(self, mock_check):
+        mock_check.return_value = PriceResult(price=342, currency="USD", fare_brand="Main Cabin", rpc_calls=1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "price", "JFK", "LAX", "--depart", "2026-06-15", "DL2300",
+            "--children", "1", "--infants-on-lap", "1", "-q",
+        ])
+        assert result.exit_code == 0
+        _, kwargs = mock_check.call_args
+        assert kwargs["children"] == 1
+        assert kwargs["infants_on_lap"] == 1
+
+    @patch("swoop.price_selector")
+    def test_country_proxy_with_selector(self, mock_ps):
+        mock_ps.return_value = PriceResult(price=342, fare_brand="Main Cabin", rpc_calls=1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "price", "--selector", "sel-1",
+            "--country", "DE", "--proxy", "http://proxy:8080", "-q",
+        ])
+        assert result.exit_code == 0
+        mock_ps.assert_called_once_with(
+            "sel-1", timeout=90, retries=2, country="DE", proxy="http://proxy:8080",
+        )
+
+    def test_search_help_shows_new_flags(self):
+        runner = CliRunner()
+        result = runner.invoke(main, ["search", "--help"])
+        assert result.exit_code == 0
+        assert "--country" in result.output
+        assert "--proxy" in result.output
+        assert "--children" in result.output
+        assert "--infants-in-seat" in result.output
+        assert "--infants-on-lap" in result.output
+
+    def test_price_help_shows_new_flags(self):
+        runner = CliRunner()
+        result = runner.invoke(main, ["price", "--help"])
+        assert result.exit_code == 0
+        assert "--country" in result.output
+        assert "--proxy" in result.output
+        assert "--children" in result.output
+        assert "--infants-in-seat" in result.output
+        assert "--infants-on-lap" in result.output
+
+    def test_price_help_shows_selector_example(self):
+        runner = CliRunner()
+        result = runner.invoke(main, ["price", "--help"])
+        assert result.exit_code == 0
+        assert "Selector syntax" in result.output
+        assert "swoop price --selector" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Enriched output tests
+# ---------------------------------------------------------------------------
+
+
+class TestEnrichedOutput:
+    @patch("swoop.cli.commands._run_search")
+    def test_brief_shows_duration_and_stops(self, mock_search):
+        mock_search.return_value = _make_search_result()
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-o", "brief", "-q",
+        ])
+        assert result.exit_code == 0
+        lines = result.output.strip().split("\n")
+        # First line should have duration and Nonstop
+        assert "5h 15m" in lines[0]
+        assert "Nonstop" in lines[0]
+
+    @patch("swoop.cli.commands._run_search")
+    def test_brief_shows_stops_for_connecting(self, mock_search):
+        mock_search.return_value = SearchResult(
+            results=[_make_trip_option(_make_connecting_itinerary(), index=1)],
+        )
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-o", "brief", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "1 stop" in result.output
+
+    @patch("swoop.cli.commands._run_search")
+    def test_csv_has_new_columns(self, mock_search):
+        mock_search.return_value = _make_search_result()
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-o", "csv", "-q",
+        ])
+        assert result.exit_code == 0
+        lines = result.output.strip().split("\n")
+        header = lines[0]
+        assert "duration_minutes" in header
+        assert "stops" in header
+        assert "departure_time" in header
+        assert "arrival_time" in header
+        assert "airlines" in header
+        # Data row should have duration value
+        assert "315" in lines[1]  # travel_time=315
+
+    @patch("swoop.cli.commands._run_search")
+    def test_table_shows_co2_column(self, mock_search):
+        itin = _make_itinerary(
+            carbon_emissions=CarbonEmissions(
+                this_flight_grams=150000,
+                typical_for_route_grams=170000,
+                difference_percent=-12,
+            ),
+        )
+        option = _make_trip_option(itin, index=1)
+        mock_search.return_value = SearchResult(results=[option])
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "-12%" in result.output
+
+    @patch("swoop.cli.commands._run_search")
+    def test_table_co2_absent_shows_dash(self, mock_search):
+        mock_search.return_value = _make_search_result(1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 0
+        # CO2 column header should be present
+        assert "CO2" in result.output
+
+    @patch("swoop.cli.commands._run_search")
+    def test_table_shows_legroom_nonstop(self, mock_search):
+        """Nonstop flights show legroom in the trip line."""
+        mock_search.return_value = _make_search_result(1)
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "32 inches" in result.output
+
+    @patch("swoop.cli.commands._run_search")
+    def test_table_overnight_layover(self, mock_search):
+        """Overnight layovers are indicated."""
+        f1 = _make_segment(
+            departure_airport_code="JFK", arrival_airport_code="ORD",
+            departure_time=(22, 0), arrival_time=(23, 45),
+        )
+        f2 = _make_segment(
+            departure_airport_code="ORD", arrival_airport_code="LAX",
+            departure_time=(7, 0), arrival_time=(9, 15),
+        )
+        lay = Layover(
+            minutes=435,
+            departure_airport_code="ORD",
+            departure_airport_name="O'Hare International Airport",
+            is_overnight=True,
+        )
+        itin = Itinerary(
+            airline_code="DL",
+            airline_names=["Delta Air Lines"],
+            segments=[f1, f2],
+            layovers=[lay],
+            travel_time=675,
+            departure_airport_code="JFK",
+            arrival_airport_code="LAX",
+            departure_date=(2026, 6, 15),
+            arrival_date=(2026, 6, 16),
+            departure_time=(22, 0),
+            arrival_time=(9, 15),
+            direct_price=180,
+            booking_token="token-ov",
+            stop_count=1,
+        )
+        option = _make_trip_option(itin, index=1)
+        mock_search.return_value = SearchResult(results=[option])
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "overnight" in result.output.lower()
+
+    @patch("swoop.cli.commands._run_search")
+    def test_truncation_message_actionable(self, mock_search):
+        """Truncated results show actionable guidance."""
+        mock_search.return_value = SearchResult(
+            results=[_make_trip_option(_make_itinerary(), index=1)],
+            is_complete=False,
+        )
+        runner = CliRunner()
+        result = runner.invoke(main, [
+            "search", "JFK", "LAX", "2026-06-15", "-q",
+        ])
+        assert result.exit_code == 0
+        assert "--max-results" in result.output
+        assert "--time-budget" in result.output
+
+
+# ---------------------------------------------------------------------------
 # __main__ entry point
 # ---------------------------------------------------------------------------
 

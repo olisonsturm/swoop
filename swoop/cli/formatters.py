@@ -136,7 +136,10 @@ def _trip_leg_line(leg) -> str:
     arr_suffix = "+1" if has_overnight else ""
     duration = format_duration(itinerary.travel_time)
     stops = itinerary.stop_count if itinerary.stop_count is not None else len(itinerary.layovers)
+    has_overnight_layover = any(getattr(lay, "is_overnight", False) for lay in itinerary.layovers)
     stop_str = "Nonstop" if stops == 0 else f"{stops} stop{'s' if stops > 1 else ''}"
+    if has_overnight_layover:
+        stop_str += " (overnight)"
     # Show legroom for nonstop flights with a single segment
     legroom_str = ""
     if stops == 0 and itinerary.segments and len(itinerary.segments) == 1:
