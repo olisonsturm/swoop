@@ -223,6 +223,7 @@ class TestSearchSignature:
             "return_earliest_departure", "return_latest_departure",
             "timeout", "retries",
             "country", "proxy",
+            "max_results", "beam_width", "time_budget",
         ]
         assert param_names == expected
 
@@ -267,6 +268,7 @@ class TestSearchSignature:
             "sort",
             "include_basic_economy", "timeout", "retries",
             "country", "proxy",
+            "max_results", "beam_width", "time_budget",
         ]
         assert param_names == expected
 

@@ -160,6 +160,9 @@ def _search_with_normalized_legs(
     correct_roundtrip_prices: bool = False,
     country: Optional[str] = None,
     proxy: Optional[str] = None,
+    max_results: Optional[int] = None,
+    beam_width: Optional[int] = None,
+    time_budget: Optional[int] = None,
 ) -> SearchResult:
     """Execute a staged trip search from normalized leg definitions."""
     return search_trip_options(
@@ -176,6 +179,9 @@ def _search_with_normalized_legs(
         retries=retries,
         country=country,
         proxy=proxy,
+        max_results=max_results,
+        beam_width=beam_width,
+        time_budget=time_budget,
     )
 
 
@@ -193,6 +199,9 @@ def search_legs(
     retries: int = 2,
     country: Optional[str] = None,
     proxy: Optional[str] = None,
+    max_results: Optional[int] = None,
+    beam_width: Optional[int] = None,
+    time_budget: Optional[int] = None,
 ) -> SearchResult:
     """Search Google Flights using explicit leg definitions.
 
@@ -211,6 +220,12 @@ def search_legs(
             Overrides the default set via :func:`set_country`.
         proxy: Proxy URL for this request.  Overrides the module-level
             default set via :func:`set_proxy`.
+        max_results: Maximum trip combinations the beam search targets
+            (default 10).  Only affects multi-leg (3+ city) searches.
+        beam_width: Number of candidate prefixes carried between stages
+            (default 15).  Only affects multi-leg searches.
+        time_budget: Seconds before the beam search stops exploring
+            (default 90).  Only affects multi-leg searches.
 
     Returns:
         A trip-level :class:`SearchResult` with shopping totals.
@@ -241,6 +256,9 @@ def search_legs(
         retries=retries,
         country=country,
         proxy=proxy,
+        max_results=max_results,
+        beam_width=beam_width,
+        time_budget=time_budget,
     )
 
 
@@ -270,6 +288,9 @@ def search(
     retries: int = 2,
     country: Optional[str] = None,
     proxy: Optional[str] = None,
+    max_results: Optional[int] = None,
+    beam_width: Optional[int] = None,
+    time_budget: Optional[int] = None,
 ) -> SearchResult:
     """Search Google Flights and return decoded results.
 
@@ -306,6 +327,12 @@ def search(
             default set via :func:`set_country`.
         proxy: Proxy URL for this request.  Overrides the module-level
             default set via :func:`set_proxy`.
+        max_results: Maximum trip combinations the beam search targets
+            (default 10).  Only affects multi-leg (3+ city) searches.
+        beam_width: Number of candidate prefixes carried between stages
+            (default 15).  Only affects multi-leg searches.
+        time_budget: Seconds before the beam search stops exploring
+            (default 90).  Only affects multi-leg searches.
 
     Returns:
         A trip-level :class:`SearchResult` with shopping totals.
@@ -396,6 +423,9 @@ def search(
         retries=retries,
         country=country,
         proxy=proxy,
+        max_results=max_results,
+        beam_width=beam_width,
+        time_budget=time_budget,
     )
 
     if parsed_number is not None:
