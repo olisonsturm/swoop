@@ -287,6 +287,7 @@ def _classify_fare_family(brand_code: str, brand_label: str, *, is_basic: bool) 
     return "unknown"
 
 
+# Inverse of rpc.CABIN_CLASS_MAP — kept in sync manually to avoid circular import.
 _CABIN_NUM_TO_BUCKET: dict[int, str] = {
     1: "economy",
     2: "premium-economy",
