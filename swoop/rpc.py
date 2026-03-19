@@ -29,6 +29,7 @@ from ._booking import (
     _skip_wire_value,
     parse_booking_payload,
 )
+from .builders import CABIN_CLASS_MAP
 from .decoder import BookingOption, RawSearchResult, Itinerary, decode_result, _safe_get
 from .exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
 
@@ -42,14 +43,6 @@ BOOKING_RPC_URL = (
     "https://www.google.com/_/FlightsFrontendUi/data/"
     "travel.frontend.flights.FlightsFrontendService/GetBookingResults"
 )
-
-# Cabin class mapping (matches Google Flights internal values)
-CABIN_CLASS_MAP = {
-    "economy": 1,
-    "premium-economy": 2,
-    "business": 3,
-    "first": 4,
-}
 
 # Sort order values
 SORT_TOP = 1

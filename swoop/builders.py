@@ -13,6 +13,14 @@ from . import flights_pb2 as PB
 
 AIRLINE_ALLIANCES = ["SKYTEAM", "STAR_ALLIANCE", "ONEWORLD"]
 
+# Cabin class mapping (matches Google Flights internal Seat enum values)
+CABIN_CLASS_MAP = {
+    "economy": 1,
+    "premium-economy": 2,
+    "business": 3,
+    "first": 4,
+}
+
 
 class SearchLeg:
     """A search leg defining origin, destination, date, and optional filters.

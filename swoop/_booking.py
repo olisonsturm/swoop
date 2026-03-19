@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any
 
-from .builders import ItinerarySummary
+from .builders import CABIN_CLASS_MAP, ItinerarySummary
 from .decoder import BookingOption, _safe_get
 
 logger = logging.getLogger(__name__)
@@ -287,13 +287,7 @@ def _classify_fare_family(brand_code: str, brand_label: str, *, is_basic: bool) 
     return "unknown"
 
 
-# Inverse of rpc.CABIN_CLASS_MAP — kept in sync manually to avoid circular import.
-_CABIN_NUM_TO_BUCKET: dict[int, str] = {
-    1: "economy",
-    2: "premium-economy",
-    3: "business",
-    4: "first",
-}
+_CABIN_NUM_TO_BUCKET: dict[int, str] = {v: k for k, v in CABIN_CLASS_MAP.items()}
 
 
 def _cabin_bucket_from_brand_block(brand_block: list) -> str:
