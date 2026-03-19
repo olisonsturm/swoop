@@ -138,7 +138,11 @@ def _trip_leg_line(leg) -> str:
     if itinerary is None:
         return f"{leg.origin}->{leg.destination} ({leg.date})"
     dep = _format_clock(itinerary.departure_time)
+    if dep is None and itinerary.segments:
+        dep = _format_clock(itinerary.segments[0].departure_time)
     arr = _format_clock(itinerary.arrival_time)
+    if arr is None and itinerary.segments:
+        arr = _format_clock(itinerary.segments[-1].arrival_time)
     has_overnight = any(getattr(seg, "overnight", False) for seg in itinerary.segments)
     arr_suffix = "+1" if has_overnight else ""
     duration = format_duration(itinerary.travel_time)
@@ -265,8 +269,14 @@ def format_search_table(
                     _co2_text(option) if is_first else Text(""),
                 )
                 continue
-            dep = _format_clock(itin.departure_time) or "?"
-            arr = _format_clock(itin.arrival_time) or "?"
+            dep = _format_clock(itin.departure_time)
+            if dep is None and itin.segments:
+                dep = _format_clock(itin.segments[0].departure_time)
+            dep = dep or "?"
+            arr = _format_clock(itin.arrival_time)
+            if arr is None and itin.segments:
+                arr = _format_clock(itin.segments[-1].arrival_time)
+            arr = arr or "?"
             has_overnight = any(getattr(seg, "overnight", False) for seg in itin.segments)
             if has_overnight:
                 arr += "+1"
