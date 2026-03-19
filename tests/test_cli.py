@@ -577,10 +577,15 @@ class TestPriceCommand:
             return_date=None,
             cabin="economy",
             adults=1,
+            children=0,
+            infants_in_seat=0,
+            infants_on_lap=0,
             max_stops=None,
             include_basic_economy=False,
             timeout=90,
             retries=2,
+            country=None,
+            proxy=None,
         )
 
     @patch("swoop.check_price")
@@ -655,10 +660,15 @@ class TestPriceCommand:
             return_date="2026-06-22",
             cabin="economy",
             adults=1,
+            children=0,
+            infants_in_seat=0,
+            infants_on_lap=0,
             max_stops=None,
             include_basic_economy=False,
             timeout=90,
             retries=2,
+            country=None,
+            proxy=None,
         )
 
     @patch("swoop.price_legs")
@@ -728,7 +738,7 @@ class TestPriceCommand:
             "price", "--selector", "selector-1", "-q",
         ])
         assert result.exit_code == 0
-        mock_price_selector.assert_called_once_with("selector-1", timeout=90, retries=2)
+        mock_price_selector.assert_called_once_with("selector-1", timeout=90, retries=2, country=None, proxy=None)
 
 
 # ---------------------------------------------------------------------------

@@ -20,11 +20,13 @@ def _err_console(no_color: bool = False) -> Console:
 
 def _run_search(
     origin, destination, date, *,
-    return_date, cabin, passengers, sort, nonstop, max_stops,
+    return_date, cabin, passengers, children, infants_in_seat, infants_on_lap,
+    sort, nonstop, max_stops,
     airline, flight_number, include_basic,
     depart_after, depart_before, arrive_after, arrive_before,
     return_depart_after, return_depart_before,
     timeout, retries,
+    country, proxy,
     max_results, beam_width, time_budget,
 ):
     """Run swoop.search() with the given parameters. Returns the result."""
@@ -44,6 +46,9 @@ def _run_search(
         return_date=return_date,
         cabin=cabin,
         adults=passengers,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         sort=sort_val,
         max_stops=stops,
         airlines=airlines,
@@ -57,6 +62,8 @@ def _run_search(
         return_latest_departure=return_depart_before,
         timeout=timeout,
         retries=retries,
+        country=country,
+        proxy=proxy,
         max_results=max_results,
         beam_width=beam_width,
         time_budget=time_budget,
@@ -68,6 +75,9 @@ def _run_search_legs(
     *,
     cabin,
     passengers,
+    children,
+    infants_in_seat,
+    infants_on_lap,
     sort,
     nonstop,
     max_stops,
@@ -75,6 +85,8 @@ def _run_search_legs(
     include_basic,
     timeout,
     retries,
+    country,
+    proxy,
     max_results,
     beam_width,
     time_budget,
@@ -102,10 +114,15 @@ def _run_search_legs(
         search_legs,
         cabin=cabin,
         adults=passengers,
+        children=children,
+        infants_in_seat=infants_in_seat,
+        infants_on_lap=infants_on_lap,
         sort=sort_val,
         include_basic_economy=include_basic,
         timeout=timeout,
         retries=retries,
+        country=country,
+        proxy=proxy,
         max_results=max_results,
         beam_width=beam_width,
         time_budget=time_budget,
@@ -156,6 +173,11 @@ def _search_options(f):
         click.option("--arrive-before", type=click.IntRange(1, 24), default=None, help="Latest arrival hour (1-24)."),
         click.option("--return-depart-after", type=click.IntRange(0, 23), default=None, help="Return departure window start."),
         click.option("--return-depart-before", type=click.IntRange(1, 24), default=None, help="Return departure window end."),
+        click.option("--children", type=int, default=0, show_default=True, help="Number of children (2-11)."),
+        click.option("--infants-in-seat", type=int, default=0, show_default=True, help="Number of infants in seat."),
+        click.option("--infants-on-lap", type=int, default=0, show_default=True, help="Number of infants on lap."),
+        click.option("--country", type=str, default=None, help="Point-of-sale country code (e.g. GB, DE). Affects currency and fares."),
+        click.option("--proxy", type=str, default=None, help="HTTP/SOCKS5 proxy URL."),
         click.option("--timeout", type=int, default=90, show_default=True, help="HTTP timeout in seconds."),
         click.option("--retries", type=int, default=2, show_default=True, help="Retries on rate limit."),
         click.option("--max-results", type=int, default=None, help="Max trip combinations for beam search (multi-city)."),
@@ -196,10 +218,12 @@ def _output_options(formats: list[str]):
 def search_cmd(
     ctx, origin, destination, date,
     leg,
-    return_date, cabin, passengers, sort, nonstop, max_stops,
+    return_date, cabin, passengers, children, infants_in_seat, infants_on_lap,
+    sort, nonstop, max_stops,
     airline, flight_number, include_basic,
     depart_after, depart_before, arrive_after, arrive_before,
     return_depart_after, return_depart_before,
+    country, proxy,
     timeout, retries, max_results, beam_width, time_budget,
     limit, show_price_commands,
     output_format, no_color, quiet,
@@ -273,10 +297,13 @@ def search_cmd(
             if has_leg:
                 result = _run_search_legs(
                     leg,
-                    cabin=cabin, passengers=passengers, sort=sort,
-                    nonstop=nonstop, max_stops=max_stops,
+                    cabin=cabin, passengers=passengers,
+                    children=children, infants_in_seat=infants_in_seat,
+                    infants_on_lap=infants_on_lap,
+                    sort=sort, nonstop=nonstop, max_stops=max_stops,
                     airline=airline, include_basic=include_basic,
                     timeout=timeout, retries=retries,
+                    country=country, proxy=proxy,
                     max_results=max_results, beam_width=beam_width,
                     time_budget=time_budget,
                 )
@@ -284,6 +311,8 @@ def search_cmd(
                 result = _run_search(
                     origin, destination, date,
                     return_date=return_date, cabin=cabin, passengers=passengers,
+                    children=children, infants_in_seat=infants_in_seat,
+                    infants_on_lap=infants_on_lap,
                     sort=sort, nonstop=nonstop, max_stops=max_stops,
                     airline=airline, flight_number=flight_number,
                     include_basic=include_basic,
@@ -292,6 +321,7 @@ def search_cmd(
                     return_depart_after=return_depart_after,
                     return_depart_before=return_depart_before,
                     timeout=timeout, retries=retries,
+                    country=country, proxy=proxy,
                     max_results=max_results, beam_width=beam_width,
                     time_budget=time_budget,
                 )
@@ -361,8 +391,13 @@ def search_cmd(
               help="Explicit leg: ORIGIN DEST DATE FLIGHT (repeatable).")
 @click.option("-c", "--cabin", type=click.Choice(CABIN_CHOICES, case_sensitive=False), default="economy", show_default=True)
 @click.option("-p", "--passengers", type=int, default=1, show_default=True)
+@click.option("--children", type=int, default=0, show_default=True, help="Number of children (2-11).")
+@click.option("--infants-in-seat", type=int, default=0, show_default=True, help="Number of infants in seat.")
+@click.option("--infants-on-lap", type=int, default=0, show_default=True, help="Number of infants on lap.")
 @click.option("--max-stops", type=click.IntRange(0, 2), default=None)
 @click.option("--include-basic", is_flag=True, default=False, help="Include basic economy fares.")
+@click.option("--country", type=str, default=None, help="Point-of-sale country code (e.g. GB, DE). Affects currency and fares.")
+@click.option("--proxy", type=str, default=None, help="HTTP/SOCKS5 proxy URL.")
 @click.option("--timeout", type=int, default=90, show_default=True)
 @click.option("--retries", type=int, default=2, show_default=True)
 @_output_options(["table", "json", "brief"])
@@ -370,8 +405,11 @@ def search_cmd(
 def price_cmd(
     ctx, origin, destination,
     selector,
-    depart, return_leg, leg, cabin, passengers, max_stops,
-    include_basic, timeout, retries,
+    depart, return_leg, leg, cabin, passengers,
+    children, infants_in_seat, infants_on_lap,
+    max_stops, include_basic,
+    country, proxy,
+    timeout, retries,
     output_format, no_color, quiet,
 ):
     """Check the current bookable fare for a chosen itinerary.
@@ -384,6 +422,10 @@ def price_cmd(
     \b
     Explicit leg syntax (--leg):
       swoop price --leg JFK LAX 2026-06-15 DL2300 --leg LAX JFK 2026-06-22 DL2301
+
+    \b
+    Selector syntax (from search --show-price-commands or -o json):
+      swoop price --selector 'swoop:sel:1:...'
     """
     import swoop
     from swoop.exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
@@ -472,7 +514,7 @@ def price_cmd(
     try:
         with spinner:
             if has_selector:
-                result = swoop.price_selector(selector, timeout=timeout, retries=retries)
+                result = swoop.price_selector(selector, timeout=timeout, retries=retries, country=country, proxy=proxy)
             elif has_leg:
                 result = swoop.price_legs(
                     [
@@ -486,9 +528,14 @@ def price_cmd(
                     ],
                     cabin=cabin,
                     adults=passengers,
+                    children=children,
+                    infants_in_seat=infants_in_seat,
+                    infants_on_lap=infants_on_lap,
                     include_basic_economy=include_basic,
                     timeout=timeout,
                     retries=retries,
+                    country=country,
+                    proxy=proxy,
                 )
             else:
                 result = swoop.check_price(
@@ -500,10 +547,15 @@ def price_cmd(
                     return_date=return_leg[0] if has_return else None,
                     cabin=cabin,
                     adults=passengers,
+                    children=children,
+                    infants_in_seat=infants_in_seat,
+                    infants_on_lap=infants_on_lap,
                     max_stops=max_stops,
                     include_basic_economy=include_basic,
                     timeout=timeout,
                     retries=retries,
+                    country=country,
+                    proxy=proxy,
                 )
     except ValueError as e:
         err.print(f"[red]Error: {e}[/red]")
