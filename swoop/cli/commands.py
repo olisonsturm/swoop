@@ -1,5 +1,7 @@
 """CLI commands for swoop: search and price."""
 
+from contextlib import nullcontext
+
 import click
 from rich.console import Console
 
@@ -265,47 +267,8 @@ def search_cmd(
         if warning:
             err.print(f"[yellow]{warning}[/yellow]")
 
-    if not quiet and output_format == "table":
-        with err.status("[bold]Searching flights...[/bold]"):
-            try:
-                if has_leg:
-                    result = _run_search_legs(
-                        leg,
-                        cabin=cabin, passengers=passengers, sort=sort,
-                        nonstop=nonstop, max_stops=max_stops,
-                        airline=airline, include_basic=include_basic,
-                        timeout=timeout, retries=retries,
-                        max_results=max_results, beam_width=beam_width,
-                        time_budget=time_budget,
-                    )
-                else:
-                    result = _run_search(
-                        origin, destination, date,
-                        return_date=return_date, cabin=cabin, passengers=passengers,
-                        sort=sort, nonstop=nonstop, max_stops=max_stops,
-                        airline=airline, flight_number=flight_number,
-                        include_basic=include_basic,
-                        depart_after=depart_after, depart_before=depart_before,
-                        arrive_after=arrive_after, arrive_before=arrive_before,
-                        return_depart_after=return_depart_after,
-                        return_depart_before=return_depart_before,
-                        timeout=timeout, retries=retries,
-                        max_results=max_results, beam_width=beam_width,
-                        time_budget=time_budget,
-                    )
-            except ValueError as e:
-                err.print(f"[red]Error: {e}[/red]")
-                ctx.exit(2)
-            except SwoopRateLimitError:
-                err.print("[red]Rate limited. Wait a few minutes. Tip: use --retries 3[/red]")
-                ctx.exit(3)
-            except SwoopHTTPError as e:
-                err.print(f"[red]Google Flights returned HTTP {e.status_code}[/red]")
-                ctx.exit(3)
-            except SwoopParseError:
-                err.print("[red]Could not parse Google Flights response[/red]")
-                ctx.exit(4)
-    else:
+    spinner = err.status("[bold]Searching flights...[/bold]") if (not quiet and output_format == "table") else nullcontext()
+    with spinner:
         try:
             if has_leg:
                 result = _run_search_legs(
@@ -505,44 +468,9 @@ def price_cmd(
             if warning:
                 err.print(f"[yellow]{warning}[/yellow]")
 
+    spinner = err.status("[bold]Checking price...[/bold]") if (not quiet and output_format == "table") else nullcontext()
     try:
-        if not quiet and output_format == "table":
-            with err.status("[bold]Checking price...[/bold]"):
-                if has_selector:
-                    result = swoop.price_selector(selector, timeout=timeout, retries=retries)
-                elif has_leg:
-                    result = swoop.price_legs(
-                        [
-                            swoop.SelectedLeg(
-                                flight_number=leg_flight,
-                                origin=leg_origin,
-                                destination=leg_dest,
-                                date=leg_date,
-                            )
-                            for leg_origin, leg_dest, leg_date, leg_flight in leg
-                        ],
-                        cabin=cabin,
-                        adults=passengers,
-                        include_basic_economy=include_basic,
-                        timeout=timeout,
-                        retries=retries,
-                    )
-                else:
-                    result = swoop.check_price(
-                        depart[1],
-                        origin=origin,
-                        destination=destination,
-                        date=depart[0],
-                        return_flight_number=return_leg[1] if has_return else None,
-                        return_date=return_leg[0] if has_return else None,
-                        cabin=cabin,
-                        adults=passengers,
-                        max_stops=max_stops,
-                        include_basic_economy=include_basic,
-                        timeout=timeout,
-                        retries=retries,
-                    )
-        else:
+        with spinner:
             if has_selector:
                 result = swoop.price_selector(selector, timeout=timeout, retries=retries)
             elif has_leg:
