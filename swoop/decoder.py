@@ -278,9 +278,9 @@ class PriceRange:
 
 @dataclass
 class RawSearchResult:
-    _raw: list
-    best: List[Itinerary]
-    other: List[Itinerary]
+    _raw: list = field(default_factory=list)
+    best: List[Itinerary] = field(default_factory=list)
+    other: List[Itinerary] = field(default_factory=list)
     price_range: Optional[PriceRange] = None  # Price range from response
 
     def __repr__(self) -> str:

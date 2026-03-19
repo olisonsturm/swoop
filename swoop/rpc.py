@@ -227,6 +227,7 @@ def _search_from_legs(
     exclude_basic_economy: bool = False,
     country: Optional[str] = None,
     proxy: Optional[str] = None,
+    retain_raw: bool = True,
 ) -> Optional[RawSearchResult]:
     """Search Google Flights from normalized leg definitions."""
     encoded_body = _encode_f_req_payload(
@@ -253,6 +254,8 @@ def _search_from_legs(
 
     result = _parse_rpc_response(res.text)
     if isinstance(result, RawSearchResult):
+        if not retain_raw:
+            result._raw = []
         logger.info(
             "_search_from_legs found %d best + %d other itineraries",
             len(result.best), len(result.other),

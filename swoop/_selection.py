@@ -310,6 +310,7 @@ def search_trip_options(
         exclude_basic_economy=exclude_basic,
         country=country,
         proxy=proxy,
+        retain_raw=False,
     )
     if first_pass is None:
         return SearchResult()
@@ -368,6 +369,7 @@ def search_trip_options(
                 exclude_basic_economy=exclude_basic,
                 country=country,
                 proxy=proxy,
+                retain_raw=False,
             )
             stage_candidates = _iter_raw_itineraries(stage_result)
             if not stage_candidates:
@@ -450,6 +452,7 @@ def resolve_trip_selector(
             exclude_basic_economy=exclude_basic,
             country=country,
             proxy=proxy,
+            retain_raw=False,
         )
         rpc_calls += 1
         candidates = _iter_raw_itineraries(stage_result)
@@ -596,6 +599,7 @@ def resolve_selected_trip(
             exclude_basic_economy=exclude_basic_economy,
             country=country,
             proxy=proxy,
+            retain_raw=False,
         )
         rpc_calls += 1
         candidates = _iter_raw_itineraries(stage_result)

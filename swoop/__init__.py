@@ -92,7 +92,7 @@ def _filter_by_flight_number(
     other = [it for it in result.other if itinerary_matches_flight(it, carrier, number)]
     if not best and not other:
         return None
-    return RawSearchResult(_raw=result._raw, best=best, other=other, price_range=result.price_range)
+    return RawSearchResult(best=best, other=other, price_range=result.price_range)
 
 
 def _filter_trip_options_by_flight_number(
