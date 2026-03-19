@@ -13,7 +13,7 @@ from .builders import CabinClass
 from ._validate import parse_flight_number
 from .decoder import Itinerary, RawSearchResult, itinerary_matches_flight
 from .exceptions import SwoopHTTPError, SwoopParseError
-from .models import Passengers, PriceResult, ResolvedLeg, SearchResult, TripLeg, TripOption
+from .models import Passengers, PriceResult, ResolvedLeg, SearchResult, TransportConfig, TripLeg, TripOption
 from .rpc import (
     SORT_DEPARTURE_TIME,
     _build_selected_legs,
@@ -230,10 +230,7 @@ def fetch_trip_booking_options(
     *,
     cabin: CabinClass,
     passengers: Passengers = Passengers(),
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
+    transport: TransportConfig = TransportConfig(),
 ) -> list:
     selected_payloads = _selected_payloads_for_itineraries(itineraries)
     if selected_payloads is None:
@@ -247,10 +244,7 @@ def fetch_trip_booking_options(
         staged_legs,
         cabin=cabin,
         passengers=passengers,
-        timeout=timeout,
-        retries=retries,
-        country=country,
-        proxy=proxy,
+        transport=transport,
     )
 
 
@@ -282,10 +276,7 @@ def search_trip_options(
     passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
+    transport: TransportConfig = TransportConfig(),
     max_results: Optional[int] = None,
     beam_width: Optional[int] = None,
     time_budget: Optional[int] = None,
@@ -303,11 +294,8 @@ def search_trip_options(
         cabin=cabin,
         passengers=passengers,
         sort=sort,
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
         exclude_basic_economy=exclude_basic,
-        country=country,
-        proxy=proxy,
         retain_raw=False,
     )
     if first_pass is None:
@@ -356,11 +344,8 @@ def search_trip_options(
                 cabin=cabin,
                 passengers=passengers,
                 sort=sort,
-                timeout=timeout,
-                retries=retries,
+                transport=transport,
                 exclude_basic_economy=exclude_basic,
-                country=country,
-                proxy=proxy,
                 retain_raw=False,
             )
             stage_candidates = _iter_raw_itineraries(stage_result)
@@ -412,10 +397,7 @@ def _match_itinerary_by_selected_segments(
 def resolve_trip_selector(
     selector: str,
     *,
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
+    transport: TransportConfig = TransportConfig(),
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[Itinerary], int]:
     payload = decode_trip_selector(selector)
     request_legs = [_copy_request_leg(leg) for leg in payload["query_legs"]]
@@ -433,11 +415,8 @@ def resolve_trip_selector(
             cabin=payload["cabin"],
             passengers=payload["passengers"],
             sort=replay_sort,
-            timeout=timeout,
-            retries=retries,
+            transport=transport,
             exclude_basic_economy=exclude_basic,
-            country=country,
-            proxy=proxy,
             retain_raw=False,
         )
         rpc_calls += 1
@@ -461,12 +440,9 @@ def price_selected_trip(
     cabin: CabinClass = "economy",
     passengers: Passengers = Passengers(),
     include_basic_economy: bool = False,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
     rpc_calls: int = 0,
     selections: Optional[list[str]] = None,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
 ) -> Optional[PriceResult]:
     if not itineraries:
         return None
@@ -504,10 +480,7 @@ def price_selected_trip(
             itineraries,
             cabin=cabin,
             passengers=passengers,
-            timeout=timeout,
-            retries=retries,
-            country=country,
-            proxy=proxy,
+            transport=transport,
         )
         rpc_calls += 1
     except (SwoopHTTPError, SwoopParseError) as exc:
@@ -552,11 +525,8 @@ def resolve_selected_trip(
     *,
     cabin: CabinClass = "economy",
     passengers: Passengers = Passengers(),
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
     exclude_basic_economy: bool = False,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
 ) -> tuple[list[Itinerary], list[str], int]:
     resolved: list[Itinerary] = []
     selections: list[str] = []
@@ -572,11 +542,8 @@ def resolve_selected_trip(
             cabin=cabin,
             passengers=passengers,
             sort=SORT_DEPARTURE_TIME,
-            timeout=timeout,
-            retries=retries,
+            transport=transport,
             exclude_basic_economy=exclude_basic_economy,
-            country=country,
-            proxy=proxy,
             retain_raw=False,
         )
         rpc_calls += 1
@@ -607,18 +574,12 @@ def resolve_selected_trip(
 def price_trip_selector(
     selector: str,
     *,
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
+    transport: TransportConfig = TransportConfig(),
 ) -> Optional[PriceResult]:
     try:
         payload, request_legs, itineraries, rpc_calls = resolve_trip_selector(
             selector,
-            timeout=timeout,
-            retries=retries,
-            country=country,
-            proxy=proxy,
+            transport=transport,
         )
     except ValueError:
         return None
@@ -628,11 +589,8 @@ def price_trip_selector(
         cabin=payload["cabin"],
         passengers=payload["passengers"],
         include_basic_economy=payload["include_basic_economy"],
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
         rpc_calls=rpc_calls,
-        country=country,
-        proxy=proxy,
     )
 
 

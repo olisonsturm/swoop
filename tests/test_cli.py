@@ -723,7 +723,8 @@ class TestPriceCommand:
             "price", "--selector", "selector-1", "-q",
         ])
         assert result.exit_code == 0
-        mock_price_selector.assert_called_once_with("selector-1", timeout=90, retries=2, country=None, proxy=None)
+        from swoop.models import TransportConfig
+        mock_price_selector.assert_called_once_with("selector-1", transport=TransportConfig(timeout=90, retries=2, country=None, proxy=None))
 
 
 # ---------------------------------------------------------------------------
@@ -926,7 +927,7 @@ class TestNewFlags:
         ])
         assert result.exit_code == 0
         _, kwargs = mock_check.call_args
-        assert kwargs["country"] == "GB"
+        assert kwargs["transport"].country == "GB"
 
     @patch("swoop.check_price")
     def test_children_flag_price(self, mock_check):
@@ -951,8 +952,9 @@ class TestNewFlags:
             "--country", "DE", "--proxy", "http://proxy:8080", "-q",
         ])
         assert result.exit_code == 0
+        from swoop.models import TransportConfig
         mock_ps.assert_called_once_with(
-            "sel-1", timeout=90, retries=2, country="DE", proxy="http://proxy:8080",
+            "sel-1", transport=TransportConfig(timeout=90, retries=2, country="DE", proxy="http://proxy:8080"),
         )
 
     def test_search_help_shows_new_flags(self):

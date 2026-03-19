@@ -74,6 +74,7 @@ def test_search_delegates_to_leg_search_core(monkeypatch):
 
     monkeypatch.setattr(swoop, "search_trip_options", fake_search_trip_options)
 
+    transport = swoop.TransportConfig(timeout=60, retries=3)
     swoop.search(
         "SFO", "NRT", "2026-07-01",
         return_date="2026-07-15",
@@ -84,8 +85,7 @@ def test_search_delegates_to_leg_search_core(monkeypatch):
         airlines=["NH"],
         earliest_departure=8,
         latest_departure=16,
-        timeout=60,
-        retries=3,
+        transport=transport,
     )
 
     assert captured["legs"][0]["origin"] == "SFO"
@@ -101,8 +101,8 @@ def test_search_delegates_to_leg_search_core(monkeypatch):
     assert captured["cabin"] == "business"
     assert captured["passengers"].adults == 2
     assert captured["sort"] == swoop.SORT_CHEAPEST
-    assert captured["timeout"] == 60
-    assert captured["retries"] == 3
+    assert captured["transport"].timeout == 60
+    assert captured["transport"].retries == 3
 
 
 def test_search_legs_uses_per_leg_filters(monkeypatch):
@@ -366,7 +366,8 @@ def test_http_post_retries_on_429(monkeypatch):
     monkeypatch.setitem(sys.modules, "primp", types.SimpleNamespace(Client=FakeClient))
     monkeypatch.setattr("time.sleep", lambda _: None)  # skip actual sleep
 
-    res = rpc._http_post("http://test", b"body", timeout=10, retries=3)
+    from swoop.models import TransportConfig
+    res = rpc._http_post("http://test", b"body", transport=TransportConfig(timeout=10, retries=3))
     assert res.status_code == 200
     assert call_count == 3
 
@@ -376,8 +377,9 @@ def test_http_post_raises_after_exhausting_retries(fake_primp, monkeypatch):
     fake_primp(429, "")
     monkeypatch.setattr("time.sleep", lambda _: None)
 
+    from swoop.models import TransportConfig
     with pytest.raises(SwoopRateLimitError):
-        rpc._http_post("http://test", b"body", timeout=10, retries=2)
+        rpc._http_post("http://test", b"body", transport=TransportConfig(timeout=10, retries=2))
 
 
 def test_http_post_no_retry_on_non_429(monkeypatch):
@@ -395,8 +397,9 @@ def test_http_post_no_retry_on_non_429(monkeypatch):
     rpc._clients.clear()
     monkeypatch.setitem(sys.modules, "primp", types.SimpleNamespace(Client=FakeClient))
 
+    from swoop.models import TransportConfig
     with pytest.raises(SwoopHTTPError, match="HTTP 503"):
-        rpc._http_post("http://test", b"body", timeout=10, retries=3)
+        rpc._http_post("http://test", b"body", transport=TransportConfig(timeout=10, retries=3))
     assert call_count == 1
 
 
@@ -414,5 +417,6 @@ def test_http_post_passes_timeout(monkeypatch):
     rpc._clients.clear()
     monkeypatch.setitem(sys.modules, "primp", types.SimpleNamespace(Client=FakeClient))
 
-    rpc._http_post("http://test", b"body", timeout=45)
+    from swoop.models import TransportConfig
+    rpc._http_post("http://test", b"body", transport=TransportConfig(timeout=45))
     assert captured_kwargs["timeout"] == 45

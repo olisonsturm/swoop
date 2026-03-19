@@ -77,10 +77,11 @@ class TestSearchCommandBranches:
         assert captured["kwargs"]["latest_arrival"] == 16
         assert captured["kwargs"]["return_earliest_departure"] == 9
         assert captured["kwargs"]["return_latest_departure"] == 18
-        assert captured["kwargs"]["timeout"] == 45
-        assert captured["kwargs"]["retries"] == 4
-        assert captured["kwargs"]["country"] is None
-        assert captured["kwargs"]["proxy"] is None
+        transport = captured["kwargs"]["transport"]
+        assert transport.timeout == 45
+        assert transport.retries == 4
+        assert transport.country is None
+        assert transport.proxy is None
         assert captured["kwargs"]["max_results"] is None
         assert captured["kwargs"]["beam_width"] is None
         assert captured["kwargs"]["time_budget"] is None
@@ -141,10 +142,11 @@ class TestSearchCommandBranches:
         assert pax.infants_on_lap == 0
         assert captured["kwargs"]["sort"] == commands.SORT_MAP["cheapest"]
         assert captured["kwargs"]["include_basic_economy"] is False
-        assert captured["kwargs"]["timeout"] == 30
-        assert captured["kwargs"]["retries"] == 5
-        assert captured["kwargs"]["country"] is None
-        assert captured["kwargs"]["proxy"] is None
+        transport = captured["kwargs"]["transport"]
+        assert transport.timeout == 30
+        assert transport.retries == 5
+        assert transport.country is None
+        assert transport.proxy is None
         assert captured["kwargs"]["max_results"] is None
         assert captured["kwargs"]["beam_width"] is None
         assert captured["kwargs"]["time_budget"] is None

@@ -46,6 +46,13 @@ def _run_search(
         infants_on_lap=infants_on_lap,
     )
 
+    transport = swoop.TransportConfig(
+        timeout=timeout,
+        retries=retries,
+        country=country,
+        proxy=proxy,
+    )
+
     return swoop.search(
         origin,
         destination,
@@ -64,10 +71,7 @@ def _run_search(
         latest_arrival=arrive_before,
         return_earliest_departure=return_depart_after,
         return_latest_departure=return_depart_before,
-        timeout=timeout,
-        retries=retries,
-        country=country,
-        proxy=proxy,
+        transport=transport,
         max_results=max_results,
         beam_width=beam_width,
         time_budget=time_budget,
@@ -122,16 +126,20 @@ def _run_search_legs(
         infants_on_lap=infants_on_lap,
     )
 
+    transport = swoop.TransportConfig(
+        timeout=timeout,
+        retries=retries,
+        country=country,
+        proxy=proxy,
+    )
+
     return swoop.search_legs(
         search_legs,
         cabin=cabin,
         passengers=pax,
         sort=sort_val,
         include_basic_economy=include_basic,
-        timeout=timeout,
-        retries=retries,
-        country=country,
-        proxy=proxy,
+        transport=transport,
         max_results=max_results,
         beam_width=beam_width,
         time_budget=time_budget,
@@ -523,7 +531,8 @@ def price_cmd(
     try:
         with spinner:
             if has_selector:
-                result = swoop.price_selector(selector, timeout=timeout, retries=retries, country=country, proxy=proxy)
+                transport = swoop.TransportConfig(timeout=timeout, retries=retries, country=country, proxy=proxy)
+                result = swoop.price_selector(selector, transport=transport)
             elif has_leg:
                 pax = swoop.Passengers(
                     adults=passengers,
@@ -531,6 +540,7 @@ def price_cmd(
                     infants_in_seat=infants_in_seat,
                     infants_on_lap=infants_on_lap,
                 )
+                transport = swoop.TransportConfig(timeout=timeout, retries=retries, country=country, proxy=proxy)
                 result = swoop.price_legs(
                     [
                         swoop.SelectedLeg(
@@ -544,10 +554,7 @@ def price_cmd(
                     cabin=cabin,
                     passengers=pax,
                     include_basic_economy=include_basic,
-                    timeout=timeout,
-                    retries=retries,
-                    country=country,
-                    proxy=proxy,
+                    transport=transport,
                 )
             else:
                 pax = swoop.Passengers(
@@ -556,6 +563,7 @@ def price_cmd(
                     infants_in_seat=infants_in_seat,
                     infants_on_lap=infants_on_lap,
                 )
+                transport = swoop.TransportConfig(timeout=timeout, retries=retries, country=country, proxy=proxy)
                 result = swoop.check_price(
                     depart[1],
                     origin=origin,
@@ -567,10 +575,7 @@ def price_cmd(
                     passengers=pax,
                     max_stops=max_stops,
                     include_basic_economy=include_basic,
-                    timeout=timeout,
-                    retries=retries,
-                    country=country,
-                    proxy=proxy,
+                    transport=transport,
                 )
     except ValueError as e:
         err.print(f"[red]Error: {e}[/red]")

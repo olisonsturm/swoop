@@ -17,6 +17,16 @@ class Passengers:
 
 
 @dataclass
+class TransportConfig:
+    """HTTP transport configuration for API requests."""
+
+    timeout: int = 90
+    retries: int = 2
+    country: Optional[str] = None
+    proxy: Optional[str] = None
+
+
+@dataclass
 class TripLeg:
     """A single requested leg paired with its resolved itinerary."""
 

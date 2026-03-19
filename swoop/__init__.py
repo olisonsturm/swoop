@@ -39,7 +39,7 @@ from .decoder import (
 )
 from .exceptions import SwoopError, SwoopHTTPError, SwoopParseError, SwoopRateLimitError
 from .builders import CabinClass, SearchLeg
-from .models import Passengers, PriceResult, ResolvedLeg, SearchResult, SelectedLeg, TripLeg, TripOption
+from .models import Passengers, PriceResult, ResolvedLeg, SearchResult, SelectedLeg, TransportConfig, TripLeg, TripOption
 from .rpc import (
     SORT_ARRIVAL_TIME,
     SORT_CHEAPEST,
@@ -153,10 +153,7 @@ def _search_with_normalized_legs(
     passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
+    transport: TransportConfig = TransportConfig(),
     max_results: Optional[int] = None,
     beam_width: Optional[int] = None,
     time_budget: Optional[int] = None,
@@ -168,10 +165,7 @@ def _search_with_normalized_legs(
         passengers=passengers,
         sort=sort,
         include_basic_economy=include_basic_economy,
-        timeout=timeout,
-        retries=retries,
-        country=country,
-        proxy=proxy,
+        transport=transport,
         max_results=max_results,
         beam_width=beam_width,
         time_budget=time_budget,
@@ -185,10 +179,7 @@ def search_legs(
     passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
+    transport: TransportConfig = TransportConfig(),
     max_results: Optional[int] = None,
     beam_width: Optional[int] = None,
     time_budget: Optional[int] = None,
@@ -204,12 +195,7 @@ def search_legs(
         passengers: Passenger counts (default ``Passengers()``).
         sort: Sort order constant (default ``SORT_DEPARTURE_TIME``).
         include_basic_economy: Include basic economy fares (default ``False``).
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 2).
-        country: Two-letter country code for point of sale (e.g. ``"US"``).
-            Overrides the default set via :func:`set_country`.
-        proxy: Proxy URL for this request.  Overrides the module-level
-            default set via :func:`set_proxy`.
+        transport: HTTP transport configuration (default ``TransportConfig()``).
         max_results: Maximum trip combinations the beam search targets
             (default 10).  Only affects multi-leg (3+ city) searches.
         beam_width: Number of candidate prefixes carried between stages
@@ -239,10 +225,7 @@ def search_legs(
         passengers=passengers,
         sort=sort,
         include_basic_economy=include_basic_economy,
-        timeout=timeout,
-        retries=retries,
-        country=country,
-        proxy=proxy,
+        transport=transport,
         max_results=max_results,
         beam_width=beam_width,
         time_budget=time_budget,
@@ -268,10 +251,7 @@ def search(
     latest_arrival: Optional[int] = None,
     return_earliest_departure: Optional[int] = None,
     return_latest_departure: Optional[int] = None,
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
+    transport: TransportConfig = TransportConfig(),
     max_results: Optional[int] = None,
     beam_width: Optional[int] = None,
     time_budget: Optional[int] = None,
@@ -303,14 +283,7 @@ def search(
         latest_arrival: Latest arrival hour (1–24).
         return_earliest_departure: Earliest return departure hour (0–23).
         return_latest_departure: Latest return departure hour (1–24).
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 with exponential backoff
-            and jitter (default 2).
-        country: Two-letter country code for point of sale (e.g. ``"US"``,
-            ``"GB"``). Controls currency and available fares. Overrides the
-            default set via :func:`set_country`.
-        proxy: Proxy URL for this request.  Overrides the module-level
-            default set via :func:`set_proxy`.
+        transport: HTTP transport configuration (default ``TransportConfig()``).
         max_results: Maximum trip combinations the beam search targets
             (default 10).  Only affects multi-leg (3+ city) searches.
         beam_width: Number of candidate prefixes carried between stages
@@ -399,10 +372,7 @@ def search(
         passengers=passengers,
         sort=sort,
         include_basic_economy=include_basic_economy,
-        timeout=timeout,
-        retries=retries,
-        country=country,
-        proxy=proxy,
+        transport=transport,
         max_results=max_results,
         beam_width=beam_width,
         time_budget=time_budget,
@@ -424,10 +394,7 @@ def price_legs(
     cabin: CabinClass = "economy",
     passengers: Passengers = Passengers(),
     include_basic_economy: bool = False,
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
+    transport: TransportConfig = TransportConfig(),
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare using explicit leg definitions.
 
@@ -436,8 +403,7 @@ def price_legs(
         cabin: Cabin class (default ``"economy"``).
         passengers: Passenger counts (default ``Passengers()``).
         include_basic_economy: Include basic economy fares (default ``False``).
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 2).
+        transport: HTTP transport configuration (default ``TransportConfig()``).
 
     Returns:
         A :class:`PriceResult` or ``None`` if the flight was not found.
@@ -461,15 +427,12 @@ def price_legs(
         [leg.flight_number for leg in legs],
         cabin=cabin,
         passengers=passengers,
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
         exclude_basic_economy=(
             cabin == "economy"
             and len(legs) == 1
             and not include_basic_economy
         ),
-        country=country,
-        proxy=proxy,
     )
     if not resolved:
         return None
@@ -480,22 +443,16 @@ def price_legs(
         cabin=cabin,
         passengers=passengers,
         include_basic_economy=include_basic_economy,
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
         rpc_calls=rpc_calls,
         selections=selections,
-        country=country,
-        proxy=proxy,
     )
 
 
 def price_selector(
     selector: str,
     *,
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
+    transport: TransportConfig = TransportConfig(),
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare for an itinerary selector.
 
@@ -504,14 +461,13 @@ def price_selector(
 
     Args:
         selector: Opaque selector from :func:`search` or :func:`search_legs`.
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 2).
+        transport: HTTP transport configuration (default ``TransportConfig()``).
 
     Returns:
         A :class:`PriceResult`, or ``None`` if the selected itinerary no
         longer exists.
     """
-    return price_trip_selector(selector, timeout=timeout, retries=retries, country=country, proxy=proxy)
+    return price_trip_selector(selector, transport=transport)
 
 
 def check_price(
@@ -526,10 +482,7 @@ def check_price(
     passengers: Passengers = Passengers(),
     max_stops: Optional[int] = None,
     include_basic_economy: bool = False,
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
+    transport: TransportConfig = TransportConfig(),
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare for a specific flight.
 
@@ -548,8 +501,7 @@ def check_price(
         passengers: Passenger counts (default ``Passengers()``).
         max_stops: Maximum stops (default any).
         include_basic_economy: Include basic economy fares (default ``False``).
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 2).
+        transport: HTTP transport configuration (default ``TransportConfig()``).
 
     Returns:
         A :class:`PriceResult` with the price and matched itinerary,
@@ -610,15 +562,12 @@ def check_price(
         requested_flights,
         cabin=cabin,
         passengers=passengers,
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
         exclude_basic_economy=(
             cabin == "economy"
             and return_date is None
             and not include_basic_economy
         ),
-        country=country,
-        proxy=proxy,
     )
     if not resolved:
         return None
@@ -629,12 +578,9 @@ def check_price(
         cabin=cabin,
         passengers=passengers,
         include_basic_economy=include_basic_economy,
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
         rpc_calls=rpc_calls,
         selections=selections,
-        country=country,
-        proxy=proxy,
     )
 
 
@@ -654,6 +600,7 @@ __all__ = [
     # Types
     "CabinClass",
     "Passengers",
+    "TransportConfig",
     "PriceResult",
     "RawSearchResult",
     "SearchResult",

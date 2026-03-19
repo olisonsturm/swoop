@@ -32,7 +32,7 @@ from ._booking import (
 from .builders import CABIN_CLASS_MAP, CabinClass
 from .decoder import BookingOption, RawSearchResult, Itinerary, decode_result, _safe_get
 from .exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
-from .models import Passengers
+from .models import Passengers, TransportConfig
 
 logger = logging.getLogger(__name__)
 
@@ -217,11 +217,8 @@ def _search_from_legs(
     cabin: CabinClass = "economy",
     passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
     exclude_basic_economy: bool = False,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
     retain_raw: bool = True,
 ) -> Optional[RawSearchResult]:
     """Search Google Flights from normalized leg definitions."""
@@ -238,10 +235,7 @@ def _search_from_legs(
     res = _http_post(
         SHOPPING_RPC_URL,
         content=f"f.req={encoded_body}".encode(),
-        timeout=timeout,
-        retries=retries,
-        country=country,
-        proxy=proxy,
+        transport=transport,
     )
 
     result = _parse_rpc_response(res.text)
@@ -380,20 +374,14 @@ def _http_post(
     url: str,
     content: bytes,
     *,
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
+    transport: TransportConfig = TransportConfig(),
 ) -> Any:
     """POST with optional retry on 429 and timeout.
 
     Args:
         url: The URL to POST to.
         content: Request body bytes.
-        timeout: Request timeout in seconds.
-        retries: Number of retries on HTTP 429 with exponential backoff
-            and jitter (2^attempt + random 0–1s). Non-429 errors are
-            never retried.
+        transport: HTTP transport configuration.
 
     Returns:
         The response object from primp.
@@ -405,18 +393,18 @@ def _http_post(
     import random
     import time
 
-    url = _apply_country(url, country)
-    client = _get_client(proxy)
+    url = _apply_country(url, transport.country)
+    client = _get_client(transport.proxy)
     headers = {"content-type": "application/x-www-form-urlencoded;charset=UTF-8"}
 
-    for attempt in range(1 + retries):
-        res = client.post(url, content=content, headers=headers, timeout=timeout)
+    for attempt in range(1 + transport.retries):
+        res = client.post(url, content=content, headers=headers, timeout=transport.timeout)
         if res.status_code == 200:
             logger.debug("HTTP 200 from %s (%d bytes)", url.split("/")[-1], len(res.text))
             return res
-        if res.status_code == 429 and attempt < retries:
+        if res.status_code == 429 and attempt < transport.retries:
             delay = (2 ** attempt) + random.uniform(0, 1)
-            logger.info("HTTP 429 from %s, retrying in %.1fs (attempt %d/%d)", url.split("/")[-1], delay, attempt + 1, retries)
+            logger.info("HTTP 429 from %s, retrying in %.1fs (attempt %d/%d)", url.split("/")[-1], delay, attempt + 1, transport.retries)
             time.sleep(delay)
             continue
         if res.status_code == 429:
@@ -441,11 +429,8 @@ def search_raw(
     return_earliest_departure: Optional[int] = None,
     return_latest_departure: Optional[int] = None,
     selected_outbound_legs: Optional[list[list[Any]]] = None,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
     exclude_basic_economy: bool = False,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
 ) -> Optional[RawSearchResult]:
     """Search Google Flights via RPC endpoint and return decoded results.
 
@@ -454,13 +439,7 @@ def search_raw(
     is the roundtrip total.
 
     Args:
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 with exponential backoff
-            and jitter (default 2).
-        country: Two-letter country code (e.g. ``"US"``) for point of sale.
-            Overrides the module-level default set via :func:`set_country`.
-        proxy: Proxy URL for this request.  Overrides the module-level
-            default set via :func:`set_proxy`.
+        transport: HTTP transport configuration (default ``TransportConfig()``).
     """
     logger.debug(
         "search_raw %s->%s on %s (cabin=%s, adults=%d)",
@@ -490,9 +469,8 @@ def search_raw(
 
     return _search_from_legs(
         legs, cabin=cabin, passengers=passengers,
-        sort=sort, timeout=timeout, retries=retries,
+        sort=sort, transport=transport,
         exclude_basic_economy=exclude_basic_economy,
-        country=country, proxy=proxy,
     )
 
 
@@ -538,10 +516,7 @@ def get_booking_results(
     selected_legs: Optional[list[list[Any]]] = None,
     registry_version: str | None = None,
     required_keys: tuple[str, ...] | None = None,
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
+    transport: TransportConfig = TransportConfig(),
 ) -> list[BookingOption]:
     """Fetch fare options (brand + price) for a specific itinerary.
 
@@ -557,10 +532,7 @@ def get_booking_results(
         selected_legs: Flight legs (required if passing a token string).
         registry_version: If provided, set as ``registry_version`` on each option.
         required_keys: If provided, warns when any key is missing from parsed options.
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 0).
-        country: Two-letter country code for point of sale.
-        proxy: Proxy URL for this request.
+        transport: HTTP transport configuration (default ``TransportConfig()``).
     """
     if isinstance(itinerary_or_token, Itinerary):
         itin = itinerary_or_token
@@ -608,10 +580,7 @@ def get_booking_results(
     res = _http_post(
         BOOKING_RPC_URL,
         content=f"f.req={encoded_body}".encode(),
-        timeout=timeout,
-        retries=retries,
-        country=country,
-        proxy=proxy,
+        transport=transport,
     )
 
     return _parse_booking_rpc_response(
@@ -627,10 +596,7 @@ def get_trip_booking_results(
     *,
     cabin: CabinClass = "economy",
     passengers: Passengers = Passengers(),
-    timeout: int = 90,
-    retries: int = 2,
-    country: Optional[str] = None,
-    proxy: Optional[str] = None,
+    transport: TransportConfig = TransportConfig(),
 ) -> list[BookingOption]:
     """Fetch booking options for an exact multi-leg trip selection."""
     if not booking_token or not legs:
@@ -648,10 +614,7 @@ def get_trip_booking_results(
     res = _http_post(
         BOOKING_RPC_URL,
         content=f"f.req={encoded_body}".encode(),
-        timeout=timeout,
-        retries=retries,
-        country=country,
-        proxy=proxy,
+        transport=transport,
     )
 
     return _parse_booking_rpc_response(res.text)

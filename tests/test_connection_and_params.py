@@ -9,7 +9,7 @@ import pytest
 import swoop._selection as selection
 import swoop.rpc as rpc
 from swoop.decoder import Itinerary, RawSearchResult
-from swoop.models import Passengers
+from swoop.models import Passengers, TransportConfig
 from tests.factories import make_simple_itinerary as _make_itinerary, make_raw_result as _raw_result
 
 
@@ -288,15 +288,15 @@ class TestProxyPropagation:
 
         monkeypatch.setattr(selection, "_search_from_legs", spy)
 
+        transport = TransportConfig(proxy="socks5://host:1080", country="US")
         selection.search_trip_options(
             request_legs,
-            proxy="socks5://host:1080",
-            country="US",
+            transport=transport,
         )
 
-        # Both the first pass and stage search should get proxy
-        assert all(kw.get("proxy") == "socks5://host:1080" for kw in call_kwargs)
-        assert all(kw.get("country") == "US" for kw in call_kwargs)
+        # Both the first pass and stage search should get transport
+        assert all(kw.get("transport").proxy == "socks5://host:1080" for kw in call_kwargs)
+        assert all(kw.get("transport").country == "US" for kw in call_kwargs)
 
     def test_resolve_selected_trip_passes_proxy(self, monkeypatch):
         """Verify proxy is forwarded through resolve_selected_trip."""
@@ -309,15 +309,15 @@ class TestProxyPropagation:
 
         monkeypatch.setattr(selection, "_search_from_legs", spy)
 
+        transport = TransportConfig(proxy="http://proxy:8080", country="GB")
         selection.resolve_selected_trip(
             [{"origin": "JFK", "destination": "LAX", "date": "2026-06-15"}],
             [None],
-            proxy="http://proxy:8080",
-            country="GB",
+            transport=transport,
         )
 
-        assert call_kwargs[0]["proxy"] == "http://proxy:8080"
-        assert call_kwargs[0]["country"] == "GB"
+        assert call_kwargs[0]["transport"].proxy == "http://proxy:8080"
+        assert call_kwargs[0]["transport"].country == "GB"
 
     def test_resolve_trip_selector_passes_proxy(self, monkeypatch):
         """Verify proxy is forwarded through resolve_trip_selector."""
@@ -339,14 +339,14 @@ class TestProxyPropagation:
 
         monkeypatch.setattr(selection, "_search_from_legs", spy)
 
+        transport = TransportConfig(proxy="socks5://host:1080", country="JP")
         selection.resolve_trip_selector(
             selector,
-            proxy="socks5://host:1080",
-            country="JP",
+            transport=transport,
         )
 
-        assert call_kwargs[0]["proxy"] == "socks5://host:1080"
-        assert call_kwargs[0]["country"] == "JP"
+        assert call_kwargs[0]["transport"].proxy == "socks5://host:1080"
+        assert call_kwargs[0]["transport"].country == "JP"
 
     def test_price_selected_trip_passes_proxy_to_booking(self, monkeypatch):
         """Verify proxy reaches fetch_trip_booking_options."""
@@ -366,15 +366,15 @@ class TestProxyPropagation:
 
         monkeypatch.setattr(selection, "fetch_trip_booking_options", spy)
 
+        transport = TransportConfig(proxy="http://proxy:3128", country="DE")
         selection.price_selected_trip(
             request_legs,
             itineraries,
-            proxy="http://proxy:3128",
-            country="DE",
+            transport=transport,
         )
 
-        assert call_kwargs["proxy"] == "http://proxy:3128"
-        assert call_kwargs["country"] == "DE"
+        assert call_kwargs["transport"].proxy == "http://proxy:3128"
+        assert call_kwargs["transport"].country == "DE"
 
     def test_price_trip_selector_passes_proxy_end_to_end(self, monkeypatch):
         """Verify proxy flows from price_trip_selector through to all calls."""
@@ -396,14 +396,14 @@ class TestProxyPropagation:
 
         monkeypatch.setattr(selection, "_search_from_legs", spy_search)
 
+        transport = TransportConfig(proxy="socks5://host:1080", country="US")
         result = selection.price_trip_selector(
             selector,
-            proxy="socks5://host:1080",
-            country="US",
+            transport=transport,
         )
 
-        assert resolve_kwargs[0]["proxy"] == "socks5://host:1080"
-        assert resolve_kwargs[0]["country"] == "US"
+        assert resolve_kwargs[0]["transport"].proxy == "socks5://host:1080"
+        assert resolve_kwargs[0]["transport"].country == "US"
         assert result is not None
         assert result.price == 299
 

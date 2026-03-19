@@ -10,7 +10,7 @@ from dataclasses import fields
 import pytest
 
 import swoop
-from swoop import Passengers, PriceResult, ResolvedLeg, SearchLeg, SearchResult, SelectedLeg, TripLeg, TripOption
+from swoop import Passengers, PriceResult, ResolvedLeg, SearchLeg, SearchResult, SelectedLeg, TransportConfig, TripLeg, TripOption
 from swoop.decoder import (
     BookingOption,
     CarbonEmissions,
@@ -50,6 +50,7 @@ class TestFrozenExports:
         # Types
         "CabinClass",
         "Passengers",
+        "TransportConfig",
         "PriceResult",
         "RawSearchResult",
         "SearchResult",
@@ -233,8 +234,7 @@ class TestSearchSignature:
             "earliest_departure", "latest_departure",
             "earliest_arrival", "latest_arrival",
             "return_earliest_departure", "return_latest_departure",
-            "timeout", "retries",
-            "country", "proxy",
+            "transport",
             "max_results", "beam_width", "time_budget",
         ]
         assert param_names == expected
@@ -250,9 +250,8 @@ class TestSearchSignature:
             "earliest_arrival", "latest_arrival",
             "return_date", "return_earliest_departure", "return_latest_departure",
             "selected_outbound_legs",
-            "timeout", "retries",
+            "transport",
             "exclude_basic_economy",
-            "country", "proxy",
         ]
         assert param_names == expected
 
@@ -264,8 +263,7 @@ class TestSearchSignature:
             "return_flight_number", "return_date",
             "cabin", "passengers",
             "max_stops", "include_basic_economy",
-            "timeout", "retries",
-            "country", "proxy",
+            "transport",
         ]
         assert param_names == expected
 
@@ -275,8 +273,7 @@ class TestSearchSignature:
         expected = [
             "legs", "cabin", "passengers",
             "sort",
-            "include_basic_economy", "timeout", "retries",
-            "country", "proxy",
+            "include_basic_economy", "transport",
             "max_results", "beam_width", "time_budget",
         ]
         assert param_names == expected
@@ -286,40 +283,32 @@ class TestSearchSignature:
         param_names = list(sig.parameters.keys())
         expected = [
             "legs", "cabin", "passengers",
-            "include_basic_economy", "timeout", "retries",
-            "country", "proxy",
+            "include_basic_economy", "transport",
         ]
         assert param_names == expected
 
     def test_price_selector_params(self):
         sig = inspect.signature(swoop.price_selector)
         param_names = list(sig.parameters.keys())
-        expected = ["selector", "timeout", "retries", "country", "proxy"]
+        expected = ["selector", "transport"]
         assert param_names == expected
 
 
 class TestFrozenDefaults:
     """Verify critical default values haven't drifted."""
 
-    def test_search_retries_default(self):
-        sig = inspect.signature(swoop.search)
-        assert sig.parameters["retries"].default == 2
+    def test_transport_config_defaults(self):
+        tc = TransportConfig()
+        assert tc.timeout == 90
+        assert tc.retries == 2
+        assert tc.country is None
+        assert tc.proxy is None
 
-    def test_search_legs_retries_default(self):
-        sig = inspect.signature(swoop.search_legs)
-        assert sig.parameters["retries"].default == 2
-
-    def test_check_price_retries_default(self):
-        sig = inspect.signature(swoop.check_price)
-        assert sig.parameters["retries"].default == 2
-
-    def test_price_legs_retries_default(self):
-        sig = inspect.signature(swoop.price_legs)
-        assert sig.parameters["retries"].default == 2
-
-    def test_price_selector_retries_default(self):
-        sig = inspect.signature(swoop.price_selector)
-        assert sig.parameters["retries"].default == 2
+    def test_transport_config_fields(self):
+        from dataclasses import fields as dc_fields
+        expected = {"timeout", "retries", "country", "proxy"}
+        actual = {f.name for f in dc_fields(TransportConfig)}
+        assert actual == expected
 
 
 class TestItineraryPrice:

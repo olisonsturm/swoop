@@ -102,11 +102,12 @@ class TestCheckPriceOneWay:
 
     def test_rate_limit_propagated(self, fake_primp):
         """Rate limit error from RPC is propagated."""
+        from swoop.models import TransportConfig
         fake_primp(429, "")
         with pytest.raises(SwoopRateLimitError):
             check_price(
                 "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
-                retries=0,
+                transport=TransportConfig(retries=0),
             )
 
 
@@ -363,9 +364,10 @@ class TestCheckPriceRoundtrip:
         assert result.price == 650  # Fell back to direct_price
 
 
-class TestCheckPriceRetryDefault:
-    """check_price inherits the retries=2 default."""
+class TestCheckPriceTransportDefault:
+    """check_price uses TransportConfig with retries=2 default."""
 
-    def test_default_retries_is_2(self):
+    def test_default_transport_has_retries_2(self):
         sig = inspect.signature(swoop.check_price)
-        assert sig.parameters["retries"].default == 2
+        transport_default = sig.parameters["transport"].default
+        assert transport_default.retries == 2
