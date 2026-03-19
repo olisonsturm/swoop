@@ -6,16 +6,16 @@ import json
 
 from swoop import PriceResult, ResolvedLeg, SearchResult, TripLeg, TripOption
 from swoop.cli import formatters
-from swoop.decoder import BookingOption, Flight, Itinerary, Layover
+from swoop.decoder import BookingOption, Segment, Itinerary, Layover
 
 
 def _make_itinerary(*, airline: str = "DL", number: str = "2300", route=None, layover_minutes=None) -> Itinerary:
     route = route or [("JFK", "LAX")]
-    flights = []
+    segments = []
     layovers = []
     for index, (origin, destination) in enumerate(route):
-        flights.append(
-            Flight(
+        segments.append(
+            Segment(
                 airline=airline,
                 airline_name=airline,
                 flight_number=str(int(number) + index),
@@ -40,15 +40,15 @@ def _make_itinerary(*, airline: str = "DL", number: str = "2300", route=None, la
     return Itinerary(
         airline_code=airline,
         airline_names=[airline],
-        flights=flights,
+        segments=segments,
         layovers=layovers,
-        travel_time=sum(flight.travel_time for flight in flights) + sum(lay.minutes for lay in layovers),
+        travel_time=sum(seg.travel_time for seg in segments) + sum(lay.minutes for lay in layovers),
         departure_airport_code=route[0][0],
         arrival_airport_code=route[-1][1],
         departure_date=(2026, 4, 15),
         arrival_date=(2026, 4, 15),
-        departure_time=flights[0].departure_time,
-        arrival_time=flights[-1].arrival_time,
+        departure_time=segments[0].departure_time,
+        arrival_time=segments[-1].arrival_time,
         direct_price=249,
         booking_token="token-1",
         stop_count=len(route) - 1,
@@ -64,8 +64,8 @@ class TestFormatterHelpers:
         ) == "DL 2300 / 2301"
 
         mixed = _make_itinerary(route=[("JFK", "ORD"), ("ORD", "LAX")], layover_minutes=90)
-        mixed.flights[1].airline = "UA"
-        mixed.flights[1].flight_number = "401"
+        mixed.segments[1].airline = "UA"
+        mixed.segments[1].flight_number = "401"
         assert formatters._flight_summary(mixed) == "DL 2300 / UA 401"
 
         assert formatters._flight_summary(
@@ -74,8 +74,8 @@ class TestFormatterHelpers:
 
     def test_clock_and_date_tuple_helpers_reject_invalid_shapes(self):
         assert formatters._format_clock("08:30") is None
-        assert formatters._format_clock([8]) is None
-        assert formatters._format_clock([8, None]) is None
+        assert formatters._format_clock([8]) == "08:00"  # hour-only defaults minute to 0
+        assert formatters._format_clock([8, None]) == "08:00"  # None minute defaults to 0
         assert formatters._format_date_tuple("2026-04-15") is None
         assert formatters._format_date_tuple([2026, 4]) is None
         assert formatters._format_date_tuple([2026, 0, 15]) is None
@@ -122,7 +122,7 @@ class TestSearchFormatters:
         out = capsys.readouterr().out
         assert "JFK -> LAX" in out
         assert "LAX -> SFO" in out
-        assert "Results are truncated" in out
+        assert "Results truncated" in out
         assert "swoop price --selector 'selector-1'" in out
 
 
@@ -197,7 +197,7 @@ class TestPriceFormatters:
         )
 
         payload = json.loads(capsys.readouterr().out)
-        assert payload["price_usd"] == 342
+        assert payload["price"] == 342
         assert payload["itinerary"]["flight_summary"] == "DL 2300"
         assert payload["resolved_legs"][0]["selection"] == "explicit"
         assert payload["resolved_legs"][0]["itinerary"]["departure_airport_code"] == "JFK"

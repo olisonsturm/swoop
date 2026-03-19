@@ -5,6 +5,8 @@ import re
 from datetime import date as _date
 from typing import Optional, Tuple
 
+from .builders import CabinClass
+
 logger = logging.getLogger(__name__)
 
 _IATA_RE = re.compile(r"^[A-Z]{3}$")
@@ -81,7 +83,7 @@ def validate_adults(adults: int) -> None:
         raise ValueError(f"adults must be >= 1, got {adults!r}")
 
 
-def validate_cabin(cabin: str) -> None:
+def validate_cabin(cabin: CabinClass) -> None:
     """Validate cabin class.
 
     Raises:
@@ -146,7 +148,7 @@ def validate_search_params(
     date: str,
     *,
     return_date: Optional[str] = None,
-    cabin: str = "economy",
+    cabin: CabinClass = "economy",
     adults: int = 1,
     earliest_departure: Optional[int] = None,
     latest_departure: Optional[int] = None,

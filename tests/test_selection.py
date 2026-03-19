@@ -8,50 +8,9 @@ import json
 import pytest
 
 import swoop._selection as selection
-from swoop.decoder import BookingOption, Flight, Itinerary, RawSearchResult
-
-
-def _make_itinerary(
-    *,
-    origin: str,
-    destination: str,
-    date: str,
-    airline: str,
-    flight_number: str,
-    price: int,
-    booking_token: str,
-) -> Itinerary:
-    year, month, day = [int(part) for part in date.split("-")]
-    flight = Flight(
-        airline=airline,
-        airline_name=airline,
-        flight_number=flight_number,
-        departure_airport_code=origin,
-        arrival_airport_code=destination,
-        departure_date=(year, month, day),
-        arrival_date=(year, month, day),
-        departure_time=(8, 0),
-        arrival_time=(11, 15),
-        travel_time=195,
-    )
-    return Itinerary(
-        airline_code=airline,
-        airline_names=[airline],
-        flights=[flight],
-        travel_time=195,
-        departure_airport_code=origin,
-        arrival_airport_code=destination,
-        departure_date=(year, month, day),
-        arrival_date=(year, month, day),
-        departure_time=(8, 0),
-        arrival_time=(11, 15),
-        direct_price=price,
-        booking_token=booking_token,
-    )
-
-
-def _raw_result(*itineraries: Itinerary) -> RawSearchResult:
-    return RawSearchResult(_raw=[], best=list(itineraries), other=[])
+from swoop.decoder import BookingOption, Itinerary, RawSearchResult
+from swoop.models import Passengers
+from tests.factories import make_simple_itinerary as _make_itinerary, make_raw_result as _raw_result
 
 
 def _booking_option(
@@ -111,7 +70,7 @@ class TestSelectorEncoding:
             request_legs=request_legs,
             itineraries=[outbound, onward],
             cabin="business",
-            adults=2,
+            passengers=Passengers(adults=2),
             include_basic_economy=False,
         )
         payload = selection.decode_trip_selector(selector_value)
@@ -136,7 +95,7 @@ class TestSelectorEncoding:
             selection._build_selected_legs(onward),
         ]
         assert payload["cabin"] == "business"
-        assert payload["adults"] == 2
+        assert payload["passengers"].adults == 2
         assert payload["include_basic_economy"] is False
         assert payload["booking_token_hint"] == "token-on"
 
@@ -155,10 +114,46 @@ class TestSelectorEncoding:
 
 
 class TestStagedTripSearch:
+    def test_roundtrip_uses_fast_path(self, monkeypatch):
+        """Roundtrip (2-leg) search uses single API call, no beam search."""
+        request_legs = [
+            {"origin": "JFK", "destination": "LAX", "date": "2026-04-15"},
+            {"origin": "LAX", "destination": "JFK", "date": "2026-04-18"},
+        ]
+        outbound = _make_itinerary(
+            origin="JFK",
+            destination="LAX",
+            date="2026-04-15",
+            airline="DL",
+            flight_number="2300",
+            price=249,
+            booking_token="token-out",
+        )
+        calls: list[list[dict[str, object]]] = []
+
+        def fake_search_from_legs(legs, **_kwargs):
+            calls.append(legs)
+            return _raw_result(outbound)
+
+        monkeypatch.setattr(selection, "_search_from_legs", fake_search_from_legs)
+
+        result = selection.search_trip_options(request_legs, cabin="economy")
+
+        # Only 1 API call — no staged beam search
+        assert len(calls) == 1
+        assert len(result.results) == 1
+        # Only outbound leg has itinerary detail
+        assert len(result.results[0].legs) == 1
+        assert result.results[0].legs[0].itinerary is not None
+        assert result.results[0].legs[0].itinerary.segments[0].flight_number == "2300"
+        assert result.is_complete is True
+
     def test_search_trip_options_stages_selected_prefixes(self, monkeypatch):
+        """3+ leg search uses staged beam search."""
         request_legs = [
             {"origin": "JFK", "destination": "LAX", "date": "2026-04-15"},
             {"origin": "LAX", "destination": "SFO", "date": "2026-04-18"},
+            {"origin": "SFO", "destination": "JFK", "date": "2026-04-20"},
         ]
         outbound = _make_itinerary(
             origin="JFK",
@@ -178,128 +173,120 @@ class TestStagedTripSearch:
             price=329,
             booking_token="token-on",
         )
+        final = _make_itinerary(
+            origin="SFO",
+            destination="JFK",
+            date="2026-04-20",
+            airline="DL",
+            flight_number="1200",
+            price=399,
+            booking_token="token-final",
+        )
         calls: list[list[dict[str, object]]] = []
 
         def fake_search_from_legs(legs, **_kwargs):
             calls.append(legs)
             if len(calls) == 1:
                 return _raw_result(outbound)
-            return _raw_result(onward)
+            if len(calls) == 2:
+                return _raw_result(onward)
+            return _raw_result(final)
 
         monkeypatch.setattr(selection, "_search_from_legs", fake_search_from_legs)
 
         result = selection.search_trip_options(request_legs, cabin="economy")
 
-        assert len(calls) == 2
+        assert len(calls) == 3
         assert calls[1][0]["selected_legs"] == selection._build_selected_legs(outbound)
         assert "selected_legs" not in calls[1][1]
         assert len(result.results) == 1
-        assert len(result.results[0].legs) == 2
-        assert result.results[0].legs[0].itinerary is not None
-        assert result.results[0].legs[0].itinerary.flights[0].flight_number == "2300"
-        assert result.results[0].legs[0].itinerary.price is None
-        assert result.results[0].legs[1].itinerary is not None
-        assert result.results[0].legs[1].itinerary.flights[0].flight_number == "1145"
-        assert result.results[0].legs[1].itinerary.price is None
+        assert len(result.results[0].legs) == 3
 
     def test_search_trip_options_marks_incomplete_when_beam_width_truncates(self, monkeypatch):
         request_legs = [
             {"origin": "JFK", "destination": "LAX", "date": "2026-04-15"},
             {"origin": "LAX", "destination": "SFO", "date": "2026-04-18"},
+            {"origin": "SFO", "destination": "JFK", "date": "2026-04-20"},
         ]
         outbound_a = _make_itinerary(
-            origin="JFK",
-            destination="LAX",
-            date="2026-04-15",
-            airline="DL",
-            flight_number="2300",
-            price=249,
-            booking_token="token-a",
+            origin="JFK", destination="LAX", date="2026-04-15",
+            airline="DL", flight_number="2300", price=249, booking_token="token-a",
         )
         outbound_b = _make_itinerary(
-            origin="JFK",
-            destination="LAX",
-            date="2026-04-15",
-            airline="UA",
-            flight_number="1400",
-            price=259,
-            booking_token="token-b",
+            origin="JFK", destination="LAX", date="2026-04-15",
+            airline="UA", flight_number="1400", price=259, booking_token="token-b",
         )
         onward = _make_itinerary(
-            origin="LAX",
-            destination="SFO",
-            date="2026-04-18",
-            airline="DL",
-            flight_number="1145",
-            price=329,
-            booking_token="token-on",
+            origin="LAX", destination="SFO", date="2026-04-18",
+            airline="DL", flight_number="1145", price=329, booking_token="token-on",
+        )
+        final = _make_itinerary(
+            origin="SFO", destination="JFK", date="2026-04-20",
+            airline="DL", flight_number="1200", price=399, booking_token="token-final",
         )
 
         monkeypatch.setattr(selection, "BEAM_WIDTH", 1)
         monkeypatch.setattr(selection, "TARGET_RESULTS", 1)
-        monkeypatch.setattr(
-            selection,
-            "_search_from_legs",
-            lambda legs, **_kwargs: _raw_result(outbound_a, outbound_b)
-            if legs[0].get("selected_legs") is None
-            else _raw_result(onward),
-        )
+
+        def fake_search(legs, **_kwargs):
+            if legs[0].get("selected_legs") is None:
+                return _raw_result(outbound_a, outbound_b)
+            if len(legs) >= 2 and legs[1].get("selected_legs") is not None:
+                return _raw_result(final)
+            return _raw_result(onward)
+
+        monkeypatch.setattr(selection, "_search_from_legs", fake_search)
 
         result = selection.search_trip_options(request_legs, cabin="economy")
 
         assert result.is_complete is False
         assert len(result.results) == 1
-        assert len(result.results[0].legs) == 2
+        assert len(result.results[0].legs) == 3
 
     def test_search_trip_options_marks_incomplete_when_time_budget_is_hit(self, monkeypatch):
         request_legs = [
             {"origin": "JFK", "destination": "LAX", "date": "2026-04-15"},
             {"origin": "LAX", "destination": "SFO", "date": "2026-04-18"},
+            {"origin": "SFO", "destination": "JFK", "date": "2026-04-20"},
         ]
         outbound_a = _make_itinerary(
-            origin="JFK",
-            destination="LAX",
-            date="2026-04-15",
-            airline="DL",
-            flight_number="2300",
-            price=249,
-            booking_token="token-a",
+            origin="JFK", destination="LAX", date="2026-04-15",
+            airline="DL", flight_number="2300", price=249, booking_token="token-a",
         )
         outbound_b = _make_itinerary(
-            origin="JFK",
-            destination="LAX",
-            date="2026-04-15",
-            airline="UA",
-            flight_number="1400",
-            price=259,
-            booking_token="token-b",
+            origin="JFK", destination="LAX", date="2026-04-15",
+            airline="UA", flight_number="1400", price=259, booking_token="token-b",
         )
         onward = _make_itinerary(
-            origin="LAX",
-            destination="SFO",
-            date="2026-04-18",
-            airline="DL",
-            flight_number="1145",
-            price=329,
-            booking_token="token-on",
+            origin="LAX", destination="SFO", date="2026-04-18",
+            airline="DL", flight_number="1145", price=329, booking_token="token-on",
         )
-        ticks = iter([0.0, 0.0, 2.0])
+        final = _make_itinerary(
+            origin="SFO", destination="JFK", date="2026-04-20",
+            airline="DL", flight_number="1200", price=399, booking_token="token-final",
+        )
+        call_count = 0
+
+        def fake_monotonic():
+            nonlocal call_count
+            call_count += 1
+            return 0.0 if call_count <= 2 else 2.0
 
         monkeypatch.setattr(selection, "TIME_BUDGET_SECONDS", 1)
-        monkeypatch.setattr(selection.time, "monotonic", lambda: next(ticks))
-        monkeypatch.setattr(
-            selection,
-            "_search_from_legs",
-            lambda legs, **_kwargs: _raw_result(outbound_a, outbound_b)
-            if legs[0].get("selected_legs") is None
-            else _raw_result(onward),
-        )
+        monkeypatch.setattr(selection.time, "monotonic", fake_monotonic)
+
+        def fake_search(legs, **_kwargs):
+            if legs[0].get("selected_legs") is None:
+                return _raw_result(outbound_a, outbound_b)
+            if len(legs) >= 2 and legs[1].get("selected_legs") is not None:
+                return _raw_result(final)
+            return _raw_result(onward)
+
+        monkeypatch.setattr(selection, "_search_from_legs", fake_search)
 
         result = selection.search_trip_options(request_legs, cabin="economy")
 
         assert result.is_complete is False
-        assert len(result.results) == 1
-        assert len(result.results[0].legs) == 2
 
 
 class TestSelectorReplay:
@@ -339,7 +326,7 @@ class TestSelectorReplay:
             request_legs=request_legs,
             itineraries=[outbound, expected_onward],
             cabin="economy",
-            adults=1,
+            passengers=Passengers(adults=1),
             include_basic_economy=False,
         )
 

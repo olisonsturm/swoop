@@ -11,7 +11,7 @@ import pytest
 
 import swoop
 import swoop.rpc as rpc
-from swoop.decoder import BookingOption, Flight, Itinerary
+from swoop.decoder import BookingOption, Segment, Itinerary
 from swoop.exceptions import SwoopHTTPError, SwoopRateLimitError
 
 from tests.factories import FakeHTTPResponse
@@ -19,7 +19,7 @@ from tests.factories import FakeHTTPResponse
 
 def test_version():
     assert hasattr(swoop, "__version__")
-    assert swoop.__version__ == "0.3.1"
+    assert swoop.__version__ == "0.4.0"
 
 
 def test_all_exports_importable():
@@ -50,7 +50,7 @@ def test_search_validates_date():
 
 def test_search_validates_adults():
     with pytest.raises(ValueError, match="adults"):
-        swoop.search("JFK", "LAX", "2026-06-01", adults=0)
+        swoop.search("JFK", "LAX", "2026-06-01", passengers=swoop.Passengers(adults=0))
 
 
 def test_search_accepts_valid_cabins(fake_primp):
@@ -74,18 +74,18 @@ def test_search_delegates_to_leg_search_core(monkeypatch):
 
     monkeypatch.setattr(swoop, "search_trip_options", fake_search_trip_options)
 
+    transport = swoop.TransportConfig(timeout=60, retries=3)
     swoop.search(
         "SFO", "NRT", "2026-07-01",
         return_date="2026-07-15",
         cabin="business",
-        adults=2,
+        passengers=swoop.Passengers(adults=2),
         max_stops=1,
         sort=swoop.SORT_CHEAPEST,
         airlines=["NH"],
         earliest_departure=8,
         latest_departure=16,
-        timeout=60,
-        retries=3,
+        transport=transport,
     )
 
     assert captured["legs"][0]["origin"] == "SFO"
@@ -99,11 +99,10 @@ def test_search_delegates_to_leg_search_core(monkeypatch):
     assert captured["legs"][1]["destination"] == "SFO"
     assert captured["legs"][1]["date"] == "2026-07-15"
     assert captured["cabin"] == "business"
-    assert captured["adults"] == 2
+    assert captured["passengers"].adults == 2
     assert captured["sort"] == swoop.SORT_CHEAPEST
-    assert captured["correct_prices"] is False
-    assert captured["timeout"] == 60
-    assert captured["retries"] == 3
+    assert captured["transport"].timeout == 60
+    assert captured["transport"].retries == 3
 
 
 def test_search_legs_uses_per_leg_filters(monkeypatch):
@@ -131,7 +130,7 @@ def test_search_legs_uses_per_leg_filters(monkeypatch):
             max_stops=1,
             airlines=["JL"],
         ),
-    ], cabin="business", adults=2)
+    ], cabin="business", passengers=swoop.Passengers(adults=2))
 
     assert captured["legs"][0]["origin"] == "SFO"
     assert captured["legs"][0]["max_stops"] == 0
@@ -139,7 +138,6 @@ def test_search_legs_uses_per_leg_filters(monkeypatch):
     assert captured["legs"][1]["origin"] == "NRT"
     assert captured["legs"][1]["max_stops"] == 1
     assert captured["legs"][1]["airlines"] == ["JL"]
-    assert captured["correct_prices"] is False
 
 
 def test_search_legs_accepts_more_than_two_legs(monkeypatch):
@@ -169,7 +167,7 @@ def test_price_legs_accepts_more_than_two_legs(monkeypatch):
         lambda *args, **kwargs: (
             [
                 Itinerary(
-                    flights=[Flight(
+                    segments=[Segment(
                         airline="DL",
                         flight_number="2300",
                         departure_airport_code="JFK",
@@ -180,7 +178,7 @@ def test_price_legs_accepts_more_than_two_legs(monkeypatch):
                     booking_token="token-1",
                 ),
                 Itinerary(
-                    flights=[Flight(
+                    segments=[Segment(
                         airline="UA",
                         flight_number="500",
                         departure_airport_code="LAX",
@@ -191,7 +189,7 @@ def test_price_legs_accepts_more_than_two_legs(monkeypatch):
                     booking_token="token-2",
                 ),
                 Itinerary(
-                    flights=[Flight(
+                    segments=[Segment(
                         airline="DL",
                         flight_number="2301",
                         departure_airport_code="SFO",
@@ -239,14 +237,14 @@ def test_search_raw_rate_limit_raises_specific_error(fake_primp):
 
 
 def test_passengers_validation():
-    """Passengers should raise ValueError, not AssertionError."""
-    from swoop.builders import Passengers
+    """_PBPassengers should raise ValueError, not AssertionError."""
+    from swoop.builders import _PBPassengers
 
     with pytest.raises(ValueError, match="Too many passengers"):
-        Passengers(adults=8, children=2)
+        _PBPassengers(adults=8, children=2)
 
     with pytest.raises(ValueError, match="infant"):
-        Passengers(adults=1, infants_on_lap=2)
+        _PBPassengers(adults=1, infants_on_lap=2)
 
 
 def test_exception_hierarchy():
@@ -261,24 +259,11 @@ def test_exception_hierarchy():
 
 
 def test_booking_option_attribute_access():
-    opt = BookingOption(price=250, brand_label="Main Cabin", brand_code="MAIN")
+    opt = BookingOption(price=250, brand_label="Main Cabin", brand_code="MAIN", fare_family="standard")
     assert opt.price == 250
     assert opt.brand_label == "Main Cabin"
     assert opt.brand_code == "MAIN"
-
-
-def test_booking_option_dict_style_access():
-    opt = BookingOption(price=250, brand_label="Main Cabin", fare_family="standard")
-    assert opt["price"] == 250
-    assert opt["brand_label"] == "Main Cabin"
-    assert opt.get("fare_family") == "standard"
-    assert opt.get("nonexistent", "default") == "default"
-
-
-def test_booking_option_getitem_raises_on_missing():
-    opt = BookingOption()
-    with pytest.raises(AttributeError):
-        _ = opt["nonexistent_field"]
+    assert opt.fare_family == "standard"
 
 
 # --- Itinerary-based get_booking_results ---
@@ -291,8 +276,8 @@ def test_get_booking_results_with_itinerary(monkeypatch):
         arrival_airport_code="LAX",
         departure_date=(2026, 6, 15),
         booking_token="test-token",
-        flights=[
-            Flight(
+        segments=[
+            Segment(
                 departure_airport_code="JFK",
                 arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15),
@@ -304,10 +289,10 @@ def test_get_booking_results_with_itinerary(monkeypatch):
 
     captured = {}
 
-    def fake_http_post(url, content, *, timeout=90, retries=0):
+    def fake_http_post(url, content, **kwargs):
         captured["url"] = url
-        captured["timeout"] = timeout
-        captured["retries"] = retries
+        captured["timeout"] = kwargs.get("timeout", 90)
+        captured["retries"] = kwargs.get("retries", 0)
         return FakeHTTPResponse(200, ")]}'" + json.dumps([["wrb.fr", None, json.dumps([None, []])]]))
 
     monkeypatch.setattr(rpc, "_http_post", fake_http_post)
@@ -328,15 +313,15 @@ def test_get_booking_results_string_still_works(monkeypatch):
 
 def test_build_selected_legs():
     itin = Itinerary(
-        flights=[
-            Flight(
+        segments=[
+            Segment(
                 departure_airport_code="JFK",
                 arrival_airport_code="ORD",
                 departure_date=(2026, 6, 15),
                 airline="AA",
                 flight_number="100",
             ),
-            Flight(
+            Segment(
                 departure_airport_code="ORD",
                 arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15),
@@ -353,8 +338,8 @@ def test_build_selected_legs():
 
 def test_build_selected_legs_skips_bad_dates():
     itin = Itinerary(
-        flights=[
-            Flight(departure_airport_code="JFK", arrival_airport_code="LAX", departure_date=(0, 0, 0)),
+        segments=[
+            Segment(departure_airport_code="JFK", arrival_airport_code="LAX", departure_date=(0, 0, 0)),
         ],
     )
     assert rpc._build_selected_legs(itin) == []
@@ -377,10 +362,12 @@ def test_http_post_retries_on_429(monkeypatch):
                 return FakeHTTPResponse(429, "ok")
             return FakeHTTPResponse(200, "ok")
 
+    rpc._clients.clear()
     monkeypatch.setitem(sys.modules, "primp", types.SimpleNamespace(Client=FakeClient))
     monkeypatch.setattr("time.sleep", lambda _: None)  # skip actual sleep
 
-    res = rpc._http_post("http://test", b"body", timeout=10, retries=3)
+    from swoop.models import TransportConfig
+    res = rpc._http_post("http://test", b"body", transport=TransportConfig(timeout=10, retries=3))
     assert res.status_code == 200
     assert call_count == 3
 
@@ -390,8 +377,9 @@ def test_http_post_raises_after_exhausting_retries(fake_primp, monkeypatch):
     fake_primp(429, "")
     monkeypatch.setattr("time.sleep", lambda _: None)
 
+    from swoop.models import TransportConfig
     with pytest.raises(SwoopRateLimitError):
-        rpc._http_post("http://test", b"body", timeout=10, retries=2)
+        rpc._http_post("http://test", b"body", transport=TransportConfig(timeout=10, retries=2))
 
 
 def test_http_post_no_retry_on_non_429(monkeypatch):
@@ -406,10 +394,12 @@ def test_http_post_no_retry_on_non_429(monkeypatch):
             call_count += 1
             return FakeHTTPResponse(503, "")
 
+    rpc._clients.clear()
     monkeypatch.setitem(sys.modules, "primp", types.SimpleNamespace(Client=FakeClient))
 
+    from swoop.models import TransportConfig
     with pytest.raises(SwoopHTTPError, match="HTTP 503"):
-        rpc._http_post("http://test", b"body", timeout=10, retries=3)
+        rpc._http_post("http://test", b"body", transport=TransportConfig(timeout=10, retries=3))
     assert call_count == 1
 
 
@@ -424,7 +414,9 @@ def test_http_post_passes_timeout(monkeypatch):
             captured_kwargs.update(kwargs)
             return FakeHTTPResponse(200, "ok")
 
+    rpc._clients.clear()
     monkeypatch.setitem(sys.modules, "primp", types.SimpleNamespace(Client=FakeClient))
 
-    rpc._http_post("http://test", b"body", timeout=45)
+    from swoop.models import TransportConfig
+    rpc._http_post("http://test", b"body", transport=TransportConfig(timeout=45))
     assert captured_kwargs["timeout"] == 45

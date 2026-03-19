@@ -9,10 +9,11 @@ import time
 from dataclasses import replace
 from typing import Any, Optional
 
+from .builders import CabinClass
 from ._validate import parse_flight_number
 from .decoder import Itinerary, RawSearchResult, itinerary_matches_flight
 from .exceptions import SwoopHTTPError, SwoopParseError
-from .models import PriceResult, ResolvedLeg, SearchResult, TripLeg, TripOption
+from .models import Passengers, PriceResult, ResolvedLeg, SearchResult, TransportConfig, TripLeg, TripOption
 from .rpc import (
     SORT_DEPARTURE_TIME,
     _build_selected_legs,
@@ -56,7 +57,7 @@ def _selector_query_leg(leg: dict[str, Any]) -> dict[str, Any]:
         "earliest_arrival",
         "latest_arrival",
     )
-    payload = {key: leg.get(key) for key in keys if leg.get(key) is not None}
+    payload = {key: v for key in keys if (v := leg.get(key)) is not None}
     if payload.get("airlines") is not None:
         payload["airlines"] = list(payload["airlines"])
     return payload
@@ -73,8 +74,8 @@ def encode_trip_selector(
     *,
     request_legs: list[dict[str, Any]],
     itineraries: list[Itinerary],
-    cabin: str,
-    adults: int,
+    cabin: CabinClass,
+    passengers: Passengers = Passengers(),
     include_basic_economy: bool,
     sort: int = SORT_DEPARTURE_TIME,
 ) -> str:
@@ -83,7 +84,12 @@ def encode_trip_selector(
         "query_legs": [_selector_query_leg(leg) for leg in request_legs],
         "selected_legs": [_build_selected_legs(itinerary) for itinerary in itineraries],
         "cabin": cabin,
-        "adults": adults,
+        "passengers": {
+            "adults": passengers.adults,
+            "children": passengers.children,
+            "infants_in_seat": passengers.infants_in_seat,
+            "infants_on_lap": passengers.infants_on_lap,
+        },
         "include_basic_economy": include_basic_economy,
         "sort": sort,
         "booking_token_hint": itineraries[-1].booking_token or None,
@@ -102,6 +108,23 @@ def decode_trip_selector(selector: str) -> dict[str, Any]:
         raise ValueError("invalid selector payload") from exc
     if payload.get("v") != 1:
         raise ValueError("unsupported selector version")
+    # Reconstruct Passengers with backward compat for old selectors
+    if "passengers" in payload:
+        pax = payload["passengers"]
+        payload["passengers"] = Passengers(
+            adults=pax.get("adults", 1),
+            children=pax.get("children", 0),
+            infants_in_seat=pax.get("infants_in_seat", 0),
+            infants_on_lap=pax.get("infants_on_lap", 0),
+        )
+    else:
+        # Old selectors with flat keys
+        payload["passengers"] = Passengers(
+            adults=payload.pop("adults", 1),
+            children=payload.pop("children", 0),
+            infants_in_seat=payload.pop("infants_in_seat", 0),
+            infants_on_lap=payload.pop("infants_on_lap", 0),
+        )
     return payload
 
 
@@ -113,7 +136,7 @@ def _resolved_leg_from_itinerary(
     date: str,
     selection: str,
 ) -> ResolvedLeg:
-    first = itinerary.flights[0] if itinerary.flights else None
+    first = itinerary.segments[0] if itinerary.segments else None
     flight_summary = ""
     if first is not None:
         flight_summary = (
@@ -154,8 +177,8 @@ def _build_trip_option(
     request_legs: list[dict[str, Any]],
     itineraries: list[Itinerary],
     *,
-    cabin: str,
-    adults: int,
+    cabin: CabinClass,
+    passengers: Passengers = Passengers(),
     include_basic_economy: bool,
     sort: int = SORT_DEPARTURE_TIME,
 ) -> TripOption:
@@ -164,11 +187,12 @@ def _build_trip_option(
             request_legs=request_legs,
             itineraries=itineraries,
             cabin=cabin,
-            adults=adults,
+            passengers=passengers,
             include_basic_economy=include_basic_economy,
             sort=sort,
         ),
         price=itineraries[-1].price,
+        currency=itineraries[-1].currency,
         legs=_trip_legs_from_itineraries(request_legs, itineraries),
     )
 
@@ -204,10 +228,9 @@ def fetch_trip_booking_options(
     request_legs: list[dict[str, Any]],
     itineraries: list[Itinerary],
     *,
-    cabin: str,
-    adults: int,
-    timeout: int = 90,
-    retries: int = 2,
+    cabin: CabinClass,
+    passengers: Passengers = Passengers(),
+    transport: TransportConfig = TransportConfig(),
 ) -> list:
     selected_payloads = _selected_payloads_for_itineraries(itineraries)
     if selected_payloads is None:
@@ -220,9 +243,8 @@ def fetch_trip_booking_options(
         final_token,
         staged_legs,
         cabin=cabin,
-        adults=adults,
-        timeout=timeout,
-        retries=retries,
+        passengers=passengers,
+        transport=transport,
     )
 
 
@@ -230,113 +252,68 @@ def _eligible_booking_options(
     options: list,
     include_basic_economy: bool,
     *,
-    cabin: str,
+    cabin: CabinClass,
 ) -> list:
     priced = [option for option in options if option.price > 0]
     if cabin == "economy":
-        if include_basic_economy:
-            return [
-                option
-                for option in priced
-                if option._cabin_bucket in ("", "economy", "unknown")
-            ]
-        return [
-            option
-            for option in priced
-            if not option.is_basic
-            and option._cabin_bucket in ("", "economy", "unknown")
+        economy_opts = [
+            option for option in priced if option._cabin_bucket in ("", "economy")
         ]
-
-    exact_bucket = [
-        option for option in priced if option._cabin_bucket == cabin
-    ]
-    if exact_bucket:
-        return exact_bucket
+        if not include_basic_economy:
+            economy_opts = [opt for opt in economy_opts if not opt.is_basic]
+        return economy_opts
 
     return [
-        option for option in priced if option._cabin_bucket == "unknown"
+        option for option in priced if option._cabin_bucket == cabin
     ]
 
-
-def correct_trip_option_prices(
-    result: SearchResult,
-    *,
-    request_legs: list[dict[str, Any]],
-    include_basic_economy: bool,
-    cabin: str,
-    adults: int,
-    timeout: int = 90,
-    retries: int = 2,
-) -> None:
-    if cabin != "economy" or not result.results:
-        return
-
-    for option in result.results:
-        itineraries = [leg.itinerary for leg in option.legs if leg.itinerary is not None]
-        if len(itineraries) != len(request_legs):
-            continue
-        try:
-            booking_options = fetch_trip_booking_options(
-                request_legs,
-                itineraries,
-                cabin=cabin,
-                adults=adults,
-                timeout=timeout,
-                retries=retries,
-            )
-        except (SwoopHTTPError, SwoopParseError) as exc:
-            logger.debug("Trip booking correction failed: %s", exc)
-            continue
-        eligible = _eligible_booking_options(
-            booking_options,
-            include_basic_economy,
-            cabin=cabin,
-        )
-        if not eligible:
-            continue
-        option.price = min(eligible, key=lambda booking_option: booking_option.price).price
 
 
 def search_trip_options(
     request_legs: list[dict[str, Any]],
     *,
-    cabin: str = "economy",
-    adults: int = 1,
+    cabin: CabinClass = "economy",
+    passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
-    correct_prices: bool = False,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
+    max_results: Optional[int] = None,
+    beam_width: Optional[int] = None,
+    time_budget: Optional[int] = None,
 ) -> SearchResult:
     if not request_legs:
         return SearchResult()
 
-    exclude_basic = (
-        cabin == "economy"
-        and len(request_legs) == 1
-        and not include_basic_economy
-    )
+    max_results = max_results if max_results is not None else TARGET_RESULTS
+    beam_width = beam_width if beam_width is not None else BEAM_WIDTH
+    time_budget = time_budget if time_budget is not None else TIME_BUDGET_SECONDS
+
+    exclude_basic = cabin == "economy" and not include_basic_economy
     first_pass = _search_from_legs(
         request_legs,
         cabin=cabin,
-        adults=adults,
+        passengers=passengers,
         sort=sort,
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
         exclude_basic_economy=exclude_basic,
+        retain_raw=False,
     )
     if first_pass is None:
         return SearchResult()
 
     first_candidates = _iter_raw_itineraries(first_pass)
-    if len(request_legs) == 1:
+    if len(request_legs) <= 2:
+        # One-way and roundtrip: first pass already returns full prices.
+        # For roundtrip, Google prices both legs in one call — the itinerary
+        # price is the roundtrip total.  Beam search is only needed for
+        # 3+ leg multi-city trips.
         return SearchResult(
             results=[
                 _build_trip_option(
                     request_legs,
                     [itinerary],
                     cabin=cabin,
-                    adults=adults,
+                    passengers=passengers,
                     include_basic_economy=include_basic_economy,
                     sort=sort,
                 )
@@ -347,8 +324,8 @@ def search_trip_options(
         )
 
     started_at = time.monotonic()
-    is_complete = len(first_candidates) <= BEAM_WIDTH
-    prefixes = [[itinerary] for itinerary in first_candidates[:BEAM_WIDTH]]
+    is_complete = len(first_candidates) <= beam_width
+    prefixes = [[itinerary] for itinerary in first_candidates[:beam_width]]
 
     for stage_index in range(1, len(request_legs)):
         next_prefixes: list[list[Itinerary]] = []
@@ -356,7 +333,7 @@ def search_trip_options(
             break
 
         for prefix_index, prefix in enumerate(prefixes):
-            if time.monotonic() - started_at >= TIME_BUDGET_SECONDS:
+            if time.monotonic() - started_at >= time_budget:
                 is_complete = False
                 break
 
@@ -369,30 +346,30 @@ def search_trip_options(
             stage_result = _search_from_legs(
                 staged_legs,
                 cabin=cabin,
-                adults=adults,
+                passengers=passengers,
                 sort=sort,
-                timeout=timeout,
-                retries=retries,
-                exclude_basic_economy=False,
+                transport=transport,
+                exclude_basic_economy=exclude_basic,
+                retain_raw=False,
             )
             stage_candidates = _iter_raw_itineraries(stage_result)
             if not stage_candidates:
                 continue
 
-            remaining = BEAM_WIDTH - len(next_prefixes)
+            remaining = beam_width - len(next_prefixes)
             if len(stage_candidates) > remaining:
                 is_complete = False
             for candidate in stage_candidates[:remaining]:
                 next_prefixes.append(prefix + [candidate])
 
-            if len(next_prefixes) >= BEAM_WIDTH:
+            if len(next_prefixes) >= beam_width:
                 if prefix_index < len(prefixes) - 1 or len(stage_candidates) > remaining:
                     is_complete = False
                 break
 
         prefixes = next_prefixes
 
-    if len(prefixes) > TARGET_RESULTS:
+    if len(prefixes) > max_results:
         is_complete = False
 
     options = [
@@ -400,24 +377,13 @@ def search_trip_options(
             request_legs,
             prefix,
             cabin=cabin,
-            adults=adults,
+            passengers=passengers,
             include_basic_economy=include_basic_economy,
             sort=sort,
         )
-        for prefix in prefixes[:TARGET_RESULTS]
+        for prefix in prefixes[:max_results]
     ]
     result = SearchResult(results=options, price_range=None, is_complete=is_complete)
-
-    if cabin == "economy" and not include_basic_economy and correct_prices:
-        correct_trip_option_prices(
-            result,
-            request_legs=request_legs,
-            include_basic_economy=include_basic_economy,
-            cabin=cabin,
-            adults=adults,
-            timeout=timeout,
-            retries=retries,
-        )
 
     return result
 
@@ -435,8 +401,7 @@ def _match_itinerary_by_selected_segments(
 def resolve_trip_selector(
     selector: str,
     *,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[Itinerary], int]:
     payload = decode_trip_selector(selector)
     request_legs = [_copy_request_leg(leg) for leg in payload["query_legs"]]
@@ -445,26 +410,26 @@ def resolve_trip_selector(
     rpc_calls = 0
 
     replay_sort = payload.get("sort", SORT_DEPARTURE_TIME)
-    exclude_basic = (
-        payload["cabin"] == "economy"
-        and len(request_legs) == 1
-        and not payload["include_basic_economy"]
-    )
+    exclude_basic = payload["cabin"] == "economy" and not payload["include_basic_economy"]
 
     for index in range(len(request_legs)):
         staged_legs = _with_selected_prefix(request_legs, selected_legs[:index])
         stage_result = _search_from_legs(
             staged_legs,
             cabin=payload["cabin"],
-            adults=payload["adults"],
+            passengers=payload["passengers"],
             sort=replay_sort,
-            timeout=timeout,
-            retries=retries,
-            exclude_basic_economy=exclude_basic if index == 0 else False,
+            transport=transport,
+            exclude_basic_economy=exclude_basic,
+            retain_raw=False,
         )
         rpc_calls += 1
         candidates = _iter_raw_itineraries(stage_result)
-        itinerary = _match_itinerary_by_selected_segments(candidates, selected_legs[index])
+        if index < len(selected_legs):
+            itinerary = _match_itinerary_by_selected_segments(candidates, selected_legs[index])
+        else:
+            # Auto-select first candidate (e.g. return leg from roundtrip fast path)
+            itinerary = candidates[0] if candidates else None
         if itinerary is None:
             raise ValueError("selector itinerary no longer available")
         resolved.append(itinerary)
@@ -476,11 +441,10 @@ def price_selected_trip(
     request_legs: list[dict[str, Any]],
     itineraries: list[Itinerary],
     *,
-    cabin: str = "economy",
-    adults: int = 1,
+    cabin: CabinClass = "economy",
+    passengers: Passengers = Passengers(),
     include_basic_economy: bool = False,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
     rpc_calls: int = 0,
     selections: Optional[list[str]] = None,
 ) -> Optional[PriceResult]:
@@ -508,6 +472,7 @@ def price_selected_trip(
             return None
         return PriceResult(
             price=base_price,
+            currency=final_itinerary.currency,
             itinerary=final_itinerary,
             resolved_legs=resolved_legs,
             rpc_calls=rpc_calls,
@@ -518,9 +483,8 @@ def price_selected_trip(
             request_legs,
             itineraries,
             cabin=cabin,
-            adults=adults,
-            timeout=timeout,
-            retries=retries,
+            passengers=passengers,
+            transport=transport,
         )
         rpc_calls += 1
     except (SwoopHTTPError, SwoopParseError) as exc:
@@ -537,6 +501,7 @@ def price_selected_trip(
             best_option = min(eligible, key=lambda option: option.price)
             return PriceResult(
                 price=best_option.price,
+                currency=final_itinerary.currency,
                 fare_brand=best_option.brand_label or best_option.brand_code or None,
                 is_basic_economy=best_option.is_basic,
                 booking_options=booking_options,
@@ -550,6 +515,7 @@ def price_selected_trip(
 
     return PriceResult(
         price=base_price,
+        currency=final_itinerary.currency,
         booking_options=booking_options,
         itinerary=final_itinerary,
         resolved_legs=resolved_legs,
@@ -561,10 +527,9 @@ def resolve_selected_trip(
     request_legs: list[dict[str, Any]],
     requested_flights: list[Optional[str]],
     *,
-    cabin: str = "economy",
-    adults: int = 1,
-    timeout: int = 90,
-    retries: int = 2,
+    cabin: CabinClass = "economy",
+    passengers: Passengers = Passengers(),
+    transport: TransportConfig = TransportConfig(),
     exclude_basic_economy: bool = False,
 ) -> tuple[list[Itinerary], list[str], int]:
     resolved: list[Itinerary] = []
@@ -579,11 +544,11 @@ def resolve_selected_trip(
         stage_result = _search_from_legs(
             staged_legs,
             cabin=cabin,
-            adults=adults,
+            passengers=passengers,
             sort=SORT_DEPARTURE_TIME,
-            timeout=timeout,
-            retries=retries,
-            exclude_basic_economy=exclude_basic_economy if index == 0 else False,
+            transport=transport,
+            exclude_basic_economy=exclude_basic_economy,
+            retain_raw=False,
         )
         rpc_calls += 1
         candidates = _iter_raw_itineraries(stage_result)
@@ -613,14 +578,12 @@ def resolve_selected_trip(
 def price_trip_selector(
     selector: str,
     *,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
 ) -> Optional[PriceResult]:
     try:
         payload, request_legs, itineraries, rpc_calls = resolve_trip_selector(
             selector,
-            timeout=timeout,
-            retries=retries,
+            transport=transport,
         )
     except ValueError:
         return None
@@ -628,10 +591,9 @@ def price_trip_selector(
         request_legs,
         itineraries,
         cabin=payload["cabin"],
-        adults=payload["adults"],
+        passengers=payload["passengers"],
         include_basic_economy=payload["include_basic_economy"],
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
         rpc_calls=rpc_calls,
     )
 

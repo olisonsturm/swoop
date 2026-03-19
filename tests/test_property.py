@@ -8,15 +8,15 @@ from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
 
 from swoop.decoder import (
-    _decode_flight,
+    _decode_segment,
     _decode_itinerary,
     _decode_layover,
     _safe_get,
-    Flight,
+    Segment,
     Itinerary,
     Layover,
     decode_result,
-    SearchResult,
+    RawSearchResult,
 )
 from swoop._validate import (
     validate_cabin,
@@ -69,15 +69,15 @@ class TestSafeGetProperty:
         assert _safe_get(data, path, default) == default
 
 
-class TestDecodeFlightProperty:
-    """_decode_flight must never crash."""
+class TestDecodeSegmentProperty:
+    """_decode_segment must never crash."""
 
     @given(data=nested_lists)
     @settings(max_examples=200, suppress_health_check=[HealthCheck.too_slow])
     def test_never_crashes(self, data):
-        result = _decode_flight(data)
+        result = _decode_segment(data)
         if result is not None:
-            assert isinstance(result, Flight)
+            assert isinstance(result, Segment)
             assert isinstance(result.codeshares, list)
             assert len(result.departure_date) == 3
             assert len(result.arrival_date) == 3
@@ -95,7 +95,7 @@ class TestDecodeItineraryProperty:
         result = _decode_itinerary(data)
         if result is not None:
             assert isinstance(result, Itinerary)
-            assert isinstance(result.flights, list)
+            assert isinstance(result.segments, list)
             assert isinstance(result.layovers, list)
             assert result.travel_time >= 0
             assert result.price is None or isinstance(result.price, int)
@@ -118,13 +118,13 @@ class TestDecodeLayoverProperty:
 
 
 class TestDecodeResultProperty:
-    """decode_result must always return a SearchResult."""
+    """decode_result must always return a RawSearchResult."""
 
     @given(data=nested_lists)
     @settings(max_examples=100, suppress_health_check=[HealthCheck.too_slow])
     def test_always_returns_search_result(self, data):
         result = decode_result(data)
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
         assert isinstance(result.best, list)
         assert isinstance(result.other, list)
         assert all(isinstance(itinerary, Itinerary) for itinerary in result.best + result.other)

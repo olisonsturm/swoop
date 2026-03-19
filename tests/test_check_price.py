@@ -9,7 +9,7 @@ import pytest
 
 import swoop
 from swoop import check_price, PriceResult
-from swoop.decoder import BookingOption, Flight, Itinerary, SearchResult
+from swoop.decoder import BookingOption, Segment, Itinerary, RawSearchResult
 from swoop.exceptions import SwoopRateLimitError
 
 from tests.factories import (
@@ -102,11 +102,12 @@ class TestCheckPriceOneWay:
 
     def test_rate_limit_propagated(self, fake_primp):
         """Rate limit error from RPC is propagated."""
+        from swoop.models import TransportConfig
         fake_primp(429, "")
         with pytest.raises(SwoopRateLimitError):
             check_price(
                 "DL2300", origin="JFK", destination="LAX", date="2026-06-15",
-                retries=0,
+                transport=TransportConfig(retries=0),
             )
 
 
@@ -116,7 +117,7 @@ class TestCheckPriceRoundtrip:
     def test_roundtrip_makes_multiple_rpc_calls(self):
         """Roundtrip check_price resolves two search stages plus exact booking."""
         outbound_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2300",
                 departure_airport_code="JFK", arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15), departure_time=(8, 30),
@@ -126,7 +127,7 @@ class TestCheckPriceRoundtrip:
             booking_token="outbound-token",
         )
         return_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2301",
                 departure_airport_code="LAX", arrival_airport_code="JFK",
                 departure_date=(2026, 6, 22), departure_time=(14, 0),
@@ -136,8 +137,8 @@ class TestCheckPriceRoundtrip:
             booking_token="return-token",
         )
 
-        outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
-        return_result = SearchResult(_raw=[], best=[return_itin], other=[])
+        outbound_result = RawSearchResult(_raw=[], best=[outbound_itin], other=[])
+        return_result = RawSearchResult(_raw=[], best=[return_itin], other=[])
         booking_options = [
             BookingOption(price=684, brand_label="Main Cabin", is_basic=False, _cabin_bucket="economy"),
             BookingOption(price=580, brand_label="Basic Economy", is_basic=True, _cabin_bucket="economy"),
@@ -174,7 +175,7 @@ class TestCheckPriceRoundtrip:
     def test_roundtrip_return_expansion_has_no_airline_filter(self):
         """Return-stage search should use the return carrier, not the outbound one."""
         outbound_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2300",
                 departure_airport_code="JFK", arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15), departure_time=(8, 30),
@@ -184,7 +185,7 @@ class TestCheckPriceRoundtrip:
             booking_token="outbound-token",
         )
         return_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="UA", flight_number="456",
                 departure_airport_code="LAX", arrival_airport_code="JFK",
                 departure_date=(2026, 6, 22), departure_time=(14, 0),
@@ -193,8 +194,8 @@ class TestCheckPriceRoundtrip:
             direct_price=700,
             booking_token="return-token",
         )
-        outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
-        return_result = SearchResult(_raw=[], best=[return_itin], other=[])
+        outbound_result = RawSearchResult(_raw=[], best=[outbound_itin], other=[])
+        return_result = RawSearchResult(_raw=[], best=[return_itin], other=[])
 
         search_calls = []
 
@@ -219,7 +220,7 @@ class TestCheckPriceRoundtrip:
     def test_roundtrip_include_basic_economy(self):
         """With include_basic_economy=True, basic fares are eligible."""
         outbound_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2300",
                 departure_airport_code="JFK", arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15), departure_time=(8, 30),
@@ -229,7 +230,7 @@ class TestCheckPriceRoundtrip:
             booking_token="outbound-token",
         )
         return_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2301",
                 departure_airport_code="LAX", arrival_airport_code="JFK",
                 departure_date=(2026, 6, 22), departure_time=(14, 0),
@@ -239,8 +240,8 @@ class TestCheckPriceRoundtrip:
             booking_token="return-token",
         )
 
-        outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
-        return_result = SearchResult(_raw=[], best=[return_itin], other=[])
+        outbound_result = RawSearchResult(_raw=[], best=[outbound_itin], other=[])
+        return_result = RawSearchResult(_raw=[], best=[return_itin], other=[])
         booking_options = [
             BookingOption(price=684, brand_label="Main Cabin", is_basic=False, _cabin_bucket="economy"),
             BookingOption(price=580, brand_label="Basic Economy", is_basic=True, _cabin_bucket="economy"),
@@ -266,7 +267,7 @@ class TestCheckPriceRoundtrip:
     def test_roundtrip_business_does_not_downshift_to_economy(self):
         """Business pricing should ignore cheaper lower-cabin booking options."""
         outbound_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2300",
                 departure_airport_code="JFK", arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15), departure_time=(8, 30),
@@ -276,7 +277,7 @@ class TestCheckPriceRoundtrip:
             booking_token="outbound-token",
         )
         return_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2301",
                 departure_airport_code="LAX", arrival_airport_code="JFK",
                 departure_date=(2026, 6, 22), departure_time=(14, 0),
@@ -285,8 +286,8 @@ class TestCheckPriceRoundtrip:
             direct_price=1400,
             booking_token="return-token",
         )
-        outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
-        return_result = SearchResult(_raw=[], best=[return_itin], other=[])
+        outbound_result = RawSearchResult(_raw=[], best=[outbound_itin], other=[])
+        return_result = RawSearchResult(_raw=[], best=[return_itin], other=[])
         booking_options = [
             BookingOption(price=520, brand_label="Main Cabin", is_basic=False, _cabin_bucket="economy"),
             BookingOption(price=1450, brand_label="Delta One", is_basic=False, _cabin_bucket="business"),
@@ -311,7 +312,7 @@ class TestCheckPriceRoundtrip:
 
     def test_roundtrip_returns_none_when_outbound_not_found(self):
         """Returns None if outbound flight not found."""
-        empty_result = SearchResult(_raw=[], best=[], other=[])
+        empty_result = RawSearchResult(_raw=[], best=[], other=[])
 
         with patch("swoop._selection._search_from_legs", return_value=empty_result):
             result = check_price(
@@ -324,7 +325,7 @@ class TestCheckPriceRoundtrip:
     def test_roundtrip_falls_back_on_booking_failure(self):
         """Falls back to direct_price when GetBookingResults fails."""
         outbound_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2300",
                 departure_airport_code="JFK", arrival_airport_code="LAX",
                 departure_date=(2026, 6, 15), departure_time=(8, 30),
@@ -334,7 +335,7 @@ class TestCheckPriceRoundtrip:
             booking_token="outbound-token",
         )
         return_itin = Itinerary(
-            flights=[Flight(
+            segments=[Segment(
                 airline="DL", flight_number="2301",
                 departure_airport_code="LAX", arrival_airport_code="JFK",
                 departure_date=(2026, 6, 22), departure_time=(14, 0),
@@ -344,8 +345,8 @@ class TestCheckPriceRoundtrip:
             booking_token="return-token",
         )
 
-        outbound_result = SearchResult(_raw=[], best=[outbound_itin], other=[])
-        return_result = SearchResult(_raw=[], best=[return_itin], other=[])
+        outbound_result = RawSearchResult(_raw=[], best=[outbound_itin], other=[])
+        return_result = RawSearchResult(_raw=[], best=[return_itin], other=[])
 
         def mock_search_from_legs(legs, **kwargs):
             if legs[0].get("selected_legs") is not None:
@@ -363,9 +364,10 @@ class TestCheckPriceRoundtrip:
         assert result.price == 650  # Fell back to direct_price
 
 
-class TestCheckPriceRetryDefault:
-    """check_price inherits the retries=2 default."""
+class TestCheckPriceTransportDefault:
+    """check_price uses TransportConfig with retries=2 default."""
 
-    def test_default_retries_is_2(self):
+    def test_default_transport_has_retries_2(self):
         sig = inspect.signature(swoop.check_price)
-        assert sig.parameters["retries"].default == 2
+        transport_default = sig.parameters["transport"].default
+        assert transport_default.retries == 2

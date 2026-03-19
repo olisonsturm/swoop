@@ -477,6 +477,9 @@ Per booking option (see `rpc.py` and `booking-options-proto-notes.md`):
 | `option[21][1]` | Attribute vector — raw list, normalized to first 32 scalar elements for diagnostics | **Yes** |
 | `option[21][2]` | Basic economy flag (primary boolean) | **Yes** |
 | `option[21][3]` | Brand label (user-facing display name) | **Yes** |
+| `option[21][6][0][0]` | **Cabin class** — Seat enum: 1=economy, 2=premium-economy, 3=business, 4=first. Present on all observed options including codeshare/OTA with no brand text. Primary signal for `_cabin_bucket`. | **Yes** |
+| `option[21][6][0][1]` | Amenity flags array (same format as `segment[12]`) | No |
+| `option[21][6][0][2]` | Seat type indicator (similar to `segment[13]`) | No |
 | `option[21][16]` | Basic economy flag (secondary boolean) | **Yes** |
 | `option[24]` | Basic economy tail flag (boolean) | **Yes** |
 

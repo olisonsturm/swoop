@@ -11,9 +11,9 @@ import urllib.parse
 
 import pytest
 
-from swoop.builders import ItinerarySummary, TFSData, SearchLeg, Passengers
-from swoop.decoder import decode_result, _decode_flight, _safe_get
-from swoop.rpc import _build_f_req
+from swoop.builders import ItinerarySummary, TFSData, SearchLeg, _PBPassengers as Passengers
+from swoop.decoder import decode_result, _decode_segment, _safe_get
+from swoop.rpc import _build_filters_from_legs, _normalize_rpc_leg, _encode_f_req_payload
 
 
 class TestAirportNesting:
@@ -23,11 +23,10 @@ class TestAirportNesting:
     """
 
     def test_outbound_airport_is_3_levels(self):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15")
-        decoded = urllib.parse.unquote(encoded)
-        outer = json.loads(decoded)
-        inner = json.loads(outer[1])
-        segments = inner[1][13]
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+        ])
+        segments = filters[1][13]
         dep = segments[0][0]
         # Must be [[[code, 0]]] — exactly 3 levels
         assert dep == [[["JFK", 0]]]
@@ -35,11 +34,11 @@ class TestAirportNesting:
         assert not isinstance(dep[0][0][0], list)
 
     def test_return_airport_is_3_levels(self):
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15", return_date="2026-03-22")
-        decoded = urllib.parse.unquote(encoded)
-        outer = json.loads(decoded)
-        inner = json.loads(outer[1])
-        segments = inner[1][13]
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+            _normalize_rpc_leg("LAX", "JFK", "2026-03-22"),
+        ])
+        segments = filters[1][13]
         # Return segment has reversed airports
         dep = segments[1][0]
         arr = segments[1][1]
@@ -70,7 +69,7 @@ class TestPriceInfoB64Path:
 
         result = _decode_price_info(el)
         assert result is not None
-        assert result.price == 350.0  # 35000 cents / 100
+        assert result.price == 35000  # raw protobuf value
 
     def test_wrong_path_would_fail(self):
         """If we used [1,1], we'd get None since [1] is a string not a list."""
@@ -89,7 +88,10 @@ class TestPrimpContentBytes:
 
     def test_f_req_body_is_encoded_to_bytes(self):
         """The encoded body passed to _http_post must be bytes."""
-        encoded = _build_f_req("JFK", "LAX", "2026-03-15")
+        filters = _build_filters_from_legs([
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+        ])
+        encoded = _encode_f_req_payload(filters)
         body = f"f.req={encoded}"
         body_bytes = body.encode()
         assert isinstance(body_bytes, bytes)
@@ -114,31 +116,32 @@ class TestRoundtripPriceIsReturnTotal:
         # We verify the ItinerarySummary decoder preserves prices faithfully.
         from swoop import flights_pb2 as PB
         summary = PB.ItinerarySummary()
-        summary.price.price = 52800  # cents -- roundtrip total
+        summary.price.price = 52800
         summary.price.currency = "USD"
         b64 = base64.b64encode(summary.SerializeToString()).decode()
 
         decoded = ItinerarySummary.from_b64(b64)
-        assert decoded.price == 528.0  # $528 roundtrip total
+        assert decoded.price == 52800  # raw protobuf value preserved
         assert decoded.currency == "USD"
 
 
 class TestItinerarySummaryPriceConversion:
-    """Bug: ItinerarySummary.from_b64() returns price in cents/100 = dollars.
-    Code that used the raw value without dividing showed prices 100x too high.
-    Fix: Use round() on the decoded price.
+    """ItinerarySummary.from_b64() stores the raw protobuf price value.
+
+    The authoritative price comes from Itinerary.direct_price (the display
+    integer from the JSON response). The protobuf value is only used for
+    the currency code.
     """
 
-    def test_price_is_in_dollars_not_cents(self):
+    def test_price_is_raw_protobuf_value(self):
         from swoop import flights_pb2 as PB
         summary = PB.ItinerarySummary()
-        summary.price.price = 28400  # 284 dollars in cents
+        summary.price.price = 28400
         summary.price.currency = "USD"
         b64 = base64.b64encode(summary.SerializeToString()).decode()
 
         decoded = ItinerarySummary.from_b64(b64)
-        # from_b64 divides by 100
-        assert decoded.price == 284.0
+        assert decoded.price == 28400  # raw value, no conversion
 
 
 class TestDecoderGracefulDegradation:
@@ -148,11 +151,11 @@ class TestDecoderGracefulDegradation:
     Fix: All decoder functions use try/except and return None/defaults.
     """
 
-    def test_decode_flight_with_non_list_returns_flight_not_none(self):
-        """Malformed flight data should return a Flight with defaults."""
-        flight = _decode_flight("not a list")
-        assert flight is not None
-        assert flight.airline == ""
+    def test_decode_segment_with_non_list_returns_segment_not_none(self):
+        """Malformed segment data should return a Segment with defaults."""
+        segment = _decode_segment("not a list")
+        assert segment is not None
+        assert segment.airline == ""
 
     def test_decode_result_skips_malformed_itineraries(self):
         """Malformed itineraries in the response should be skipped."""

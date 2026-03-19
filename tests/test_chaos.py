@@ -9,17 +9,17 @@ import copy
 import pytest
 
 from swoop.decoder import (
-    _decode_flight,
+    _decode_segment,
     _decode_itinerary,
     _decode_layover,
     decode_result,
-    SearchResult,
+    RawSearchResult,
 )
 from tests.factories import make_flight_segment, make_itinerary_element, make_full_response
 
 
-class TestCorruptFlightSegment:
-    """Corrupt each of the 33 flight segment indices."""
+class TestCorruptSegment:
+    """Corrupt each of the 33 segment indices."""
 
     @pytest.fixture
     def valid_segment(self):
@@ -29,7 +29,7 @@ class TestCorruptFlightSegment:
     def test_corrupt_with_none(self, valid_segment, index):
         corrupted = copy.deepcopy(valid_segment)
         corrupted[index] = None
-        result = _decode_flight(corrupted)
+        result = _decode_segment(corrupted)
         if result is not None:
             assert isinstance(result.codeshares, list)
             assert len(result.departure_date) == 3
@@ -40,7 +40,7 @@ class TestCorruptFlightSegment:
     def test_corrupt_with_string(self, valid_segment, index):
         corrupted = copy.deepcopy(valid_segment)
         corrupted[index] = "corrupted"
-        result = _decode_flight(corrupted)
+        result = _decode_segment(corrupted)
         if result is not None:
             assert isinstance(result.codeshares, list)
             assert result.travel_time >= 0
@@ -49,7 +49,7 @@ class TestCorruptFlightSegment:
     def test_corrupt_with_empty_list(self, valid_segment, index):
         corrupted = copy.deepcopy(valid_segment)
         corrupted[index] = []
-        result = _decode_flight(corrupted)
+        result = _decode_segment(corrupted)
         if result is not None:
             assert isinstance(result.codeshares, list)
             assert result.travel_time >= 0
@@ -69,7 +69,7 @@ class TestCorruptItinerary:
         corrupted[index] = None
         result = _decode_itinerary(corrupted)
         if result is not None:
-            assert isinstance(result.flights, list)
+            assert isinstance(result.segments, list)
             assert isinstance(result.layovers, list)
             assert result.price is None or isinstance(result.price, int)
 
@@ -79,7 +79,7 @@ class TestCorruptItinerary:
         corrupted[index] = "bad"
         result = _decode_itinerary(corrupted)
         if result is not None:
-            assert isinstance(result.flights, list)
+            assert isinstance(result.segments, list)
             assert isinstance(result.layovers, list)
 
     def test_itin_data_is_string(self, valid_element):
@@ -98,7 +98,7 @@ class TestCorruptItinerary:
         corrupted[0][2] = None
         result = _decode_itinerary(corrupted)
         if result is not None:
-            assert result.flights == []
+            assert result.segments == []
 
     def test_summary_is_none(self, valid_element):
         corrupted = copy.deepcopy(valid_element)
@@ -122,36 +122,36 @@ class TestCorruptFullResponse:
         corrupted = copy.deepcopy(valid_response)
         corrupted[index] = None
         result = decode_result(corrupted)
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
 
     def test_best_list_is_string(self, valid_response):
         corrupted = copy.deepcopy(valid_response)
         corrupted[2] = "not a list"
         result = decode_result(corrupted)
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
         assert result.best == []
 
     def test_best_list_is_empty(self, valid_response):
         corrupted = copy.deepcopy(valid_response)
         corrupted[2] = [[]]
         result = decode_result(corrupted)
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
         assert result.best == []
 
     def test_all_none(self):
         result = decode_result([None, None, None, None])
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
         assert result.best == []
         assert result.other == []
 
     def test_empty_list(self):
         result = decode_result([])
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
         assert result.best == []
 
     def test_nested_nones(self):
         result = decode_result([None, None, [[None, None, None]], [[None]]])
-        assert isinstance(result, SearchResult)
+        assert isinstance(result, RawSearchResult)
 
 
 class TestCorruptLayover:

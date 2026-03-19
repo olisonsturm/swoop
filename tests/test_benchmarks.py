@@ -11,8 +11,8 @@ import pytest
 pytest.importorskip("pytest_benchmark")
 pytestmark = pytest.mark.benchmark
 
-from swoop.decoder import _decode_flight, _decode_itinerary, decode_result
-from swoop.rpc import _build_f_req
+from swoop.decoder import _decode_segment, _decode_itinerary, decode_result
+from swoop.rpc import _build_filters_from_legs, _normalize_rpc_leg, _encode_f_req_payload
 from tests.factories import make_flight_segment, make_itinerary_element, make_full_response
 
 
@@ -21,7 +21,7 @@ class TestDecoderBenchmarks:
 
     def test_decode_single_flight(self, benchmark):
         segment = make_flight_segment()
-        benchmark(_decode_flight, segment)
+        benchmark(_decode_segment, segment)
 
     def test_decode_single_itinerary(self, benchmark):
         segment = make_flight_segment()
@@ -53,24 +53,27 @@ class TestDecoderBenchmarks:
 class TestRpcBenchmarks:
     """Benchmark RPC request building."""
 
-    def test_build_f_req_oneway(self, benchmark):
-        benchmark(_build_f_req, "JFK", "LAX", "2026-03-15")
+    def test_build_filters_oneway(self, benchmark):
+        legs = [_normalize_rpc_leg("JFK", "LAX", "2026-03-15")]
+        benchmark(lambda: _encode_f_req_payload(_build_filters_from_legs(legs)))
 
-    def test_build_f_req_roundtrip(self, benchmark):
-        benchmark(
-            _build_f_req,
-            "JFK", "LAX", "2026-03-15",
-            return_date="2026-03-22",
-        )
+    def test_build_filters_roundtrip(self, benchmark):
+        legs = [
+            _normalize_rpc_leg("JFK", "LAX", "2026-03-15"),
+            _normalize_rpc_leg("LAX", "JFK", "2026-03-22"),
+        ]
+        benchmark(lambda: _encode_f_req_payload(_build_filters_from_legs(legs)))
 
-    def test_build_f_req_with_filters(self, benchmark):
-        benchmark(
-            _build_f_req,
-            "JFK", "LAX", "2026-03-15",
-            cabin="business",
-            adults=2,
-            max_stops=1,
-            airlines=["DL", "UA", "AA"],
-            earliest_departure=6,
-            latest_departure=18,
-        )
+    def test_build_filters_with_options(self, benchmark):
+        legs = [
+            _normalize_rpc_leg(
+                "JFK", "LAX", "2026-03-15",
+                max_stops=1,
+                airlines=["DL", "UA", "AA"],
+                earliest_departure=6,
+                latest_departure=18,
+            ),
+        ]
+        benchmark(lambda: _encode_f_req_payload(
+            _build_filters_from_legs(legs, cabin="business", adults=2)
+        ))

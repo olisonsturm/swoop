@@ -5,6 +5,8 @@ from datetime import date as _date, datetime
 
 import click
 
+from .._formatting import fmt_duration as format_duration
+
 
 class IATACodeType(click.ParamType):
     """Click parameter type for IATA airport codes.
@@ -71,18 +73,6 @@ def format_time(h: int | None, m: int | None) -> str:
     return f"{display_h}:{m:02d}{period}"
 
 
-def format_duration(minutes: int) -> str:
-    """Format minutes as '5h 15m'."""
-    if minutes <= 0:
-        return "0m"
-    h, m = divmod(minutes, 60)
-    if h and m:
-        return f"{h}h {m:02d}m"
-    if h:
-        return f"{h}h"
-    return f"{m}m"
-
-
 def format_date_display(date_str: str) -> str:
     """Format 'YYYY-MM-DD' as 'Sat Jun 15, 2026'."""
     try:
@@ -103,9 +93,9 @@ def _iata_or_short(code: str) -> str:
 def format_route(itin) -> str:
     """Format itinerary route as 'JFK -> ORD -> LAX'."""
     # Prefer itinerary-level departure/arrival (always IATA codes)
-    if len(itin.flights) <= 1:
-        dep = itin.departure_airport_code or (itin.flights[0].departure_airport_code if itin.flights else "")
-        arr = itin.arrival_airport_code or (itin.flights[0].arrival_airport_code if itin.flights else "")
+    if len(itin.segments) <= 1:
+        dep = itin.departure_airport_code or (itin.segments[0].departure_airport_code if itin.segments else "")
+        arr = itin.arrival_airport_code or (itin.segments[0].arrival_airport_code if itin.segments else "")
         return f"{_iata_or_short(dep)} -> {_iata_or_short(arr)}"
     # Multi-segment: use itinerary endpoints + layover airports
     airports = [_iata_or_short(itin.departure_airport_code)]

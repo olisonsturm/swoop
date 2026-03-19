@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import swoop
 from swoop import SearchResult, TripLeg, TripOption
-from swoop.decoder import Flight, Itinerary
+from swoop.decoder import Segment, Itinerary
 
 
 class TestSearchUsesShoppingPrices:
@@ -13,12 +13,12 @@ class TestSearchUsesShoppingPrices:
     def test_roundtrip_search_skips_price_correction(self):
         """Roundtrip search should return shopping rows without correction."""
         matching_itin = Itinerary(
-            flights=[Flight(airline="DL", flight_number="2300")],
+            segments=[Segment(airline="DL", flight_number="2300")],
             direct_price=342,
             booking_token="match-token",
         )
         other_itin = Itinerary(
-            flights=[Flight(airline="UA", flight_number="1234")],
+            segments=[Segment(airline="UA", flight_number="1234")],
             direct_price=400,
             booking_token="other-token",
         )
@@ -46,5 +46,4 @@ class TestSearchUsesShoppingPrices:
                 flight_number="DL2300",
             )
 
-        assert mock_search_trip_options.call_args.kwargs["correct_prices"] is False
         assert [option.selector for option in output.results] == ["selector-2"]

@@ -16,8 +16,8 @@ from ._booking import (
     _classify_fare_family,
     _extract_brand_block,
     _extract_context_tokens,
-    _extract_display_price_cents_from_context,
-    _extract_option_index_and_token_price_cents,
+    _extract_display_price_raw_from_context,
+    _extract_option_index_and_token_price_raw,
     _extract_price_block,
     _extract_segment_identity_from_context,
     _infer_rebookability_signal,
@@ -29,8 +29,10 @@ from ._booking import (
     _skip_wire_value,
     parse_booking_payload,
 )
+from .builders import CABIN_CLASS_MAP, CabinClass
 from .decoder import BookingOption, RawSearchResult, Itinerary, decode_result, _safe_get
 from .exceptions import SwoopHTTPError, SwoopParseError, SwoopRateLimitError
+from .models import Passengers, TransportConfig
 
 logger = logging.getLogger(__name__)
 
@@ -42,14 +44,6 @@ BOOKING_RPC_URL = (
     "https://www.google.com/_/FlightsFrontendUi/data/"
     "travel.frontend.flights.FlightsFrontendService/GetBookingResults"
 )
-
-# Cabin class mapping (matches Google Flights internal values)
-CABIN_CLASS_MAP = {
-    "economy": 1,
-    "premium-economy": 2,
-    "business": 3,
-    "first": 4,
-}
 
 # Sort order values
 SORT_TOP = 1
@@ -159,8 +153,8 @@ def _build_segment_from_leg(leg: dict[str, Any]) -> list[Any]:
 def _build_filters_from_legs(
     legs: list[dict[str, Any]],
     *,
-    cabin: str = "economy",
-    adults: int = 1,
+    cabin: CabinClass = "economy",
+    passengers: Passengers = Passengers(),
     sort: int = SORT_TOP,
     exclude_basic_economy: bool = False,
 ) -> list[Any]:
@@ -178,7 +172,7 @@ def _build_filters_from_legs(
             None,                                    # [3] placeholder
             [],                                      # [4] empty array
             seat_type,                               # [5] seat type
-            [adults, 0, 0, 0],                       # [6] passengers
+            [passengers.adults, passengers.children, passengers.infants_in_seat, passengers.infants_on_lap],  # [6] passengers
             None,                                    # [7] price limit
             None,                                    # [8-12] placeholders
             None,
@@ -210,82 +204,6 @@ def _build_filters_from_legs(
     return filters
 
 
-def _build_filters(
-    origin: str,
-    destination: str,
-    date: str,
-    cabin: str = "economy",
-    adults: int = 1,
-    sort: int = SORT_TOP,
-    max_stops: Optional[int] = None,
-    airlines: Optional[list[str]] = None,
-    earliest_departure: Optional[int] = None,
-    latest_departure: Optional[int] = None,
-    earliest_arrival: Optional[int] = None,
-    latest_arrival: Optional[int] = None,
-    return_date: Optional[str] = None,
-    return_earliest_departure: Optional[int] = None,
-    return_latest_departure: Optional[int] = None,
-    selected_outbound_legs: Optional[list[list[Any]]] = None,
-    exclude_basic_economy: bool = False,
-) -> list[Any]:
-    """Build nested filters payload used by shopping/booking RPC calls.
-
-    Args:
-        origin: Origin airport IATA code (e.g., "JFK")
-        destination: Destination airport IATA code (e.g., "LAX")
-        date: Departure date in YYYY-MM-DD format
-        cabin: Cabin class (economy, premium-economy, business, first)
-        adults: Number of adult passengers
-        sort: Sort order (use SORT_* constants)
-        max_stops: Maximum stops (None=any, 0=nonstop, 1=one stop, 2=two stops)
-        airlines: List of airline codes to filter by (e.g., ["DL"])
-        earliest_departure: Earliest departure hour (0-23)
-        latest_departure: Latest departure hour (1-24)
-        earliest_arrival: Earliest arrival hour (0-23)
-        latest_arrival: Latest arrival hour (1-24)
-        return_date: Return date in YYYY-MM-DD format (makes it a roundtrip search)
-        return_earliest_departure: Earliest return departure hour (0-23)
-        return_latest_departure: Latest return departure hour (1-24)
-        selected_outbound_legs: Pre-selected outbound legs for roundtrip expansion.
-            Each leg must be [dep_airport, dep_date, arr_airport, None, airline_code, flight_number].
-    """
-    legs = [
-        _normalize_rpc_leg(
-            origin,
-            destination,
-            date,
-            max_stops=max_stops,
-            airlines=airlines,
-            earliest_departure=earliest_departure,
-            latest_departure=latest_departure,
-            earliest_arrival=earliest_arrival,
-            latest_arrival=latest_arrival,
-            selected_legs=selected_outbound_legs if return_date is not None else None,
-        )
-    ]
-    if return_date is not None:
-        legs.append(
-            _normalize_rpc_leg(
-                destination,
-                origin,
-                return_date,
-                max_stops=max_stops,
-                airlines=airlines,
-                earliest_departure=return_earliest_departure,
-                latest_departure=return_latest_departure,
-            )
-        )
-
-    return _build_filters_from_legs(
-        legs,
-        cabin=cabin,
-        adults=adults,
-        sort=sort,
-        exclude_basic_economy=exclude_basic_economy,
-    )
-
-
 def _encode_f_req_payload(payload: list[Any]) -> str:
     """Encode payload to the URL-escaped `f.req` value."""
     payload_json = json.dumps(payload, separators=(",", ":"))
@@ -293,67 +211,22 @@ def _encode_f_req_payload(payload: list[Any]) -> str:
     return urllib.parse.quote(wrapped)
 
 
-def _build_f_req(
-    origin: str,
-    destination: str,
-    date: str,
-    cabin: str = "economy",
-    adults: int = 1,
-    sort: int = SORT_TOP,
-    max_stops: Optional[int] = None,
-    airlines: Optional[list[str]] = None,
-    earliest_departure: Optional[int] = None,
-    latest_departure: Optional[int] = None,
-    earliest_arrival: Optional[int] = None,
-    latest_arrival: Optional[int] = None,
-    return_date: Optional[str] = None,
-    return_earliest_departure: Optional[int] = None,
-    return_latest_departure: Optional[int] = None,
-    selected_outbound_legs: Optional[list[list[Any]]] = None,
-    exclude_basic_economy: bool = False,
-) -> str:
-    """Build the f.req body for the GetShoppingResults RPC endpoint."""
-    filters = _build_filters(
-        origin=origin,
-        destination=destination,
-        date=date,
-        cabin=cabin,
-        adults=adults,
-        sort=sort,
-        max_stops=max_stops,
-        airlines=airlines,
-        earliest_departure=earliest_departure,
-        latest_departure=latest_departure,
-        earliest_arrival=earliest_arrival,
-        latest_arrival=latest_arrival,
-        return_date=return_date,
-        return_earliest_departure=return_earliest_departure,
-        return_latest_departure=return_latest_departure,
-        selected_outbound_legs=selected_outbound_legs,
-        exclude_basic_economy=exclude_basic_economy,
-    )
-    # Encoding: JSON -> wrap in [None, json_string] -> URL-encode.
-    # The double-JSON pattern (stringify, then wrap in array and stringify again)
-    # mirrors how the Google Flights web app encodes its RPC requests.
-    return _encode_f_req_payload(filters)
-
-
 def _search_from_legs(
     legs: list[dict[str, Any]],
     *,
-    cabin: str = "economy",
-    adults: int = 1,
+    cabin: CabinClass = "economy",
+    passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
     exclude_basic_economy: bool = False,
+    retain_raw: bool = True,
 ) -> Optional[RawSearchResult]:
     """Search Google Flights from normalized leg definitions."""
     encoded_body = _encode_f_req_payload(
         _build_filters_from_legs(
             legs,
             cabin=cabin,
-            adults=adults,
+            passengers=passengers,
             sort=sort,
             exclude_basic_economy=exclude_basic_economy,
         )
@@ -362,12 +235,13 @@ def _search_from_legs(
     res = _http_post(
         SHOPPING_RPC_URL,
         content=f"f.req={encoded_body}".encode(),
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
     )
 
     result = _parse_rpc_response(res.text)
-    if result is not None and hasattr(result, "best"):
+    if isinstance(result, RawSearchResult):
+        if not retain_raw:
+            result._raw = []
         logger.info(
             "_search_from_legs found %d best + %d other itineraries",
             len(result.best), len(result.other),
@@ -404,22 +278,110 @@ def _build_booking_f_req(
     return _encode_f_req_payload(inner)
 
 
+_MAX_CLIENTS = 32
+_clients: dict[str, Any] = {}
+_default_country: Optional[str] = None
+_default_proxy: Optional[str] = None
+
+
+def set_country(country: Optional[str]) -> None:
+    """Set the default country for all subsequent requests.
+
+    Controls the Google Flights point of sale, which determines currency
+    and available fares.  Uses the ``gl=`` query parameter (ISO 3166-1
+    alpha-2 country code).
+
+    .. note::
+
+        Not thread-safe.  If you need per-thread country control, pass
+        ``country=`` explicitly to each call instead.
+
+    Args:
+        country: Two-letter country code (e.g. ``"US"``, ``"GB"``,
+            ``"JP"``), or ``None`` to let Google auto-detect from IP.
+
+    Example::
+
+        import swoop
+        swoop.set_country("US")  # prices in USD
+    """
+    global _default_country
+    _default_country = country.upper() if country else None
+
+
+def set_proxy(proxy: Optional[str]) -> None:
+    """Set the default proxy for all subsequent requests.
+
+    Useful for routing requests through different servers to use
+    different source IPs (e.g. for rate-limit management).
+
+    Supports HTTP, HTTPS, and SOCKS5 proxy URLs.
+
+    .. note::
+
+        Not thread-safe.  If you need per-thread proxy control, pass
+        ``proxy=`` explicitly to each call instead.
+
+    Args:
+        proxy: Proxy URL (e.g. ``"socks5://user:pass@host:port"``,
+            ``"http://host:port"``), or ``None`` to connect directly.
+
+    Example::
+
+        import swoop
+        swoop.set_proxy("socks5://myserver:1080")
+    """
+    global _default_proxy
+    if proxy != _default_proxy:
+        # Only evict the old default-proxy client; leave per-call clients intact
+        old_key = _default_proxy or ""
+        _clients.pop(old_key, None)
+        _default_proxy = proxy
+
+
+def _get_client(proxy: Optional[str] = None) -> Any:
+    """Return a Client for the given proxy, with connection reuse.
+
+    Maintains separate Client instances per proxy so that different
+    proxy routes don't interfere with each other's connection state.
+    """
+    from primp import Client
+
+    effective_proxy = proxy if proxy is not None else _default_proxy
+    key = effective_proxy or ""
+    if key not in _clients:
+        # Evict oldest entry if cache is full to prevent unbounded growth
+        # when callers rotate through many proxy URLs.
+        if len(_clients) >= _MAX_CLIENTS:
+            _clients.pop(next(iter(_clients)))
+        kwargs: dict[str, Any] = {"impersonate": "chrome"}
+        if effective_proxy:
+            kwargs["proxy"] = effective_proxy
+        _clients[key] = Client(**kwargs)
+    return _clients[key]
+
+
+def _apply_country(url: str, country: Optional[str]) -> str:
+    """Append ``?gl=XX`` to the URL if a country is set."""
+    effective = country if country is not None else _default_country
+    if effective:
+        sep = "&" if "?" in url else "?"
+        return f"{url}{sep}gl={effective.upper()}"
+    return url
+
+
 def _http_post(
     url: str,
     content: bytes,
     *,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
 ) -> Any:
     """POST with optional retry on 429 and timeout.
 
     Args:
         url: The URL to POST to.
         content: Request body bytes.
-        timeout: Request timeout in seconds.
-        retries: Number of retries on HTTP 429 with exponential backoff
-            and jitter (2^attempt + random 0–1s). Non-429 errors are
-            never retried.
+        transport: HTTP transport configuration.
 
     Returns:
         The response object from primp.
@@ -431,19 +393,18 @@ def _http_post(
     import random
     import time
 
-    from primp import Client
-
-    client = Client(impersonate="chrome")
+    url = _apply_country(url, transport.country)
+    client = _get_client(transport.proxy)
     headers = {"content-type": "application/x-www-form-urlencoded;charset=UTF-8"}
 
-    for attempt in range(1 + retries):
-        res = client.post(url, content=content, headers=headers, timeout=timeout)
+    for attempt in range(1 + transport.retries):
+        res = client.post(url, content=content, headers=headers, timeout=transport.timeout)
         if res.status_code == 200:
             logger.debug("HTTP 200 from %s (%d bytes)", url.split("/")[-1], len(res.text))
             return res
-        if res.status_code == 429 and attempt < retries:
+        if res.status_code == 429 and attempt < transport.retries:
             delay = (2 ** attempt) + random.uniform(0, 1)
-            logger.info("HTTP 429 from %s, retrying in %.1fs (attempt %d/%d)", url.split("/")[-1], delay, attempt + 1, retries)
+            logger.info("HTTP 429 from %s, retrying in %.1fs (attempt %d/%d)", url.split("/")[-1], delay, attempt + 1, transport.retries)
             time.sleep(delay)
             continue
         if res.status_code == 429:
@@ -455,8 +416,8 @@ def search_raw(
     origin: str,
     destination: str,
     date: str,
-    cabin: str = "economy",
-    adults: int = 1,
+    cabin: CabinClass = "economy",
+    passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
     max_stops: Optional[int] = None,
     airlines: Optional[list[str]] = None,
@@ -468,8 +429,7 @@ def search_raw(
     return_earliest_departure: Optional[int] = None,
     return_latest_departure: Optional[int] = None,
     selected_outbound_legs: Optional[list[list[Any]]] = None,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
     exclude_basic_economy: bool = False,
 ) -> Optional[RawSearchResult]:
     """Search Google Flights via RPC endpoint and return decoded results.
@@ -479,50 +439,39 @@ def search_raw(
     is the roundtrip total.
 
     Args:
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 with exponential backoff
-            and jitter (default 2).
+        transport: HTTP transport configuration (default ``TransportConfig()``).
     """
     logger.debug(
         "search_raw %s->%s on %s (cabin=%s, adults=%d)",
-        origin, destination, date, cabin, adults,
+        origin, destination, date, cabin, passengers.adults,
     )
 
-    encoded_body = _build_f_req(
-        origin=origin,
-        destination=destination,
-        date=date,
-        cabin=cabin,
-        adults=adults,
-        sort=sort,
-        max_stops=max_stops,
-        airlines=airlines,
-        earliest_departure=earliest_departure,
-        latest_departure=latest_departure,
-        earliest_arrival=earliest_arrival,
-        latest_arrival=latest_arrival,
-        return_date=return_date,
-        return_earliest_departure=return_earliest_departure,
-        return_latest_departure=return_latest_departure,
-        selected_outbound_legs=selected_outbound_legs,
+    legs = [
+        _normalize_rpc_leg(
+            origin, destination, date,
+            max_stops=max_stops, airlines=airlines,
+            earliest_departure=earliest_departure,
+            latest_departure=latest_departure,
+            earliest_arrival=earliest_arrival,
+            latest_arrival=latest_arrival,
+            selected_legs=selected_outbound_legs if return_date else None,
+        )
+    ]
+    if return_date:
+        legs.append(
+            _normalize_rpc_leg(
+                destination, origin, return_date,
+                max_stops=max_stops, airlines=airlines,
+                earliest_departure=return_earliest_departure,
+                latest_departure=return_latest_departure,
+            )
+        )
+
+    return _search_from_legs(
+        legs, cabin=cabin, passengers=passengers,
+        sort=sort, transport=transport,
         exclude_basic_economy=exclude_basic_economy,
     )
-
-    # primp's content param requires bytes, not str — passing str silently fails
-    res = _http_post(
-        SHOPPING_RPC_URL,
-        content=f"f.req={encoded_body}".encode(),
-        timeout=timeout,
-        retries=retries,
-    )
-
-    result = _parse_rpc_response(res.text)
-    if result is not None and hasattr(result, "best"):
-        logger.info(
-            "search_raw found %d best + %d other itineraries",
-            len(result.best), len(result.other),
-        )
-    return result
 
 
 def _build_selected_legs(itinerary: Itinerary) -> list[list[Any]]:
@@ -532,20 +481,20 @@ def _build_selected_legs(itinerary: Itinerary) -> list[list[Any]]:
     — no airport normalization needed since decoder outputs clean codes.
     """
     selected: list[list[Any]] = []
-    for flight in itinerary.flights or []:
-        dep_date = getattr(flight, "departure_date", None) or (0, 0, 0)
+    for segment in itinerary.segments or []:
+        dep_date = getattr(segment, "departure_date", None) or (0, 0, 0)
         if not isinstance(dep_date, (list, tuple)) or len(dep_date) < 3:
             continue
         year, month, day = dep_date[0], dep_date[1], dep_date[2]
         if not year or not month or not day:
             continue
         selected.append([
-            flight.departure_airport_code,
+            segment.departure_airport_code,
             f"{year:04d}-{month:02d}-{day:02d}",
-            flight.arrival_airport_code,
+            segment.arrival_airport_code,
             None,
-            flight.airline,
-            str(flight.flight_number or ""),
+            segment.airline,
+            str(segment.flight_number or ""),
         ])
     return selected
 
@@ -556,8 +505,8 @@ def get_booking_results(
     origin: str = "",
     destination: str = "",
     date: str = "",
-    cabin: str = "economy",
-    adults: int = 1,
+    cabin: CabinClass = "economy",
+    passengers: Passengers = Passengers(),
     max_stops: Optional[int] = None,
     airlines: Optional[list[str]] = None,
     earliest_departure: Optional[int] = None,
@@ -567,8 +516,7 @@ def get_booking_results(
     selected_legs: Optional[list[list[Any]]] = None,
     registry_version: str | None = None,
     required_keys: tuple[str, ...] | None = None,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
 ) -> list[BookingOption]:
     """Fetch fare options (brand + price) for a specific itinerary.
 
@@ -584,8 +532,7 @@ def get_booking_results(
         selected_legs: Flight legs (required if passing a token string).
         registry_version: If provided, set as ``registry_version`` on each option.
         required_keys: If provided, warns when any key is missing from parsed options.
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 0).
+        transport: HTTP transport configuration (default ``TransportConfig()``).
     """
     if isinstance(itinerary_or_token, Itinerary):
         itin = itinerary_or_token
@@ -611,19 +558,19 @@ def get_booking_results(
         origin, destination, date, len(selected_legs),
     )
 
-    filters = _build_filters(
-        origin=origin,
-        destination=destination,
-        date=date,
-        cabin=cabin,
-        adults=adults,
+    legs = [
+        _normalize_rpc_leg(
+            origin, destination, date,
+            max_stops=max_stops, airlines=airlines,
+            earliest_departure=earliest_departure,
+            latest_departure=latest_departure,
+            earliest_arrival=earliest_arrival,
+            latest_arrival=latest_arrival,
+        )
+    ]
+    filters = _build_filters_from_legs(
+        legs, cabin=cabin, passengers=passengers,
         sort=SORT_DEPARTURE_TIME,
-        max_stops=max_stops,
-        airlines=airlines,
-        earliest_departure=earliest_departure,
-        latest_departure=latest_departure,
-        earliest_arrival=earliest_arrival,
-        latest_arrival=latest_arrival,
     )
     filter_block = filters[1]
     encoded_body = _build_booking_f_req(booking_token, filter_block, selected_legs)
@@ -633,8 +580,7 @@ def get_booking_results(
     res = _http_post(
         BOOKING_RPC_URL,
         content=f"f.req={encoded_body}".encode(),
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
     )
 
     return _parse_booking_rpc_response(
@@ -648,10 +594,9 @@ def get_trip_booking_results(
     booking_token: str,
     legs: list[dict[str, Any]],
     *,
-    cabin: str = "economy",
-    adults: int = 1,
-    timeout: int = 90,
-    retries: int = 2,
+    cabin: CabinClass = "economy",
+    passengers: Passengers = Passengers(),
+    transport: TransportConfig = TransportConfig(),
 ) -> list[BookingOption]:
     """Fetch booking options for an exact multi-leg trip selection."""
     if not booking_token or not legs:
@@ -660,7 +605,7 @@ def get_trip_booking_results(
     filters = _build_filters_from_legs(
         legs,
         cabin=cabin,
-        adults=adults,
+        passengers=passengers,
         sort=SORT_DEPARTURE_TIME,
     )
     inner = [[None, booking_token], filters[1], None, 0]
@@ -669,8 +614,7 @@ def get_trip_booking_results(
     res = _http_post(
         BOOKING_RPC_URL,
         content=f"f.req={encoded_body}".encode(),
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
     )
 
     return _parse_booking_rpc_response(res.text)

@@ -12,7 +12,7 @@ from pathlib import Path
 from rich.console import Console
 
 from swoop.cli import formatters
-from swoop.decoder import Flight, Itinerary, Layover, PriceRange
+from swoop.decoder import Segment, Itinerary, Layover, PriceRange
 from swoop.models import SearchResult, TripLeg, TripOption
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -29,8 +29,8 @@ def _flight(
     departure_time: tuple[int, int],
     arrival_time: tuple[int, int],
     duration_minutes: int,
-) -> Flight:
-    return Flight(
+) -> Segment:
+    return Segment(
         airline=airline,
         airline_name=airline_name,
         flight_number=flight_number,
@@ -47,7 +47,7 @@ def _sample_result() -> SearchResult:
         Itinerary(
             airline_code="DL",
             airline_names=["Delta"],
-            flights=[
+            segments=[
                 _flight("DL", "Delta", "2300", "JFK", "LAX", (8, 30), (11, 45), 315),
             ],
             travel_time=315,
@@ -61,7 +61,7 @@ def _sample_result() -> SearchResult:
         Itinerary(
             airline_code="B6",
             airline_names=["JetBlue"],
-            flights=[
+            segments=[
                 _flight("B6", "JetBlue", "524", "JFK", "LAX", (9, 0), (12, 30), 330),
             ],
             travel_time=330,
@@ -75,7 +75,7 @@ def _sample_result() -> SearchResult:
         Itinerary(
             airline_code="UA",
             airline_names=["United"],
-            flights=[
+            segments=[
                 _flight("UA", "United", "12", "JFK", "ORD", (10, 15), (11, 55), 160),
                 _flight("UA", "United", "34", "ORD", "LAX", (13, 30), (15, 20), 230),
             ],
@@ -93,7 +93,7 @@ def _sample_result() -> SearchResult:
         Itinerary(
             airline_code="NK",
             airline_names=["Spirit"],
-            flights=[
+            segments=[
                 _flight("NK", "Spirit", "80", "JFK", "ATL", (14, 5), (16, 30), 145),
                 _flight("NK", "Spirit", "91", "ATL", "DFW", (17, 15), (18, 45), 150),
                 _flight("NK", "Spirit", "12", "DFW", "LAX", (19, 40), (21, 5), 205),

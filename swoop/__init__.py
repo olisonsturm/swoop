@@ -20,14 +20,16 @@ Basic usage::
         print(bookable.price)
 """
 
-__version__ = "0.3.1"
+from __future__ import annotations
+
+__version__ = "0.4.0"
 
 from .decoder import (
     AmenityFlags,
     BookingOption,
     CarbonEmissions,
     Codeshare,
-    Flight,
+    Segment,
     Itinerary,
     Layover,
     PriceRange,
@@ -36,8 +38,8 @@ from .decoder import (
     itinerary_matches_flight,
 )
 from .exceptions import SwoopError, SwoopHTTPError, SwoopParseError, SwoopRateLimitError
-from .builders import SearchLeg
-from .models import PriceResult, ResolvedLeg, SearchResult, SelectedLeg, TripLeg, TripOption
+from .builders import CabinClass, SearchLeg
+from .models import Passengers, PriceResult, ResolvedLeg, SearchResult, SelectedLeg, TransportConfig, TripLeg, TripOption
 from .rpc import (
     SORT_ARRIVAL_TIME,
     SORT_CHEAPEST,
@@ -50,6 +52,8 @@ from .rpc import (
     STOPS_TWO_OR_FEWER,
     get_booking_results,
     search_raw,
+    set_country,
+    set_proxy,
 )
 
 # ---------------------------------------------------------------------------
@@ -90,7 +94,7 @@ def _filter_by_flight_number(
     other = [it for it in result.other if itinerary_matches_flight(it, carrier, number)]
     if not best and not other:
         return None
-    return RawSearchResult(_raw=result._raw, best=best, other=other, price_range=result.price_range)
+    return RawSearchResult(best=best, other=other, price_range=result.price_range)
 
 
 def _filter_trip_options_by_flight_number(
@@ -118,8 +122,8 @@ def _filter_trip_options_by_flight_number(
 def _validate_leg_search_inputs(
     legs: list[SearchLeg],
     *,
-    cabin: str,
-    adults: int,
+    cabin: CabinClass,
+    passengers: Passengers = Passengers(),
     leg_time_windows: Optional[list[dict[str, Optional[int]]]] = None,
 ) -> None:
     """Validate a list of explicit search legs."""
@@ -127,7 +131,7 @@ def _validate_leg_search_inputs(
         raise ValueError("at least one leg is required")
 
     validate_cabin(cabin)
-    validate_adults(adults)
+    validate_adults(passengers.adults)
 
     for idx, leg in enumerate(legs):
         validate_iata_code(leg.from_airport, f"legs[{idx}].from_airport")
@@ -145,36 +149,40 @@ def _validate_leg_search_inputs(
 def _search_with_normalized_legs(
     request_legs: list[dict[str, object]],
     *,
-    cabin: str = "economy",
-    adults: int = 1,
+    cabin: CabinClass = "economy",
+    passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
-    timeout: int = 90,
-    retries: int = 2,
-    correct_roundtrip_prices: bool = False,
+    transport: TransportConfig = TransportConfig(),
+    max_results: Optional[int] = None,
+    beam_width: Optional[int] = None,
+    time_budget: Optional[int] = None,
 ) -> SearchResult:
     """Execute a staged trip search from normalized leg definitions."""
     return search_trip_options(
         request_legs,
         cabin=cabin,
-        adults=adults,
+        passengers=passengers,
         sort=sort,
         include_basic_economy=include_basic_economy,
-        correct_prices=correct_roundtrip_prices,
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
+        max_results=max_results,
+        beam_width=beam_width,
+        time_budget=time_budget,
     )
 
 
 def search_legs(
     legs: list[SearchLeg],
     *,
-    cabin: str = "economy",
-    adults: int = 1,
+    cabin: CabinClass = "economy",
+    passengers: Passengers = Passengers(),
     sort: int = SORT_DEPARTURE_TIME,
     include_basic_economy: bool = False,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
+    max_results: Optional[int] = None,
+    beam_width: Optional[int] = None,
+    time_budget: Optional[int] = None,
 ) -> SearchResult:
     """Search Google Flights using explicit leg definitions.
 
@@ -184,16 +192,21 @@ def search_legs(
     Args:
         legs: List of :class:`SearchLeg` objects (1 or more).
         cabin: Cabin class (default ``"economy"``).
-        adults: Number of adult passengers (default 1).
+        passengers: Passenger counts (default ``Passengers()``).
         sort: Sort order constant (default ``SORT_DEPARTURE_TIME``).
         include_basic_economy: Include basic economy fares (default ``False``).
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 2).
+        transport: HTTP transport configuration (default ``TransportConfig()``).
+        max_results: Maximum trip combinations the beam search targets
+            (default 10).  Only affects multi-leg (3+ city) searches.
+        beam_width: Number of candidate prefixes carried between stages
+            (default 15).  Only affects multi-leg searches.
+        time_budget: Seconds before the beam search stops exploring
+            (default 90).  Only affects multi-leg searches.
 
     Returns:
         A trip-level :class:`SearchResult` with shopping totals.
     """
-    _validate_leg_search_inputs(legs, cabin=cabin, adults=adults)
+    _validate_leg_search_inputs(legs, cabin=cabin, passengers=passengers)
 
     request_legs = [
         _normalize_rpc_leg(
@@ -209,11 +222,13 @@ def search_legs(
     return _search_with_normalized_legs(
         request_legs,
         cabin=cabin,
-        adults=adults,
+        passengers=passengers,
         sort=sort,
         include_basic_economy=include_basic_economy,
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
+        max_results=max_results,
+        beam_width=beam_width,
+        time_budget=time_budget,
     )
 
 
@@ -223,8 +238,8 @@ def search(
     date: str,
     *,
     return_date: Optional[str] = None,
-    cabin: str = "economy",
-    adults: int = 1,
+    cabin: CabinClass = "economy",
+    passengers: Passengers = Passengers(),
     max_stops: Optional[int] = None,
     sort: int = SORT_DEPARTURE_TIME,
     airlines: Optional[list[str]] = None,
@@ -236,8 +251,10 @@ def search(
     latest_arrival: Optional[int] = None,
     return_earliest_departure: Optional[int] = None,
     return_latest_departure: Optional[int] = None,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
+    max_results: Optional[int] = None,
+    beam_width: Optional[int] = None,
+    time_budget: Optional[int] = None,
 ) -> SearchResult:
     """Search Google Flights and return decoded results.
 
@@ -248,7 +265,7 @@ def search(
         return_date: Return date for roundtrip searches. Omit for one-way.
         cabin: Cabin class — ``"economy"``, ``"premium-economy"``,
             ``"business"``, or ``"first"``.
-        adults: Number of adult passengers (default 1).
+        passengers: Passenger counts (default ``Passengers()``).
         max_stops: Maximum stops. ``None`` = any, ``0`` = nonstop,
             ``1`` = one stop, ``2`` = two stops.
         sort: Sort order. Use ``SORT_TOP``, ``SORT_CHEAPEST``,
@@ -266,9 +283,13 @@ def search(
         latest_arrival: Latest arrival hour (1–24).
         return_earliest_departure: Earliest return departure hour (0–23).
         return_latest_departure: Latest return departure hour (1–24).
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 with exponential backoff
-            and jitter (default 2).
+        transport: HTTP transport configuration (default ``TransportConfig()``).
+        max_results: Maximum trip combinations the beam search targets
+            (default 10).  Only affects multi-leg (3+ city) searches.
+        beam_width: Number of candidate prefixes carried between stages
+            (default 15).  Only affects multi-leg searches.
+        time_budget: Seconds before the beam search stops exploring
+            (default 90).  Only affects multi-leg searches.
 
     Returns:
         A trip-level :class:`SearchResult` with shopping totals.
@@ -303,7 +324,7 @@ def search(
         date,
         return_date=return_date,
         cabin=cabin,
-        adults=adults,
+        adults=passengers.adults,
         earliest_departure=earliest_departure,
         latest_departure=latest_departure,
         earliest_arrival=earliest_arrival,
@@ -348,12 +369,13 @@ def search(
     result = _search_with_normalized_legs(
         request_legs,
         cabin=cabin,
-        adults=adults,
+        passengers=passengers,
         sort=sort,
         include_basic_economy=include_basic_economy,
-        correct_roundtrip_prices=False,
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
+        max_results=max_results,
+        beam_width=beam_width,
+        time_budget=time_budget,
     )
 
     if parsed_number is not None:
@@ -369,21 +391,19 @@ def search(
 def price_legs(
     legs: list[SelectedLeg],
     *,
-    cabin: str = "economy",
-    adults: int = 1,
+    cabin: CabinClass = "economy",
+    passengers: Passengers = Passengers(),
     include_basic_economy: bool = False,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare using explicit leg definitions.
 
     Args:
         legs: List of :class:`SelectedLeg` objects (1 or more).
         cabin: Cabin class (default ``"economy"``).
-        adults: Number of adult passengers (default 1).
+        passengers: Passenger counts (default ``Passengers()``).
         include_basic_economy: Include basic economy fares (default ``False``).
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 2).
+        transport: HTTP transport configuration (default ``TransportConfig()``).
 
     Returns:
         A :class:`PriceResult` or ``None`` if the flight was not found.
@@ -392,7 +412,7 @@ def price_legs(
         raise ValueError("at least one leg is required")
 
     validate_cabin(cabin)
-    validate_adults(adults)
+    validate_adults(passengers.adults)
     carrier_filters: list[Optional[str]] = []
     for index, leg in enumerate(legs):
         validate_iata_code(leg.origin, f"legs[{index}].origin")
@@ -406,9 +426,8 @@ def price_legs(
         request_legs,
         [leg.flight_number for leg in legs],
         cabin=cabin,
-        adults=adults,
-        timeout=timeout,
-        retries=retries,
+        passengers=passengers,
+        transport=transport,
         exclude_basic_economy=(
             cabin == "economy"
             and len(legs) == 1
@@ -422,10 +441,9 @@ def price_legs(
         request_legs,
         resolved,
         cabin=cabin,
-        adults=adults,
+        passengers=passengers,
         include_basic_economy=include_basic_economy,
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
         rpc_calls=rpc_calls,
         selections=selections,
     )
@@ -434,8 +452,7 @@ def price_legs(
 def price_selector(
     selector: str,
     *,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare for an itinerary selector.
 
@@ -444,14 +461,13 @@ def price_selector(
 
     Args:
         selector: Opaque selector from :func:`search` or :func:`search_legs`.
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 2).
+        transport: HTTP transport configuration (default ``TransportConfig()``).
 
     Returns:
         A :class:`PriceResult`, or ``None`` if the selected itinerary no
         longer exists.
     """
-    return price_trip_selector(selector, timeout=timeout, retries=retries)
+    return price_trip_selector(selector, transport=transport)
 
 
 def check_price(
@@ -462,12 +478,11 @@ def check_price(
     date: str,
     return_flight_number: Optional[str] = None,
     return_date: Optional[str] = None,
-    cabin: str = "economy",
-    adults: int = 1,
+    cabin: CabinClass = "economy",
+    passengers: Passengers = Passengers(),
     max_stops: Optional[int] = None,
     include_basic_economy: bool = False,
-    timeout: int = 90,
-    retries: int = 2,
+    transport: TransportConfig = TransportConfig(),
 ) -> Optional[PriceResult]:
     """Look up the current bookable fare for a specific flight.
 
@@ -483,11 +498,10 @@ def check_price(
         return_flight_number: Return flight number for roundtrip.
         return_date: Return date for roundtrip.
         cabin: Cabin class (default ``"economy"``).
-        adults: Number of adult passengers (default 1).
+        passengers: Passenger counts (default ``Passengers()``).
         max_stops: Maximum stops (default any).
         include_basic_economy: Include basic economy fares (default ``False``).
-        timeout: HTTP request timeout in seconds (default 90).
-        retries: Number of retries on HTTP 429 (default 2).
+        transport: HTTP transport configuration (default ``TransportConfig()``).
 
     Returns:
         A :class:`PriceResult` with the price and matched itinerary,
@@ -518,7 +532,7 @@ def check_price(
 
     validate_search_params(
         origin, destination, date,
-        return_date=return_date, cabin=cabin, adults=adults,
+        return_date=return_date, cabin=cabin, adults=passengers.adults,
     )
 
     request_legs = [
@@ -547,9 +561,8 @@ def check_price(
         request_legs,
         requested_flights,
         cabin=cabin,
-        adults=adults,
-        timeout=timeout,
-        retries=retries,
+        passengers=passengers,
+        transport=transport,
         exclude_basic_economy=(
             cabin == "economy"
             and return_date is None
@@ -563,10 +576,9 @@ def check_price(
         request_legs,
         resolved,
         cabin=cabin,
-        adults=adults,
+        passengers=passengers,
         include_basic_economy=include_basic_economy,
-        timeout=timeout,
-        retries=retries,
+        transport=transport,
         rpc_calls=rpc_calls,
         selections=selections,
     )
@@ -581,9 +593,14 @@ __all__ = [
     "price_legs",
     "get_booking_results",
     "search_raw",
+    "set_country",
+    "set_proxy",
     "parse_flight_number",
     "itinerary_matches_flight",
     # Types
+    "CabinClass",
+    "Passengers",
+    "TransportConfig",
     "PriceResult",
     "RawSearchResult",
     "SearchResult",
@@ -593,7 +610,7 @@ __all__ = [
     "TripLeg",
     "TripOption",
     "Itinerary",
-    "Flight",
+    "Segment",
     "BookingOption",
     "Codeshare",
     "Layover",

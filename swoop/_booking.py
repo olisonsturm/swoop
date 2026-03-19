@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any
 
-from .builders import ItinerarySummary
+from .builders import CABIN_CLASS_MAP, ItinerarySummary
 from .decoder import BookingOption, _safe_get
 
 logger = logging.getLogger(__name__)
@@ -95,8 +95,8 @@ def _skip_wire_value(data: bytes, pos: int, wire_type: int) -> int:
     raise ValueError(f"unsupported wire type: {wire_type}")
 
 
-def _extract_option_index_and_token_price_cents(price_token_b64: str) -> tuple[int | None, int | None]:
-    """Decode booking price token and return (option_index, price_cents)."""
+def _extract_option_index_and_token_price_raw(price_token_b64: str) -> tuple[int | None, int | None]:
+    """Decode booking price token and return (option_index, price_raw)."""
     if not price_token_b64:
         return None, None
 
@@ -113,12 +113,12 @@ def _extract_option_index_and_token_price_cents(price_token_b64: str) -> tuple[i
         except (TypeError, ValueError, IndexError):
             option_index = None
 
-    price_cents = int(round((summary.price or 0) * 100)) if summary else None
-    return option_index, price_cents
+    price_raw = int(summary.price or 0) if summary else None
+    return option_index, price_raw
 
 
-def _extract_display_price_cents_from_context(context_token_b64: str) -> int | None:
-    """Decode option context token and extract display price cents (field 3.1)."""
+def _extract_display_price_raw_from_context(context_token_b64: str) -> int | None:
+    """Decode option context token and extract raw display price (field 3.1)."""
     if not context_token_b64:
         return None
 
@@ -146,8 +146,8 @@ def _extract_display_price_cents_from_context(context_token_b64: str) -> int | N
                     nested_wire_type = nested_tag & 7
 
                     if nested_field == 1 and nested_wire_type == 0:
-                        cents, nested_pos = _read_varint(nested, nested_pos)
-                        return cents
+                        raw_price, nested_pos = _read_varint(nested, nested_pos)
+                        return raw_price
 
                     nested_pos = _skip_wire_value(nested, nested_pos, nested_wire_type)
             else:
@@ -287,47 +287,22 @@ def _classify_fare_family(brand_code: str, brand_label: str, *, is_basic: bool) 
     return "unknown"
 
 
-def _classify_cabin_bucket(brand_code: str, brand_label: str) -> str:
-    """Classify the requested cabin represented by a booking-option brand.
+_CABIN_NUM_TO_BUCKET: dict[int, str] = {v: k for k, v in CABIN_CLASS_MAP.items()}
 
-    Checks run highest-cabin-first so that e.g. "ECONOMY PLUS" matches
-    premium-economy before the broader "ECONOMY" rule in the economy tier.
+
+def _cabin_bucket_from_brand_block(brand_block: list) -> str:
+    """Extract cabin bucket from the numeric cabin class field in brand_block[6][0][0].
+
+    Google encodes a per-option cabin class using the same Seat enum as the
+    request filter (1=economy, 2=premium-economy, 3=business, 4=first).
+    This field is present on every observed booking option — including
+    codeshare and OTA options that carry no brand text.
     """
-    haystack = f"{brand_code} {brand_label}".upper().strip()
-    if not haystack:
-        return "unknown"
-
-    if any(token in haystack for token in ("FIRST", "LA PREMIERE", "SUITE")):
-        return "first"
-    if any(token in haystack for token in ("BUSINESS", "DELTA ONE", "POLARIS", "UPPER CLASS", "MINT")):
-        return "business"
-    if any(
-        token in haystack
-        for token in (
-            "PREMIUM ECONOMY",
-            "PREMIUM SELECT",
-            "PREMIUM PLUS",
-            "PREM ECON",
-        )
-    ):
-        return "premium-economy"
-    if any(
-        token in haystack
-        for token in (
-            "BASIC",
-            "MAIN CABIN",
-            "MAIN CLASSIC",
-            "MAIN CABIN EXTRA",
-            "ECONOMY",
-            "ECONOMY PLUS",
-            "COMFORT+",
-            "COMFORT PLUS",
-            "COACH",
-            "STANDARD",
-        )
-    ):
-        return "economy"
+    cabin_num = _safe_get(brand_block, [6, 0, 0])
+    if isinstance(cabin_num, int) and cabin_num in _CABIN_NUM_TO_BUCKET:
+        return _CABIN_NUM_TO_BUCKET[cabin_num]
     return "unknown"
+
 
 
 def _infer_rebookability_signal(fare_family: str, *, is_basic: bool) -> str:
@@ -410,21 +385,27 @@ def _parse_booking_rpc_response(
 
         brand_block = _extract_brand_block(option)
         if not brand_block:
-            dropped_missing_brand += 1
-            continue
+            # OTA/codeshare options have option[21] with null brand fields
+            # but still carry cabin class at [6][0][0]. Use it directly.
+            raw_21 = _safe_get(option, [21])
+            if isinstance(raw_21, list):
+                brand_block = raw_21
+            else:
+                dropped_missing_brand += 1
+                continue
 
         brand_label = str(_safe_get(brand_block, [3], "") or "")
         brand_code = str(_safe_get(brand_block, [0, 1], "") or "")
 
         price_token = str(_safe_get(price_block, [1], "") or "")
-        option_index, token_price_cents = _extract_option_index_and_token_price_cents(price_token)
+        option_index, token_price_raw = _extract_option_index_and_token_price_raw(price_token)
 
         context_token0, context_token1 = _extract_context_tokens(option)
-        display_price_cents = _extract_display_price_cents_from_context(context_token0)
+        display_price_raw = _extract_display_price_raw_from_context(context_token0)
         segment_identity = _extract_segment_identity_from_context(context_token1)
-        price_delta_cents = (
-            int(display_price_cents - token_price_cents)
-            if isinstance(display_price_cents, int) and isinstance(token_price_cents, int)
+        price_delta_raw = (
+            int(display_price_raw - token_price_raw)
+            if isinstance(display_price_raw, int) and isinstance(token_price_raw, int)
             else None
         )
 
@@ -435,7 +416,7 @@ def _parse_booking_rpc_response(
         is_basic_by_text = "BASIC" in f"{brand_label} {brand_code}".upper()
         is_basic = is_basic_by_flags or is_basic_by_text
         fare_family = _classify_fare_family(brand_code, brand_label, is_basic=is_basic)
-        cabin_bucket = _classify_cabin_bucket(brand_code, brand_label)
+        cabin_bucket = _cabin_bucket_from_brand_block(brand_block)
         rebookability_signal = _infer_rebookability_signal(fare_family, is_basic=is_basic)
         attribute_vector = _normalize_attribute_vector(_safe_get(brand_block, [1], []))
 
@@ -449,9 +430,9 @@ def _parse_booking_rpc_response(
             _is_basic_by_flags=is_basic_by_flags,
             _is_basic_by_text=is_basic_by_text,
             _option_index=option_index,
-            _token_price_cents=token_price_cents,
-            _display_price_cents=display_price_cents,
-            _price_delta_cents=price_delta_cents,
+            _token_price_raw=token_price_raw,
+            _display_price_raw=display_price_raw,
+            _price_delta_raw=price_delta_raw,
             _context_segment_token=context_token1,
             _context_origin_iata=segment_identity.get("context_origin_iata"),
             _context_destination_iata=segment_identity.get("context_destination_iata"),

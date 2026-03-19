@@ -95,14 +95,14 @@ def _assert_itinerary_fields(itinerary: Itinerary, *, expected_origin: str, expe
     assert itinerary.departure_airport_code == expected_origin
     assert itinerary.arrival_airport_code == expected_destination
     assert itinerary.airline_code != ""
-    assert itinerary.flights
+    assert itinerary.segments
     assert itinerary.travel_time > 0
 
-    first_flight = itinerary.flights[0]
-    assert first_flight.airline != ""
-    assert first_flight.flight_number != ""
-    assert first_flight.departure_airport_code == expected_origin
-    assert first_flight.arrival_airport_code != ""
+    first_segment = itinerary.segments[0]
+    assert first_segment.airline != ""
+    assert first_segment.flight_number != ""
+    assert first_segment.departure_airport_code == expected_origin
+    assert first_segment.arrival_airport_code != ""
 
 
 def _assert_trip_option(option: Any, query_legs: list[dict[str, str]]) -> None:
@@ -149,8 +149,8 @@ def _trip_report(case_id: str, query_legs: list[dict[str, str]], result: Any, rp
                     "date": leg.date,
                     "selection": getattr(leg, "selection", None),
                     "flight_number": (
-                        leg.itinerary.flights[0].flight_number
-                        if leg.itinerary and leg.itinerary.flights
+                        leg.itinerary.segments[0].flight_number
+                        if leg.itinerary and leg.itinerary.segments
                         else None
                     ),
                     "airline_code": leg.itinerary.airline_code if leg.itinerary else None,

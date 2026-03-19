@@ -13,6 +13,16 @@ from . import flights_pb2 as PB
 
 AIRLINE_ALLIANCES = ["SKYTEAM", "STAR_ALLIANCE", "ONEWORLD"]
 
+CabinClass = Literal["economy", "premium-economy", "business", "first"]
+
+# Cabin class mapping (matches Google Flights internal Seat enum values)
+CABIN_CLASS_MAP: dict[CabinClass, int] = {
+    "economy": 1,
+    "premium-economy": 2,
+    "business": 3,
+    "first": 4,
+}
+
 
 class SearchLeg:
     """A search leg defining origin, destination, date, and optional filters.
@@ -68,7 +78,7 @@ class SearchLeg:
             data.airlines.extend(self.airlines)
 
 
-class Passengers:
+class _PBPassengers:
     def __init__(
         self,
         *,
@@ -110,7 +120,7 @@ class TFSData:
         flight_data: List[SearchLeg],
         seat: int,
         trip: int,
-        passengers: Passengers,
+        passengers: _PBPassengers,
         max_stops: Optional[int] = None,
         exclude_basic_economy: bool = False,
     ):
@@ -150,7 +160,7 @@ class TFSData:
         *,
         flight_data: List[SearchLeg],
         trip: Literal["round-trip", "one-way", "multi-city"],
-        passengers: Passengers,
+        passengers: _PBPassengers,
         seat: Literal["economy", "premium-economy", "business", "first"],
         max_stops: Optional[int] = None,
         exclude_basic_economy: bool = False,
@@ -180,8 +190,10 @@ class TFSData:
 class ItinerarySummary:
     """Decoded price data from a Google Flights itinerary summary token.
 
-    The ``price`` field is in USD (cents divided by 100). ``currency`` is
-    the 3-letter ISO code (usually ``"USD"``).
+    The ``currency`` field is the 3-letter ISO 4217 code. The ``price``
+    field stores the raw protobuf value — it is NOT used for display
+    pricing. The authoritative price comes from ``Itinerary.direct_price``
+    (the display integer at ``response[1][0][1]``).
     """
 
     flights: str
@@ -194,6 +206,6 @@ class ItinerarySummary:
             raw = base64.b64decode(b64_string)
             pb = PB.ItinerarySummary()
             pb.ParseFromString(raw)
-            return cls(pb.flights, pb.price.price / 100, pb.price.currency)
+            return cls(pb.flights, pb.price.price, pb.price.currency)
         except Exception:
-            return cls("", 0, "USD")
+            return cls("", 0, "")  # empty currency = unknown (Itinerary.currency returns None)

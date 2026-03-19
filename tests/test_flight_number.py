@@ -14,7 +14,7 @@ from swoop._validate import parse_flight_number  # noqa: E402
 from swoop import SearchResult, TripLeg, TripOption  # noqa: E402
 from swoop.decoder import (  # noqa: E402
     Codeshare,
-    Flight,
+    Segment,
     Itinerary,
     itinerary_matches_flight,
 )
@@ -103,28 +103,28 @@ class TestParseFlightNumber:
 
 class TestItineraryMatchesFlight:
     def test_operating_flight_match(self):
-        itin = make_itinerary(Flight(airline="DL", flight_number="171"))
+        itin = make_itinerary(Segment(airline="DL", flight_number="171"))
         assert itinerary_matches_flight(itin, "DL", "171") is True
 
     def test_operating_flight_wrong_number(self):
-        itin = make_itinerary(Flight(airline="DL", flight_number="171"))
+        itin = make_itinerary(Segment(airline="DL", flight_number="171"))
         assert itinerary_matches_flight(itin, "DL", "172") is False
 
     def test_operating_flight_wrong_carrier(self):
-        itin = make_itinerary(Flight(airline="DL", flight_number="171"))
+        itin = make_itinerary(Segment(airline="DL", flight_number="171"))
         assert itinerary_matches_flight(itin, "UA", "171") is False
 
     def test_carrier_none_matches_any(self):
-        itin = make_itinerary(Flight(airline="DL", flight_number="171"))
+        itin = make_itinerary(Segment(airline="DL", flight_number="171"))
         assert itinerary_matches_flight(itin, None, "171") is True
 
     def test_carrier_none_wrong_number(self):
-        itin = make_itinerary(Flight(airline="DL", flight_number="171"))
+        itin = make_itinerary(Segment(airline="DL", flight_number="171"))
         assert itinerary_matches_flight(itin, None, "172") is False
 
     def test_codeshare_match(self):
         itin = make_itinerary(
-            Flight(
+            Segment(
                 airline="DL",
                 flight_number="171",
                 codeshares=[Codeshare(airline_code="KL", flight_number="6050")],
@@ -134,7 +134,7 @@ class TestItineraryMatchesFlight:
 
     def test_codeshare_carrier_none(self):
         itin = make_itinerary(
-            Flight(
+            Segment(
                 airline="DL",
                 flight_number="171",
                 codeshares=[Codeshare(airline_code="KL", flight_number="6050")],
@@ -144,15 +144,15 @@ class TestItineraryMatchesFlight:
 
     def test_multi_segment_any_match(self):
         itin = make_itinerary(
-            Flight(airline="AA", flight_number="100"),
-            Flight(airline="AA", flight_number="200"),
+            Segment(airline="AA", flight_number="100"),
+            Segment(airline="AA", flight_number="200"),
         )
         assert itinerary_matches_flight(itin, "AA", "200") is True
 
     def test_multi_segment_no_match(self):
         itin = make_itinerary(
-            Flight(airline="AA", flight_number="100"),
-            Flight(airline="AA", flight_number="200"),
+            Segment(airline="AA", flight_number="100"),
+            Segment(airline="AA", flight_number="200"),
         )
         assert itinerary_matches_flight(itin, "AA", "300") is False
 
@@ -183,8 +183,8 @@ class TestSearchFlightNumberParam:
         )
 
     def test_filters_decoded_result(self, monkeypatch):
-        match = make_itinerary(Flight(airline="DL", flight_number="171"))
-        no_match = make_itinerary(Flight(airline="UA", flight_number="500"))
+        match = make_itinerary(Segment(airline="DL", flight_number="171"))
+        no_match = make_itinerary(Segment(airline="UA", flight_number="500"))
         result = SearchResult(
             results=[
                 self._trip_option(no_match, "selector-1"),
@@ -198,7 +198,7 @@ class TestSearchFlightNumberParam:
         assert filtered.results == [result.results[1]]
 
     def test_returns_none_when_no_match(self, monkeypatch):
-        no_match = make_itinerary(Flight(airline="UA", flight_number="500"))
+        no_match = make_itinerary(Segment(airline="UA", flight_number="500"))
         result = SearchResult(results=[self._trip_option(no_match, "selector-1")])
 
         monkeypatch.setattr(swoop, "search_trip_options", lambda legs, **kw: result)
@@ -217,7 +217,6 @@ class TestSearchFlightNumberParam:
         monkeypatch.setattr(swoop, "search_trip_options", fake_search_trip_options)
         swoop.search("JFK", "LAX", "2026-06-01", flight_number="DL 171")
         assert captured["legs"][0]["airlines"] == ["DL"]
-        assert captured["correct_prices"] is False
 
     def test_preserves_existing_airlines_filter(self, monkeypatch):
         captured = {}
@@ -245,7 +244,7 @@ class TestSearchFlightNumberParam:
         assert captured["legs"][0]["airlines"] == ["DL"]
 
     def test_without_flight_number_no_filter(self, monkeypatch):
-        match = make_itinerary(Flight(airline="DL", flight_number="171"))
+        match = make_itinerary(Segment(airline="DL", flight_number="171"))
         result = SearchResult(results=[self._trip_option(match, "selector-1")])
 
         monkeypatch.setattr(swoop, "search_trip_options", lambda legs, **kw: result)

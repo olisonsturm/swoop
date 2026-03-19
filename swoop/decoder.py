@@ -41,7 +41,7 @@ Per flight segment:
   [31]         -> CO2 grams per segment
 
 Itinerary summary:
-  [0]          -> [None, price_cents]
+  [0]          -> [None, display_price]
   [1]          -> base64-encoded protobuf string
 """
 
@@ -49,6 +49,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, List, Optional, Tuple, Union
 
+from ._formatting import fmt_clock, fmt_duration
 from .builders import ItinerarySummary
 
 logger = logging.getLogger(__name__)
@@ -94,6 +95,35 @@ def _safe_int(value: Any, default: int = 0) -> int:
     return default
 
 
+# Re-export for backward compat (used by models.py and tests)
+_fmt_clock = fmt_clock
+_fmt_duration = fmt_duration
+
+
+def _flight_summary_repr(segments: list) -> str:
+    """Compact flight number summary for repr.
+
+    - Nonstop: "DL 2300"
+    - 2 segments same carrier: "DL 2300 / 5678"
+    - 2 segments diff carrier: "DL 2300 / AA 200"
+    - 3+ segments: "DL 2300 +2"
+    - No segments: ""
+    """
+    if not segments:
+        return ""
+    first = segments[0]
+    first_str = f"{first.airline} {first.flight_number}" if first.airline and first.flight_number else str(first.flight_number or "")
+    if len(segments) == 1:
+        return first_str
+    if len(segments) == 2:
+        second = segments[1]
+        if first.airline and second.airline and first.airline == second.airline:
+            return f"{first.airline} {first.flight_number} / {second.flight_number}"
+        second_str = f"{second.airline} {second.flight_number}" if second.airline and second.flight_number else str(second.flight_number or "")
+        return f"{first_str} / {second_str}"
+    return f"{first_str} +{len(segments) - 1}"
+
+
 @dataclass
 class Codeshare:
     airline_code: str = ""
@@ -119,7 +149,7 @@ class QualitySignals:
 
 
 @dataclass
-class Flight:
+class Segment:
     airline: str = ""
     airline_name: str = ""
     flight_number: str = ""
@@ -143,6 +173,18 @@ class Flight:
     amenities: Optional[AmenityFlags] = None  # segment[12]: cabin-class amenities
     seat_type: Optional[int] = None  # segment[13]: 1=avg, 2=below-avg, 3=above-avg, 4+=business
 
+    def __repr__(self) -> str:
+        parts = []
+        if self.airline or self.flight_number:
+            parts.append(f"{self.airline} {self.flight_number}".strip())
+        dep = self.departure_airport_code
+        arr = self.arrival_airport_code
+        if dep or arr:
+            parts.append(f"{dep}->{arr}")
+        parts.append(f"{_fmt_clock(self.departure_time)}-{_fmt_clock(self.arrival_time)}")
+        parts.append(_fmt_duration(self.travel_time))
+        return f"Segment({' '.join(parts)})"
+
 
 @dataclass
 class Layover:
@@ -154,6 +196,14 @@ class Layover:
     arrival_airport_name: str = ""
     arrival_airport_city: str = ""
     is_overnight: bool = False  # layover[3]: [1] when layover spans overnight
+
+    def __repr__(self) -> str:
+        parts = [_fmt_duration(self.minutes)]
+        if self.departure_airport_code:
+            parts.append(self.departure_airport_code)
+        if self.is_overnight:
+            parts.append("overnight")
+        return f"Layover({' '.join(parts)})"
 
 
 @dataclass
@@ -169,7 +219,7 @@ class CarbonEmissions:
 class Itinerary:
     airline_code: str = ""
     airline_names: List[str] = field(default_factory=list)
-    flights: List[Flight] = field(default_factory=list)
+    segments: List[Segment] = field(default_factory=list)
     layovers: List[Layover] = field(default_factory=list)
     travel_time: int = 0
     departure_airport_code: str = ""
@@ -179,7 +229,7 @@ class Itinerary:
     departure_time: Tuple[int, int] = (0, 0)
     arrival_time: Tuple[int, int] = (0, 0)
     price_info: Optional[ItinerarySummary] = None
-    direct_price: Optional[int] = None  # Integer USD price from root[1][0][1], more accurate than protobuf
+    direct_price: Optional[int] = None  # Integer price in response currency's major unit from root[1][0][1]
     booking_token: str = ""
     carbon_emissions: Optional[CarbonEmissions] = None
     stop_count: Optional[int] = None  # Number of stops
@@ -187,13 +237,36 @@ class Itinerary:
     quality_signals: Optional[QualitySignals] = None  # itinerary root[4]
 
     @property
-    def price(self) -> Optional[int]:
-        """Canonical USD price. Prefers ``direct_price``, falls back to ``price_info``."""
-        if self.direct_price is not None:
-            return self.direct_price
-        if self.price_info is not None:
-            return round(self.price_info.price)
+    def currency(self) -> Optional[str]:
+        """ISO 4217 currency code from the itinerary's price info, or None."""
+        if self.price_info is not None and self.price_info.currency:
+            return self.price_info.currency
         return None
+
+    @property
+    def price(self) -> Optional[int]:
+        """Price in the currency's major unit (e.g. 250 for $250, 6725 for ₹6,725)."""
+        return self.direct_price
+
+    def __repr__(self) -> str:
+        parts = []
+        summary = _flight_summary_repr(self.segments)
+        if summary:
+            parts.append(summary)
+        dep = self.departure_airport_code
+        arr = self.arrival_airport_code
+        if dep or arr:
+            parts.append(f"{dep}->{arr}")
+        parts.append(f"{_fmt_clock(self.departure_time)}-{_fmt_clock(self.arrival_time)}")
+        parts.append(_fmt_duration(self.travel_time))
+        stops = self.stop_count if self.stop_count is not None else len(self.layovers)
+        if stops == 0:
+            parts.append("nonstop")
+        else:
+            parts.append(f"{stops} stop{'s' if stops > 1 else ''}")
+        if self.direct_price is not None:
+            parts.append(f"price={self.direct_price}")
+        return f"Itinerary({' '.join(parts)})"
 
 
 @dataclass
@@ -205,24 +278,18 @@ class PriceRange:
 
 @dataclass
 class RawSearchResult:
-    _raw: list
-    best: List[Itinerary]
-    other: List[Itinerary]
+    _raw: list = field(default_factory=list)
+    best: List[Itinerary] = field(default_factory=list)
+    other: List[Itinerary] = field(default_factory=list)
     price_range: Optional[PriceRange] = None  # Price range from response
 
-
-# Backward-compatible decoder alias for internal/raw callers.
-SearchResult = RawSearchResult
+    def __repr__(self) -> str:
+        return f"RawSearchResult(best={len(self.best)}, other={len(self.other)})"
 
 
 @dataclass
 class BookingOption:
-    """A single fare option from GetBookingResults.
-
-    Supports both attribute access and dict-style access via ``[]`` and
-    ``.get()`` for backward compatibility with code that used the old
-    ``dict`` return type.
-    """
+    """A single fare option from GetBookingResults."""
     price: int = 0
     brand_label: str = ""
     brand_code: str = ""
@@ -232,9 +299,9 @@ class BookingOption:
     _is_basic_by_flags: bool = False
     _is_basic_by_text: bool = False
     _option_index: Optional[int] = None
-    _token_price_cents: Optional[int] = None
-    _display_price_cents: Optional[int] = None
-    _price_delta_cents: Optional[int] = None
+    _token_price_raw: Optional[int] = None
+    _display_price_raw: Optional[int] = None
+    _price_delta_raw: Optional[int] = None
     _context_segment_token: str = ""
     _context_origin_iata: Optional[str] = None
     _context_destination_iata: Optional[str] = None
@@ -247,14 +314,14 @@ class BookingOption:
     _brand_attribute_vector: List = field(default_factory=list)
     _registry_version: Optional[str] = None
 
-    def __getitem__(self, key: str) -> Any:
-        return getattr(self, key)
+    def __repr__(self) -> str:
+        parts = [f"price={self.price}"]
+        if self.brand_label:
+            parts.append(f"'{self.brand_label}'")
+        if self.is_basic:
+            parts.append("basic")
+        return f"BookingOption({' '.join(parts)})"
 
-    def __contains__(self, key: str) -> bool:
-        return hasattr(self, key)
-
-    def get(self, key: str, default: Any = None) -> Any:
-        return getattr(self, key, default)
 
 
 def _decode_codeshare(el: list) -> Codeshare:
@@ -281,7 +348,7 @@ def _decode_amenities(el: list) -> Optional[AmenityFlags]:
     )
 
 
-def _decode_flight(el: list) -> Optional[Flight]:
+def _decode_segment(el: list) -> Optional[Segment]:
     """Decode a single flight segment from nested list data."""
     try:
         # Codeshares at index 15
@@ -314,7 +381,7 @@ def _decode_flight(el: list) -> Optional[Flight]:
         seat_type_raw = _safe_get(el, [13])
         seat_type = seat_type_raw if isinstance(seat_type_raw, int) else None
 
-        return Flight(
+        return Segment(
             operator=str(_safe_get(el, [2], "") or ""),
             departure_airport_code=str(_safe_get(el, [3], "") or ""),
             departure_airport_name=str(_safe_get(el, [4], "") or ""),
@@ -339,7 +406,7 @@ def _decode_flight(el: list) -> Optional[Flight]:
             seat_type=seat_type,
         )
     except Exception as e:
-        logger.warning("Failed to decode flight segment: %s", e)
+        logger.warning("Failed to decode segment: %s", e)
         return None
 
 
@@ -366,7 +433,7 @@ def _decode_layover(el: list) -> Optional[Layover]:
 def _decode_price_info(el: list) -> Optional[ItinerarySummary]:
     """Decode the itinerary summary (contains price).
 
-    Structure: [[None, price_cents], 'base64_encoded_protobuf']
+    Structure: [[None, display_price], 'base64_encoded_protobuf']
     The b64 protobuf string is at el[1], NOT el[1][1] — this was a past
     bug where using path [1,1] returned None and all prices came back as $0.
     """
@@ -390,15 +457,15 @@ def _decode_itinerary(el: list) -> Optional[Itinerary]:
         if not isinstance(itin_data, list):
             return None
 
-        # Flights at [0, 2]
-        flights_raw = _safe_get(itin_data, [2])
-        flights = []
-        if isinstance(flights_raw, list):
-            for f in flights_raw:
+        # Segments at [0, 2]
+        segments_raw = _safe_get(itin_data, [2])
+        segments = []
+        if isinstance(segments_raw, list):
+            for f in segments_raw:
                 if isinstance(f, list):
-                    flight = _decode_flight(f)
-                    if flight is not None:
-                        flights.append(flight)
+                    segment = _decode_segment(f)
+                    if segment is not None:
+                        segments.append(segment)
 
         # Layovers at [0, 13]
         layovers_raw = _safe_get(itin_data, [13])
@@ -447,7 +514,7 @@ def _decode_itinerary(el: list) -> Optional[Itinerary]:
                 )
 
         # Stop count: number of layovers = number of stops
-        stop_count = len(layovers) if layovers else (len(flights) - 1 if flights else 0)
+        stop_count = len(layovers) if layovers else (len(segments) - 1 if segments else 0)
 
         # Budget carrier flag at root[3] (sibling of itin_data, NOT inside it)
         budget_raw = _safe_get(root, [3])
@@ -467,7 +534,7 @@ def _decode_itinerary(el: list) -> Optional[Itinerary]:
         return Itinerary(
             airline_code=str(_safe_get(itin_data, [0], "") or ""),
             airline_names=_safe_get(itin_data, [1], []) or [],
-            flights=flights,
+            segments=segments,
             layovers=layovers,
             departure_airport_code=str(_safe_get(itin_data, [3], "") or ""),
             departure_date=_safe_tuple(_safe_get(itin_data, [4]), 3, [0, 0, 0]),
@@ -521,13 +588,13 @@ def itinerary_matches_flight(
 
     Returns ``True`` on the first match across any segment.
     """
-    for flight in itinerary.flights:
+    for segment in itinerary.segments:
         # Operating flight
-        if flight.flight_number == number:
-            if carrier is None or flight.airline == carrier:
+        if segment.flight_number == number:
+            if carrier is None or segment.airline == carrier:
                 return True
         # Codeshares
-        for cs in flight.codeshares:
+        for cs in segment.codeshares:
             if cs.flight_number == number:
                 if carrier is None or cs.airline_code == carrier:
                     return True

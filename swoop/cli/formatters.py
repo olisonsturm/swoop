@@ -1,15 +1,39 @@
 """Output formatters for the CLI — table, JSON, CSV, brief."""
 
 import csv
+import functools
 import json
 import sys
 from typing import Optional
 
+from babel.numbers import get_currency_symbol
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
+from ..decoder import _flight_summary_repr
 from .utils import format_date_display, format_duration, format_time
+
+
+@functools.lru_cache(maxsize=16)
+def _currency_symbol(currency: str) -> str:
+    """Cached currency symbol lookup."""
+    try:
+        return get_currency_symbol(currency)
+    except Exception:
+        return currency + " "
+
+
+def _format_price(price: Optional[int], currency: Optional[str] = None) -> str:
+    """Format a price with the correct currency symbol.
+
+    Uses the system's default locale for symbol lookup.
+    """
+    if price is None:
+        return "\u2014"  # em-dash
+    if not currency:
+        return str(price)
+    return f"{_currency_symbol(currency)}{price:,}"
 
 
 def _stderr_console(**kwargs) -> Console:
@@ -31,67 +55,51 @@ def _stops_text(itin) -> Text:
     """Colored stop count with layover details."""
     n = itin.stop_count if itin.stop_count is not None else len(itin.layovers)
     if n == 0:
-        return Text("Nonstop", style="green")
+        text = Text("Nonstop", style="green")
+        # Show legroom for nonstop single-segment flights
+        if itin.segments and len(itin.segments) == 1:
+            lr = itin.segments[0].legroom
+            if lr:
+                text.append(f"\n{lr}", style="dim")
+        return text
     label = "1 stop" if n == 1 else f"{n} stops"
     style = "yellow" if n == 1 else "red"
     text = Text(label, style=style)
     for lay in itin.layovers:
-        h, m = divmod(lay.minutes, 60)
-        dur = f"{h}h" if not m else f"{h}h{m:02d}m" if h else f"{m}m"
         airport = lay.departure_airport_code or lay.arrival_airport_code
-        text.append(f"\n{dur} {airport}", style="dim")
+        overnight = " (overnight)" if getattr(lay, "is_overnight", False) else ""
+        text.append(f"\n{format_duration(lay.minutes)} {airport}{overnight}", style="dim")
     return text
 
 
 def _airline_names(itin) -> str:
     """Comma-separated airline names, truncated."""
     names = itin.airline_names or []
-    if not names and itin.flights:
-        names = list(dict.fromkeys(f.airline_name for f in itin.flights if f.airline_name))
+    if not names and itin.segments:
+        names = list(dict.fromkeys(f.airline_name for f in itin.segments if f.airline_name))
     return ", ".join(names) if names else itin.airline_code or ""
 
 
 def _flight_summary(itin) -> str:
-    """Compact flight number summary for an itinerary.
-
-    - Nonstop: "DL 2300"
-    - 2 segments same carrier: "UA 1234 / 5678"
-    - 2 segments diff carrier: "UA 1234 / AA 200"
-    - 3+ segments: "UA 1234 +2"
-    - No flights: ""
-    """
-    flights = itin.flights or []
-    if not flights:
-        return ""
-    first = flights[0]
-    first_str = f"{first.airline} {first.flight_number}" if first.airline and first.flight_number else str(first.flight_number or "")
-    if len(flights) == 1:
-        return first_str
-    if len(flights) == 2:
-        second = flights[1]
-        if first.airline and second.airline and first.airline == second.airline:
-            return f"{first.airline} {first.flight_number} / {second.flight_number}"
-        second_str = f"{second.airline} {second.flight_number}" if second.airline and second.flight_number else str(second.flight_number or "")
-        return f"{first_str} / {second_str}"
-    return f"{first_str} +{len(flights) - 1}"
+    """Compact flight number summary for an itinerary."""
+    return _flight_summary_repr(itin.segments or [])
 
 
-def _price_text(price: Optional[int], cheapest: Optional[int]) -> Text:
+def _price_text(price: Optional[int], cheapest: Optional[int], currency: Optional[str] = None) -> Text:
     """Formatted price, cheapest highlighted green."""
     if price is None:
         return Text("—")
-    text = Text(f"${price:,}", style="bold")
+    text = Text(_format_price(price, currency), style="bold")
     if cheapest is not None and price == cheapest:
         text.stylize("green")
     return text
 
 
 def _format_clock(value) -> Optional[str]:
-    if not isinstance(value, (list, tuple)) or len(value) < 2:
+    if not isinstance(value, (list, tuple)) or len(value) < 1:
         return None
-    hour, minute = value[0], value[1]
-    if hour is None or minute is None:
-        return None
+    hour = value[0] if value[0] is not None else 0  # Google uses None for midnight
+    minute = value[1] if len(value) >= 2 and value[1] is not None else 0
     return f"{int(hour):02d}:{int(minute):02d}"
 
 
@@ -128,17 +136,32 @@ def _trip_leg_line(leg) -> str:
     if itinerary is None:
         return f"{leg.origin}->{leg.destination} ({leg.date})"
     dep = _format_clock(itinerary.departure_time)
+    if dep is None and itinerary.segments:
+        dep = _format_clock(itinerary.segments[0].departure_time)
     arr = _format_clock(itinerary.arrival_time)
+    if arr is None and itinerary.segments:
+        arr = _format_clock(itinerary.segments[-1].arrival_time)
+    has_overnight = any(getattr(seg, "overnight", False) for seg in itinerary.segments)
+    arr_suffix = "+1" if has_overnight else ""
     duration = format_duration(itinerary.travel_time)
     stops = itinerary.stop_count if itinerary.stop_count is not None else len(itinerary.layovers)
+    has_overnight_layover = any(getattr(lay, "is_overnight", False) for lay in itinerary.layovers)
     stop_str = "Nonstop" if stops == 0 else f"{stops} stop{'s' if stops > 1 else ''}"
+    if has_overnight_layover:
+        stop_str += " (overnight)"
+    # Show legroom for nonstop flights with a single segment
+    legroom_str = ""
+    if stops == 0 and itinerary.segments and len(itinerary.segments) == 1:
+        lr = itinerary.segments[0].legroom
+        if lr:
+            legroom_str = f"  {lr}"
     route = "->".join(
-        [flight.departure_airport_code for flight in itinerary.flights] +
-        ([itinerary.flights[-1].arrival_airport_code] if itinerary.flights else [])
+        [segment.departure_airport_code for segment in itinerary.segments] +
+        ([itinerary.segments[-1].arrival_airport_code] if itinerary.segments else [])
     )
     return (
         f"{_flight_summary(itinerary)}  {route or f'{leg.origin}->{leg.destination}'}  "
-        f"{dep or '?'}-{arr or '?'}  {duration}  {stop_str}"
+        f"{dep or '?'}-{arr or '?'}{arr_suffix}  {duration}  {stop_str}{legroom_str}"
     )
 
 
@@ -151,6 +174,21 @@ def _trip_summary(option) -> str:
         _flight_summary(leg.itinerary) if leg.itinerary is not None else f"{leg.origin}->{leg.destination}"
         for leg in option.legs
     )
+
+
+def _co2_text(option) -> Text:
+    """Compact CO2 emissions indicator from the first leg's itinerary."""
+    for leg in option.legs:
+        itin = leg.itinerary
+        if itin and itin.carbon_emissions and itin.carbon_emissions.difference_percent is not None:
+            pct = itin.carbon_emissions.difference_percent
+            if pct < 0:
+                return Text(f"{pct:+d}%", style="green")
+            elif pct == 0:
+                return Text("avg", style="dim")
+            else:
+                return Text(f"+{pct}%", style="yellow" if pct <= 20 else "red")
+    return Text("\u2014", style="dim")
 
 
 def _render_search_price_hint(console, price_commands: Optional[list[str]]) -> None:
@@ -205,15 +243,53 @@ def format_search_table(
 
     table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
     table.add_column("#", justify="right", style="dim", width=3)
-    table.add_column("Trip", min_width=36)
+    table.add_column("Airline", no_wrap=True)
+    table.add_column("Dep", width=5)
+    table.add_column("Arr", width=5)
+    table.add_column("Dur", width=7)
+    table.add_column("Stops", min_width=7)
     table.add_column("Price", justify="right", width=8)
+    table.add_column("CO2", justify="right", width=5)
 
+    currency = result.currency
     for i, option in enumerate(display_options, 1):
-        table.add_row(
-            str(i),
-            "\n".join(_trip_lines(option)),
-            _price_text(option.price, cheapest),
-        )
+        is_multi = len(option.legs) > 1
+        for leg_idx, leg in enumerate(option.legs):
+            is_first = leg_idx == 0
+            itin = leg.itinerary
+            prefix = f"Leg {leg_idx + 1}: " if is_multi else ""
+            if itin is None:
+                table.add_row(
+                    str(i) if is_first else "",
+                    f"{prefix}{leg.origin}->{leg.destination}",
+                    "?", "?", "", Text("—"),
+                    _price_text(option.price, cheapest, currency) if is_first else Text(""),
+                    _co2_text(option) if is_first else Text(""),
+                )
+                continue
+            dep = _format_clock(itin.departure_time)
+            if dep is None and itin.segments:
+                dep = _format_clock(itin.segments[0].departure_time)
+            dep = dep or "?"
+            arr = _format_clock(itin.arrival_time)
+            if arr is None and itin.segments:
+                arr = _format_clock(itin.segments[-1].arrival_time)
+            arr = arr or "?"
+            has_overnight = any(getattr(seg, "overnight", False) for seg in itin.segments)
+            if has_overnight:
+                arr += "+1"
+            airline_text = Text(f"{prefix}{_airline_names(itin)}")
+            airline_text.append(f"\n{_flight_summary(itin)}", style="dim")
+            table.add_row(
+                str(i) if is_first else "",
+                airline_text,
+                dep,
+                arr,
+                format_duration(itin.travel_time) if itin.travel_time else "",
+                _stops_text(itin),
+                _price_text(option.price, cheapest, currency) if is_first else Text(""),
+                _co2_text(option) if is_first else Text(""),
+            )
 
     console.print(table)
     console.print()
@@ -222,26 +298,30 @@ def format_search_table(
     shown = len(display_options)
     if result.price_range and result.price_range.low is not None:
         pr = result.price_range
-        range_str = f"${pr.low:,}-${pr.high:,}" if pr.high else f"from ${pr.low:,}"
+        low_fmt = _format_price(pr.low, currency)
+        high_fmt = _format_price(pr.high, currency)
+        range_str = f"{low_fmt}-{high_fmt}" if pr.high else f"from {low_fmt}"
         console.print(f" [dim]Price range: {range_str} · {shown} of {total} results shown[/dim]")
     else:
         if prices:
-            console.print(f" [dim]Price range: ${min(prices):,}-${max(prices):,} · {shown} of {total} results shown[/dim]")
+            low_fmt = _format_price(min(prices), currency)
+            high_fmt = _format_price(max(prices), currency)
+            console.print(f" [dim]Price range: {low_fmt}-{high_fmt} · {shown} of {total} results shown[/dim]")
         else:
             console.print(f" [dim]{shown} of {total} results shown[/dim]")
 
     if not result.is_complete:
-        console.print(" [dim]Results are truncated to the best complete trips within the CLI expansion budget.[/dim]")
+        console.print(" [dim]Results truncated. Use --max-results or --time-budget to expand (multi-city only).[/dim]")
 
     _render_search_price_hint(console, price_commands)
     console.print()
 
 
-def _itin_to_dict(itin) -> dict:
+def _itin_to_dict(itin, currency: Optional[str] = None) -> dict:
     """Convert an itinerary to a JSON-serializable dict."""
-    flights = []
-    for f in itin.flights:
-        flight_dict = {
+    segments = []
+    for f in itin.segments:
+        segment_dict = {
             "airline": f.airline,
             "airline_name": f.airline_name,
             "flight_number": f.flight_number,
@@ -256,7 +336,7 @@ def _itin_to_dict(itin) -> dict:
             "legroom": f.legroom or None,
             "co2_grams": f.co2_grams,
         }
-        flights.append(flight_dict)
+        segments.append(segment_dict)
 
     layovers = []
     for lay in itin.layovers:
@@ -277,8 +357,9 @@ def _itin_to_dict(itin) -> dict:
 
     return {
         "flight_summary": _flight_summary(itin),
-        "price_usd": itin.price,
-        "airlines": _airline_names(itin) if isinstance(_airline_names(itin), str) else str(_airline_names(itin)),
+        "price": itin.price,
+        "currency": currency or itin.currency,
+        "airlines": _airline_names(itin),
         "departure_airport_code": itin.departure_airport_code,
         "arrival_airport_code": itin.arrival_airport_code,
         "departure_time": _format_clock(itin.departure_time),
@@ -286,7 +367,7 @@ def _itin_to_dict(itin) -> dict:
         "duration_minutes": itin.travel_time,
         "stops": itin.stop_count if itin.stop_count is not None else len(itin.layovers),
         "is_budget_carrier": itin.is_budget_carrier,
-        "flights": flights,
+        "segments": segments,
         "layovers": layovers,
         "carbon_emissions": emissions,
     }
@@ -317,6 +398,8 @@ def format_search_json(
             "high": result.price_range.high,
         }
 
+    currency = result.currency
+
     output = {
         "query": {
             "origin": origin,
@@ -330,6 +413,7 @@ def format_search_json(
             "cabin": cabin,
             "adults": adults,
         },
+        "currency": currency,
         "price_source": "shopping",
         "price_range": price_range,
         "total_results": len(result.results),
@@ -338,13 +422,14 @@ def format_search_json(
             {
                 "index": index + 1,
                 "selector": option.selector,
-                "price_usd": option.price,
+                "price": option.price,
+                "currency": option.currency or currency,
                 "legs": [
                     {
                         "origin": leg.origin,
                         "destination": leg.destination,
                         "date": leg.date,
-                        "itinerary": _itin_to_dict(leg.itinerary) if leg.itinerary else None,
+                        "itinerary": _itin_to_dict(leg.itinerary, currency=option.currency or currency) if leg.itinerary else None,
                     }
                     for leg in option.legs
                 ],
@@ -365,16 +450,37 @@ def format_search_csv(
     if limit:
         all_options = all_options[:limit]
 
+    currency = result.currency
+
     writer = csv.writer(sys.stdout)
     writer.writerow([
-        "index", "selector", "price_usd", "leg_count", "summary",
+        "index", "selector", "price", "currency", "leg_count",
+        "duration_minutes", "stops", "departure_time", "arrival_time",
+        "airlines", "summary",
     ])
     for i, option in enumerate(all_options, 1):
+        first_itin = option.legs[0].itinerary if option.legs else None
+        dur_min = first_itin.travel_time if first_itin and first_itin.travel_time else ""
+        stops = ""
+        dep_time = ""
+        arr_time = ""
+        airlines = ""
+        if first_itin:
+            stops = first_itin.stop_count if first_itin.stop_count is not None else len(first_itin.layovers)
+            dep_time = _format_clock(first_itin.departure_time) or ""
+            arr_time = _format_clock(first_itin.arrival_time) or ""
+            airlines = _airline_names(first_itin)
         writer.writerow([
             i,
             option.selector,
             option.price if option.price is not None else "",
+            option.currency or currency or "",
             len(option.legs),
+            dur_min,
+            stops,
+            dep_time,
+            arr_time,
+            airlines,
             _trip_summary(option),
         ])
 
@@ -390,9 +496,18 @@ def format_search_brief(
     if limit:
         all_options = all_options[:limit]
 
+    currency = result.currency
     for i, option in enumerate(all_options, 1):
-        price = f"${option.price:,}" if option.price is not None else "—"
-        print(f"{i:<3} {price:<8} {_trip_summary(option)}")
+        price = _format_price(option.price, option.currency or currency)
+        # Pull duration and stops from first leg's itinerary
+        dur_str = ""
+        stop_str = ""
+        first_itin = option.legs[0].itinerary if option.legs else None
+        if first_itin:
+            dur_str = format_duration(first_itin.travel_time) if first_itin.travel_time else ""
+            stops = first_itin.stop_count if first_itin.stop_count is not None else len(first_itin.layovers)
+            stop_str = "Nonstop" if stops == 0 else f"{stops} stop{'s' if stops > 1 else ''}"
+        print(f"{i:<3} {price:<12} {dur_str:<8} {stop_str:<10} {_trip_summary(option)}")
 
     if all_options:
         console = _stdout_console()
@@ -412,8 +527,8 @@ def _render_resolved_legs(console, resolved_legs) -> None:
         console.print(f"  [bold]{label}[/bold] · {leg.selection}")
 
         itin = leg.itinerary
-        if itin and itin.flights:
-            for fi, flight in enumerate(itin.flights):
+        if itin and itin.segments:
+            for fi, flight in enumerate(itin.segments):
                 fid = f"{flight.airline} {flight.flight_number}" if flight.airline else str(flight.flight_number or "")
                 dep = format_time(flight.departure_time[0], flight.departure_time[1])
                 arr = format_time(flight.arrival_time[0], flight.arrival_time[1])
@@ -432,10 +547,8 @@ def _render_resolved_legs(console, resolved_legs) -> None:
                 # Show layover after this segment (if not last segment)
                 if fi < len(itin.layovers):
                     lay = itin.layovers[fi]
-                    h, m = divmod(lay.minutes, 60)
-                    lay_dur = f"{h}h {m:02d}m" if h and m else (f"{h}h" if h else f"{m}m")
                     airport = lay.departure_airport_code or lay.arrival_airport_code or ""
-                    console.print(f"  [dim]  Layover: {lay_dur} {airport}[/dim]")
+                    console.print(f"  [dim]  Layover: {format_duration(lay.minutes)} {airport}[/dim]")
         else:
             console.print(f"  {leg.flight_summary}  {leg.origin} -> {leg.destination}")
         console.print()
@@ -468,7 +581,8 @@ def format_price_table(
     if result.resolved_legs:
         _render_resolved_legs(console, result.resolved_legs)
 
-    console.print(f" [bold green]Price: ${result.price:,}[/bold green]")
+    currency = result.currency
+    console.print(f" [bold green]Price: {_format_price(result.price, currency)}[/bold green]")
 
     if result.fare_brand:
         console.print(f" [dim]Fare: {result.fare_brand}[/dim]")
@@ -484,10 +598,10 @@ def format_price_table(
         table.add_column("Basic", width=6)
 
         for i, opt in enumerate(result.booking_options, 1):
-            price = f"${opt.price:,}" if opt.price else "—"
+            price = _format_price(opt.price, currency) if opt.price else "\u2014"
             table.add_row(
                 str(i),
-                opt.brand_label or opt.brand_code or "—",
+                opt.brand_label or opt.brand_code or "\u2014",
                 price,
                 "Yes" if opt.is_basic else "No",
             )
@@ -502,25 +616,27 @@ def format_price_json(
     query_legs=None,
 ) -> None:
     """Render a price check result as JSON to stdout."""
+    currency = result.currency
     output = {
         "query": {
             "legs": list(query_legs or []),
         },
-        "price_usd": result.price,
+        "price": result.price,
+        "currency": currency,
         "fare_brand": result.fare_brand,
         "is_basic_economy": result.is_basic_economy,
         "booking_options": [
             {
                 "brand_label": opt.brand_label,
                 "brand_code": opt.brand_code,
-                "price_usd": opt.price,
+                "price": opt.price,
                 "is_basic": opt.is_basic,
             }
             for opt in result.booking_options
         ] if result.booking_options else [],
     }
     if result.itinerary:
-        output["itinerary"] = _itin_to_dict(result.itinerary)
+        output["itinerary"] = _itin_to_dict(result.itinerary, currency=currency)
     if result.resolved_legs:
         output["resolved_legs"] = [
             {
@@ -529,7 +645,7 @@ def format_price_json(
                 "destination": leg.destination,
                 "date": leg.date,
                 "selection": leg.selection,
-                "itinerary": _itin_to_dict(leg.itinerary) if leg.itinerary else None,
+                "itinerary": _itin_to_dict(leg.itinerary, currency=currency) if leg.itinerary else None,
             }
             for leg in result.resolved_legs
         ]
@@ -544,4 +660,4 @@ def format_price_brief(
     """Render a price check result in compact format to stdout."""
     trip_type = f"{len(query_legs or result.resolved_legs or [])}-leg"
     brand = f" ({result.fare_brand})" if result.fare_brand else ""
-    print(f"${result.price:,}{brand} {trip_type}")
+    print(f"{_format_price(result.price, result.currency)}{brand} {trip_type}")
