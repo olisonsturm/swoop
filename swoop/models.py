@@ -56,7 +56,11 @@ class SearchResult:
     results: list[TripOption] = field(default_factory=list)
     price_range: Optional[PriceRange] = None
     is_complete: bool = True
-    currency: Optional[str] = None
+
+    @property
+    def currency(self) -> Optional[str]:
+        """ISO 4217 currency code derived from the first result, or None."""
+        return self.results[0].currency if self.results else None
 
     def __repr__(self) -> str:
         n = len(self.results)

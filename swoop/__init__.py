@@ -114,7 +114,6 @@ def _filter_trip_options_by_flight_number(
         results=filtered,
         price_range=result.price_range,
         is_complete=result.is_complete,
-        currency=result.currency,
     )
 
 

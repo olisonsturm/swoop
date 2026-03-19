@@ -133,8 +133,15 @@ class TestFrozenDataclassFields:
         assert self._field_names(Itinerary) == expected
 
     def test_search_result_fields(self):
-        expected = {"results", "price_range", "is_complete", "currency"}
+        expected = {"results", "price_range", "is_complete"}
         assert self._field_names(SearchResult) == expected
+
+    def test_search_result_currency_property(self):
+        """currency is a derived property, not a stored field."""
+        sr = SearchResult()
+        assert sr.currency is None
+        sr_with = SearchResult(results=[TripOption(selector="x", currency="USD")])
+        assert sr_with.currency == "USD"
 
     def test_raw_search_result_fields(self):
         expected = {"_raw", "best", "other", "price_range"}

@@ -316,7 +316,6 @@ def search_trip_options(
 
     first_candidates = _iter_raw_itineraries(first_pass)
     if len(request_legs) == 1:
-        first_currency = first_candidates[0].currency if first_candidates else None
         return SearchResult(
             results=[
                 _build_trip_option(
@@ -334,7 +333,6 @@ def search_trip_options(
             ],
             price_range=first_pass.price_range,
             is_complete=True,
-            currency=first_currency,
         )
 
     started_at = time.monotonic()
@@ -405,8 +403,7 @@ def search_trip_options(
         )
         for prefix in prefixes[:max_results]
     ]
-    multi_currency = options[0].currency if options else None
-    result = SearchResult(results=options, price_range=None, is_complete=is_complete, currency=multi_currency)
+    result = SearchResult(results=options, price_range=None, is_complete=is_complete)
 
     return result
 

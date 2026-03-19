@@ -59,8 +59,8 @@ class TestModelCurrencyFields:
         sr = SearchResult()
         assert sr.currency is None
 
-    def test_search_result_accepts_currency(self):
-        sr = SearchResult(currency="GBP")
+    def test_search_result_derives_currency_from_results(self):
+        sr = SearchResult(results=[TripOption(selector="x", currency="GBP")])
         assert sr.currency == "GBP"
 
     def test_price_result_defaults_none(self):

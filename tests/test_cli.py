@@ -137,7 +137,6 @@ def _make_search_result(n: int = 3) -> SearchResult:
         results=options,
         price_range=PriceRange(low=127, high=450),
         is_complete=True,
-        currency="USD",
     )
 
 
@@ -761,7 +760,7 @@ class TestCurrencyDisplay:
             currency="GBP",
             legs=[TripLeg(origin="LHR", destination="CDG", date="2026-07-01", itinerary=itin)],
         )
-        mock_search.return_value = SearchResult(results=[option], currency="GBP")
+        mock_search.return_value = SearchResult(results=[option])
         runner = CliRunner()
         result = runner.invoke(main, [
             "search", "LHR", "CDG", "2026-07-01", "-q",
@@ -783,7 +782,7 @@ class TestCurrencyDisplay:
             currency="GBP",
             legs=[TripLeg(origin="LHR", destination="CDG", date="2026-07-01", itinerary=itin)],
         )
-        mock_search.return_value = SearchResult(results=[option], currency="GBP")
+        mock_search.return_value = SearchResult(results=[option])
         runner = CliRunner()
         result = runner.invoke(main, [
             "search", "LHR", "CDG", "2026-07-01", "-o", "brief", "-q",
@@ -841,7 +840,7 @@ class TestCurrencyDisplay:
             currency="GBP",
             legs=[TripLeg(origin="LHR", destination="CDG", date="2026-07-01", itinerary=itin)],
         )
-        mock_search.return_value = SearchResult(results=[option], currency="GBP")
+        mock_search.return_value = SearchResult(results=[option])
         runner = CliRunner()
         result = runner.invoke(main, [
             "search", "LHR", "CDG", "2026-07-01", "-o", "json", "-q",
@@ -867,7 +866,7 @@ class TestCurrencyDisplay:
             currency="GBP",
             legs=[TripLeg(origin="LHR", destination="CDG", date="2026-07-01", itinerary=itin)],
         )
-        mock_search.return_value = SearchResult(results=[option], currency="GBP")
+        mock_search.return_value = SearchResult(results=[option])
         runner = CliRunner()
         result = runner.invoke(main, [
             "search", "LHR", "CDG", "2026-07-01", "-o", "csv", "-q",
