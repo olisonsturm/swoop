@@ -180,6 +180,32 @@ class TestGetClient:
         rpc._get_client(proxy=None)
         MockClient.assert_called_once_with(impersonate="chrome", proxy="http://default:3128")
 
+    @patch("primp.Client")
+    def test_creates_client_with_custom_impersonate(self, MockClient):
+        mock = MagicMock()
+        MockClient.return_value = mock
+
+        client = rpc._get_client(impersonate="firefox")
+        assert client is mock
+        MockClient.assert_called_once_with(impersonate="firefox")
+
+    @patch("primp.Client")
+    def test_separate_clients_per_impersonate(self, MockClient):
+        MockClient.side_effect = [MagicMock(), MagicMock()]
+
+        c1 = rpc._get_client(impersonate="chrome")
+        c2 = rpc._get_client(impersonate="firefox")
+        assert c1 is not c2
+        assert MockClient.call_count == 2
+
+    @patch("primp.Client")
+    def test_impersonate_none_defaults_to_chrome(self, MockClient):
+        mock = MagicMock()
+        MockClient.return_value = mock
+
+        rpc._get_client(impersonate=None)
+        MockClient.assert_called_once_with(impersonate="chrome")
+
 
 # ---------------------------------------------------------------------------
 # Passenger types reach the RPC payload

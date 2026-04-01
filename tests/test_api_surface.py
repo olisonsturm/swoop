@@ -303,10 +303,11 @@ class TestFrozenDefaults:
         assert tc.retries == 2
         assert tc.country is None
         assert tc.proxy is None
+        assert tc.impersonate is None
 
     def test_transport_config_fields(self):
         from dataclasses import fields as dc_fields
-        expected = {"timeout", "retries", "country", "proxy"}
+        expected = {"timeout", "retries", "country", "proxy", "impersonate"}
         actual = {f.name for f in dc_fields(TransportConfig)}
         assert actual == expected
 
