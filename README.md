@@ -12,19 +12,17 @@ from swoop import search
 
 results = search("JFK", "LAX", "2026-06-15")
 for option in results.results[:3]:
-    print(f"${option.price}")
-    for leg in option.legs:
-        itinerary = leg.itinerary
-        airline = ", ".join(itinerary.airline_names) if itinerary else "Unknown"
-        print(f"  {leg.origin} -> {leg.destination} — {airline}")
+    print(f"${option.price} — {', '.join(option.legs[0].itinerary.airline_names)}")
 ```
 
 > [!NOTE]
-> Swoop is not affiliated with Google. It calls undocumented RPC endpoints that can change without notice.
+> swoop is not affiliated with Google. It calls undocumented RPC endpoints that can change without notice.
 
-Swoop calls Google Flights' internal `GetShoppingResults` and `GetBookingResults` RPC endpoints — the same ones the web app uses when you search for flights. Requests use TLS fingerprint impersonation via [primp](https://github.com/deedy5/primp) to match a real browser session. Responses are deeply nested lists (matching an internal protobuf schema) decoded into typed Python dataclasses.
+swoop calls Google Flights' internal `GetShoppingResults` and `GetBookingResults` RPC endpoints, the same ones the web app uses when you search for flights. Requests use TLS fingerprint impersonation via [primp](https://github.com/deedy5/primp) to match a real browser session. Responses are deeply nested lists (matching an internal protobuf schema) decoded into typed Python dataclasses.
 
-[Perch](https://perchtravel.com) uses Swoop in production to monitor booked flights for price drops, saving users an average of $247 per trip.
+[Perch](https://perchtravel.com) uses swoop in production to monitor booked flights for price drops, saving users an average of $247 per trip.
+
+**[Landing page](https://ayushsaraswat.com/projects/swoop)** · **[How I built this](https://ayushsaraswat.com/writing/reverse-engineering-google-flights)**
 
 ---
 
@@ -225,14 +223,28 @@ for opt in options:
 
 ## How it works
 
-Swoop reverse-engineers the `FlightsFrontendService` RPC interface that powers Google Flights. Search parameters are encoded as nested JSON arrays matching Google's internal protobuf schema, then sent as HTTP POST requests. The HTTP client uses TLS fingerprint impersonation (via [primp](https://github.com/deedy5/primp)) so requests are indistinguishable from a real Chrome session.
+swoop reverse-engineers the `FlightsFrontendService` RPC interface that powers Google Flights. Search parameters are encoded as nested JSON arrays matching Google's internal protobuf schema, then sent as HTTP POST requests. The HTTP client uses TLS fingerprint impersonation (via [primp](https://github.com/deedy5/primp)) so requests are indistinguishable from a real Chrome session.
 
-Responses arrive as deeply nested list structures — no field names, just positional indices. Swoop's decoder walks these structures and maps them to typed Python dataclasses (`Itinerary`, `Segment`, `Layover`, `CarbonEmissions`, etc.) with named attributes.
+Responses arrive as deeply nested list structures, no field names, just positional indices. swoop's decoder walks these structures and maps them to typed Python dataclasses (`Itinerary`, `Segment`, `Layover`, `CarbonEmissions`, etc.) with named attributes.
 
-```mermaid
-graph LR
-    A["search()"] --> B["RPC request"] --> C["Google Flights"] --> D["nested lists"] --> E["typed dataclasses"]
 ```
+                                    ┌─────────────────────────────────────┐
+                                    │         Google Flights              │
+                                    │    FlightsFrontendService RPC       │
+                                    └──────────┬──────────────────────────┘
+                                               │
+                                    protobuf response
+                                    (nested arrays, no field names)
+                                               │
+┌──────────────┐   HTTP POST    ┌──────────────▼──────────────┐   typed    ┌──────────────────┐
+│  search()    │──────────────▶ │     TLS fingerprint         │──────────▶│  Itinerary       │
+│  price()     │  JSON-in-JSON  │     impersonation (primp)   │  Python   │  Segment         │
+│  check_price │  URL-encoded   │                             │  dataclass│  Layover         │
+└──────────────┘                └─────────────────────────────┘           │  CarbonEmissions │
+                                                                          └──────────────────┘
+```
+
+For the full reverse-engineering story (744 lines of handmade schema, binary protobuf decoding, cabin class debugging), read **[How I built this](https://ayushsaraswat.com/writing/reverse-engineering-google-flights)**.
 
 <details>
 <summary>API reference</summary>
