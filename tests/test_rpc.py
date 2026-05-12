@@ -607,7 +607,7 @@ def test_booking_option_seller_fields_populated() -> None:
     opt = options[0]
     assert opt.seller_name == "Mytrip"
     assert opt.seller_code == "ETRAVELI_Mytrip"
-    assert opt.booking_url == "https://www.google.com/travel/clk/f?u=tok_abc123"
+    assert opt.booking_url == "https://www.google.com/travel/clk/f?u=tok_abc123&v=1"
     assert opt.logo_url == "https://www.gstatic.com/flights/partner_logos/70px/ETRAVELI_Mytrip.png"
 
 
@@ -655,6 +655,16 @@ def test_booking_option_repr_shows_seller_when_present() -> None:
     opt = BookingOption(price=594, seller_name="Mytrip", brand_label="Economy")
     assert "seller='Mytrip'" in repr(opt)
     assert "price=594" in repr(opt)
+
+
+def test_booking_option_logo_url_path_escapes_logo_code() -> None:
+    """logo_code is path-escaped so unexpected characters don't break the URL."""
+    from swoop._booking import _extract_seller
+    option = [None] * 25
+    option[1] = [["CODE", "Name", "weird/code?x=1", False]]
+    seller_name, seller_code, booking_url, logo_url = _extract_seller(option)
+    assert "weird%2Fcode%3Fx%3D1" in logo_url
+    assert logo_url.endswith(".png")
 
 
 def test_parse_rpc_response_null_and_decode(monkeypatch) -> None:

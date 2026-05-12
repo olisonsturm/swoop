@@ -8,6 +8,7 @@ cohesion — this module handles response parsing, not request building.
 import base64
 import json
 import logging
+import urllib.parse
 from typing import Any
 
 from .builders import CABIN_CLASS_MAP, ItinerarySummary
@@ -260,8 +261,8 @@ def _extract_seller(option: list[Any]) -> tuple[str, str, str, str]:
     opt[5]: [display_url, None, [clk_base_url, [["u", token], ["v", "1"]]]]
 
     logo_code is the third element when present; falls back to seller_code.
-    booking_url is constructed as ``clk_base_url?u=<token>``.
-    logo_url is ``{_GSTATIC_LOGO_BASE}/<logo_code>.png``.
+    booking_url reconstructs the full query string from all params in opt[5][2][1].
+    logo_url is ``{_GSTATIC_LOGO_BASE}/<logo_code>.png`` with the code path-escaped.
     """
     seller_entry = _safe_get(option, [1, 0])
     if not isinstance(seller_entry, list):
@@ -278,14 +279,19 @@ def _extract_seller(option: list[Any]) -> tuple[str, str, str, str]:
         if isinstance(clk_block, list) and len(clk_block) >= 2:
             clk_base = clk_block[0] if isinstance(clk_block[0], str) else ""
             params = clk_block[1] if isinstance(clk_block[1], list) else []
-            u_token = next(
-                (p[1] for p in params if isinstance(p, list) and len(p) >= 2 and p[0] == "u"),
-                "",
-            )
-            if clk_base and u_token:
-                booking_url = f"{clk_base}?u={u_token}"
+            kv_pairs = [
+                (str(p[0]), str(p[1]))
+                for p in params
+                if isinstance(p, list) and len(p) >= 2 and p[0] and p[1]
+            ]
+            if clk_base and kv_pairs:
+                sep = "&" if "?" in clk_base else "?"
+                booking_url = clk_base + sep + urllib.parse.urlencode(kv_pairs)
 
-    logo_url = f"{_GSTATIC_LOGO_BASE}/{logo_code}.png" if logo_code else ""
+    logo_url = (
+        f"{_GSTATIC_LOGO_BASE}/{urllib.parse.quote(logo_code, safe='')}.png"
+        if logo_code else ""
+    )
     return seller_name, seller_code, booking_url, logo_url
 
 
