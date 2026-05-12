@@ -153,6 +153,7 @@ class TestFrozenDataclassFields:
         expected = {
             "price", "brand_label", "brand_code",
             "is_basic", "fare_family", "rebookability_signal",
+            "seller_name", "seller_code", "booking_url", "logo_url",
         }
         actual = {
             field.name

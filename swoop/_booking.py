@@ -250,6 +250,45 @@ def _extract_segment_identity_from_context(context_segment_token_b64: str) -> di
     return fields
 
 
+_GSTATIC_LOGO_BASE = "https://www.gstatic.com/flights/partner_logos/70px"
+
+
+def _extract_seller(option: list[Any]) -> tuple[str, str, str, str]:
+    """Extract (seller_name, seller_code, booking_url, logo_url) from a booking option.
+
+    opt[1]: [[seller_code, seller_name, logo_code_or_None, is_airline], ...]
+    opt[5]: [display_url, None, [clk_base_url, [["u", token], ["v", "1"]]]]
+
+    logo_code is the third element when present; falls back to seller_code.
+    booking_url is constructed as ``clk_base_url?u=<token>``.
+    logo_url is ``{_GSTATIC_LOGO_BASE}/<logo_code>.png``.
+    """
+    seller_entry = _safe_get(option, [1, 0])
+    if not isinstance(seller_entry, list):
+        return "", "", "", ""
+
+    seller_code = str(seller_entry[0]) if len(seller_entry) > 0 and seller_entry[0] else ""
+    seller_name = str(seller_entry[1]) if len(seller_entry) > 1 and seller_entry[1] else ""
+    logo_code = str(seller_entry[2]) if len(seller_entry) > 2 and seller_entry[2] else seller_code
+
+    url_block = _safe_get(option, [5])
+    booking_url = ""
+    if isinstance(url_block, list) and len(url_block) >= 3:
+        clk_block = url_block[2]
+        if isinstance(clk_block, list) and len(clk_block) >= 2:
+            clk_base = clk_block[0] if isinstance(clk_block[0], str) else ""
+            params = clk_block[1] if isinstance(clk_block[1], list) else []
+            u_token = next(
+                (p[1] for p in params if isinstance(p, list) and len(p) >= 2 and p[0] == "u"),
+                "",
+            )
+            if clk_base and u_token:
+                booking_url = f"{clk_base}?u={u_token}"
+
+    logo_url = f"{_GSTATIC_LOGO_BASE}/{logo_code}.png" if logo_code else ""
+    return seller_name, seller_code, booking_url, logo_url
+
+
 def _normalize_attribute_vector(value: Any) -> list[Any]:
     """Normalize brand attribute vector to scalar-only values for diagnostics."""
     if not isinstance(value, list):
@@ -419,6 +458,7 @@ def _parse_booking_rpc_response(
         cabin_bucket = _cabin_bucket_from_brand_block(brand_block)
         rebookability_signal = _infer_rebookability_signal(fare_family, is_basic=is_basic)
         attribute_vector = _normalize_attribute_vector(_safe_get(brand_block, [1], []))
+        seller_name, seller_code, booking_url, logo_url = _extract_seller(option)
 
         parsed_option = BookingOption(
             price=int(round(price)),
@@ -427,6 +467,10 @@ def _parse_booking_rpc_response(
             is_basic=is_basic,
             fare_family=fare_family,
             rebookability_signal=rebookability_signal,
+            seller_name=seller_name,
+            seller_code=seller_code,
+            booking_url=booking_url,
+            logo_url=logo_url,
             _is_basic_by_flags=is_basic_by_flags,
             _is_basic_by_text=is_basic_by_text,
             _option_index=option_index,

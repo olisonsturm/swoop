@@ -588,6 +588,75 @@ def test_booking_parser_logs_debug_for_partial_drops_and_warning_for_total_drop(
     assert any(record.levelno >= logging.WARNING for record in caplog.records)
 
 
+def test_booking_option_seller_fields_populated() -> None:
+    """OTA seller name, code, booking URL, and logo URL are parsed from opt[1] and opt[5]."""
+    payload = [
+        make_booking_option(
+            price=559,
+            brand_code="ECONOMY",
+            brand_label="Economy",
+            seller_code="ETRAVELI_Mytrip",
+            seller_name="Mytrip",
+            booking_url_token="tok_abc123",
+        ),
+    ]
+    text = encode_rpc_outer([None, [payload]])
+    options = rpc._parse_booking_rpc_response(text)
+
+    assert len(options) == 1
+    opt = options[0]
+    assert opt.seller_name == "Mytrip"
+    assert opt.seller_code == "ETRAVELI_Mytrip"
+    assert opt.booking_url == "https://www.google.com/travel/clk/f?u=tok_abc123"
+    assert opt.logo_url == "https://www.gstatic.com/flights/partner_logos/70px/ETRAVELI_Mytrip.png"
+
+
+def test_booking_option_seller_logo_falls_back_to_seller_code_when_no_logo_code() -> None:
+    """When opt[1][0][2] is None, logo_url uses seller_code as the path segment."""
+    payload = [
+        make_booking_option(
+            price=600,
+            brand_code="ECONOMY",
+            brand_label="Economy",
+            seller_code="QR",
+            seller_name="Qatar Airways",
+            logo_code=None,  # no explicit logo code
+            booking_url_token="tok_qr",
+        ),
+    ]
+    text = encode_rpc_outer([None, [payload]])
+    options = rpc._parse_booking_rpc_response(text)
+
+    assert len(options) == 1
+    opt = options[0]
+    assert opt.seller_name == "Qatar Airways"
+    assert opt.seller_code == "QR"
+    assert opt.logo_url == "https://www.gstatic.com/flights/partner_logos/70px/QR.png"
+
+
+def test_booking_option_seller_fields_empty_when_absent() -> None:
+    """Options without a seller block (airline-direct without opt[1]) leave seller fields empty."""
+    payload = [
+        make_booking_option(price=250, brand_code="DELTA MAIN CLASSIC", brand_label="Delta Main Classic"),
+    ]
+    text = encode_rpc_outer([None, [payload]])
+    options = rpc._parse_booking_rpc_response(text)
+
+    assert len(options) == 1
+    opt = options[0]
+    assert opt.seller_name == ""
+    assert opt.seller_code == ""
+    assert opt.booking_url == ""
+    assert opt.logo_url == ""
+
+
+def test_booking_option_repr_shows_seller_when_present() -> None:
+    from swoop.decoder import BookingOption
+    opt = BookingOption(price=594, seller_name="Mytrip", brand_label="Economy")
+    assert "seller='Mytrip'" in repr(opt)
+    assert "price=594" in repr(opt)
+
+
 def test_parse_rpc_response_null_and_decode(monkeypatch) -> None:
     none_inner_data = ")]}'" + json.dumps([["wrb.fr", None, "null"]])
     assert rpc._parse_rpc_response(none_inner_data) is None
