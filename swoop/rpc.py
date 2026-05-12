@@ -60,8 +60,8 @@ STOPS_TWO_OR_FEWER = 3
 
 
 def _normalize_rpc_leg(
-    origin: str,
-    destination: str,
+    origin: str | list[str],
+    destination: str | list[str],
     date: str,
     *,
     max_stops: Optional[int] = None,
@@ -74,8 +74,8 @@ def _normalize_rpc_leg(
 ) -> dict[str, Any]:
     """Normalize a single search leg for generic request building."""
     return {
-        "origin": origin,
-        "destination": destination,
+        "origin": [origin] if isinstance(origin, str) else origin,
+        "destination": [destination] if isinstance(destination, str) else destination,
         "date": date,
         "max_stops": max_stops,
         "airlines": sorted(airlines) if airlines else None,
@@ -127,8 +127,8 @@ def _build_segment_from_leg(leg: dict[str, Any]) -> list[Any]:
         stops_val = max_stops + 1
 
     return [
-        [[[leg["origin"], 0]]],       # departure airport
-        [[[leg["destination"], 0]]],  # arrival airport
+        [[[code, 0] for code in leg["origin"]]],       # departure airports
+        [[[code, 0] for code in leg["destination"]]],  # arrival airports
         _build_time_restrictions(
             leg.get("earliest_departure"),
             leg.get("latest_departure"),
@@ -414,8 +414,8 @@ def _http_post(
 
 
 def search_raw(
-    origin: str,
-    destination: str,
+    origin: str | list[str],
+    destination: str | list[str],
     date: str,
     cabin: CabinClass = "economy",
     passengers: Passengers = Passengers(),
@@ -503,8 +503,8 @@ def _build_selected_legs(itinerary: Itinerary) -> list[list[Any]]:
 def get_booking_results(
     itinerary_or_token: Itinerary | str,
     *,
-    origin: str = "",
-    destination: str = "",
+    origin: str | list[str] = "",
+    destination: str | list[str] = "",
     date: str = "",
     cabin: CabinClass = "economy",
     passengers: Passengers = Passengers(),

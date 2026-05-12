@@ -32,8 +32,8 @@ class SearchLeg:
 
     Args:
         date: Departure date (YYYY-MM-DD).
-        from_airport: Origin IATA code.
-        to_airport: Destination IATA code.
+        from_airport: Origin IATA code or list of IATA codes.
+        to_airport: Destination IATA code or list of IATA codes.
         max_stops: Maximum number of stops. None = any.
         airlines: Filter to these airline IATA codes.
     """
@@ -44,14 +44,22 @@ class SearchLeg:
         self,
         *,
         date: str,
-        from_airport: str,
-        to_airport: str,
+        from_airport: str | list[str],
+        to_airport: str | list[str],
         max_stops: Optional[int] = None,
         airlines: Optional[List[str]] = None,
     ):
         self.date = date
-        self.from_airport = from_airport.upper()
-        self.to_airport = to_airport.upper()
+        self.from_airport = (
+            [from_airport.upper()]
+            if isinstance(from_airport, str)
+            else [a.upper() for a in from_airport]
+        )
+        self.to_airport = (
+            [to_airport.upper()]
+            if isinstance(to_airport, str)
+            else [a.upper() for a in to_airport]
+        )
         self.max_stops = max_stops
 
         if airlines is not None:
@@ -70,8 +78,8 @@ class SearchLeg:
     def apply_to(self, info) -> None:
         data = info.data.add()
         data.date = self.date
-        data.from_flight.airport = self.from_airport
-        data.to_flight.airport = self.to_airport
+        data.from_flight.airport = self.from_airport[0]
+        data.to_flight.airport = self.to_airport[0]
         if self.max_stops is not None:
             data.max_stops = self.max_stops
         if self.airlines is not None:
