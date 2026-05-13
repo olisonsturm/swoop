@@ -266,14 +266,20 @@ class TestMultiAirport:
             from_airport=["MUC", "NUE"],
             to_airport="BKK",
         )
+        # Multi-airport: property returns list
         assert leg.from_airport == ["MUC", "NUE"]
-        assert leg.to_airport == ["BKK"]
+        # Single airport: property returns str (backward-compatible)
+        assert leg.to_airport == "BKK"
 
     def test_search_leg_str_normalized_to_list(self):
         from swoop.builders import SearchLeg
         leg = SearchLeg(date="2026-07-01", from_airport="muc", to_airport="bkk")
-        assert leg.from_airport == ["MUC"]
-        assert leg.to_airport == ["BKK"]
+        # Single airport: property returns str for backward compatibility
+        assert leg.from_airport == "MUC"
+        assert leg.to_airport == "BKK"
+        # Internal storage is always a list
+        assert leg._from_airports == ["MUC"]
+        assert leg._to_airports == ["BKK"]
 
     def test_validate_iata_codes_accepts_string(self):
         from swoop._validate import validate_iata_codes

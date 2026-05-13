@@ -73,9 +73,15 @@ def _normalize_rpc_leg(
     selected_legs: Optional[list[list[Any]]] = None,
 ) -> dict[str, Any]:
     """Normalize a single search leg for generic request building."""
+    origin_list = [origin] if isinstance(origin, str) else list(origin)
+    destination_list = [destination] if isinstance(destination, str) else list(destination)
+    if not origin_list:
+        raise ValueError("origin must not be empty")
+    if not destination_list:
+        raise ValueError("destination must not be empty")
     return {
-        "origin": [origin] if isinstance(origin, str) else origin,
-        "destination": [destination] if isinstance(destination, str) else destination,
+        "origin": origin_list,
+        "destination": destination_list,
         "date": date,
         "max_stops": max_stops,
         "airlines": sorted(airlines) if airlines else None,

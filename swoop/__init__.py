@@ -135,8 +135,8 @@ def _validate_leg_search_inputs(
     validate_adults(passengers.adults)
 
     for idx, leg in enumerate(legs):
-        validate_iata_codes(leg.from_airport, f"legs[{idx}].from_airport")
-        validate_iata_codes(leg.to_airport, f"legs[{idx}].to_airport")
+        validate_iata_codes(leg._from_airports, f"legs[{idx}].from_airport")
+        validate_iata_codes(leg._to_airports, f"legs[{idx}].to_airport")
         validate_date(leg.date, f"legs[{idx}].date")
 
     if leg_time_windows:
@@ -211,8 +211,8 @@ def search_legs(
 
     request_legs = [
         _normalize_rpc_leg(
-            leg.from_airport,
-            leg.to_airport,
+            leg._from_airports,
+            leg._to_airports,
             leg.date,
             max_stops=leg.max_stops,
             airlines=list(leg.airlines) if leg.airlines else None,
